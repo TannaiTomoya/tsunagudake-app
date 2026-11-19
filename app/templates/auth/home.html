@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ heading }}｜つなぐだけ{% endblock %}
+{% block content %}
+<h1>{{ heading }}</h1>
+<form method="post" action="{{ url_for('auth.logout') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit">ログアウト</button>
+</form>
+{% endblock %}

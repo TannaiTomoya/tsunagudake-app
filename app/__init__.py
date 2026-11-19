@@ -5,6 +5,7 @@ from typing import Any
 
 from flask import Flask
 
+from app.cli import init_cli
 from app.config import load_config, validate_config
 from app.extensions import csrf, db, login_manager, migrate
 from app.security import init_security
@@ -23,7 +24,12 @@ def create_app(config: Mapping[str, Any] | None = None) -> Flask:
     csrf.init_app(app)
     init_security(app)
 
+    from app.blueprints.auth import bp as auth_bp
     from app.blueprints.public import bp
 
+    login_manager.login_view = "auth.login"
+    login_manager.login_message = None
     app.register_blueprint(bp)
+    app.register_blueprint(auth_bp)
+    init_cli(app)
     return app
