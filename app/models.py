@@ -1,6 +1,7 @@
 from datetime import UTC, date, datetime
 from enum import StrEnum
 from secrets import token_hex
+from zoneinfo import ZoneInfo
 
 from flask_login import UserMixin
 from sqlalchemy import (
@@ -22,6 +23,10 @@ from tsunagu_rules.types import NeedKind
 
 def utc_now() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
+
+
+def today_in_japan() -> date:
+    return datetime.now(ZoneInfo("Asia/Tokyo")).date()
 
 
 class Role(StrEnum):
@@ -179,9 +184,10 @@ class ItTask(StrEnum):
     TRAINING = "training"
 
 
-def stored_enum[T: StrEnum](kind: type[T]) -> Enum:
+def stored_enum[T: StrEnum](kind: type[T], *, name: str | None = None) -> Enum:
     return Enum(
         kind,
+        name=name or kind.__name__.lower(),
         native_enum=False,
         length=20,
         values_callable=lambda items: [item.value for item in items],
@@ -419,3 +425,93 @@ class LedgerRecord(Created, Base):
     prev_hash: Mapped[str] = mapped_column(String(64))
     entry_hash: Mapped[str] = mapped_column(String(64))
     actor_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+
+
+class VisitStatus(StrEnum):
+    RECORDED = "recorded"
+    CONFIRMED = "confirmed"
+    DISPUTED = "disputed"
+
+
+class ReductionStatus(StrEnum):
+    DRAFT = "draft"
+    CONFIRMED = "confirmed"
+
+
+class StatementStatus(StrEnum):
+    DRAFT = "draft"
+    FINALIZED = "finalized"
+
+
+class Visit(Created, Base):
+    __tablename__ = "visits"
+    __table_args__ = (
+        UniqueConstraint("engagement_id", "visit_date"),
+        CheckConstraint("minutes BETWEEN 15 AND 600", name="visit_minutes_range"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    engagement_id: Mapped[int] = mapped_column(ForeignKey("engagements.id"))
+    visit_date: Mapped[date]
+    minutes: Mapped[int]
+    category: Mapped[NeedKind] = mapped_column(
+        stored_enum(NeedKind, name="visit_category")
+    )
+    note: Mapped[str | None] = mapped_column(String(300))
+    status: Mapped[VisitStatus] = mapped_column(
+        stored_enum(VisitStatus), default=VisitStatus.RECORDED
+    )
+    confirmed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    confirmed_at: Mapped[datetime | None]
+    updated_at: Mapped[datetime] = mapped_column(default=utc_now, onupdate=utc_now)
+
+
+class Reduction(Created, Base):
+    __tablename__ = "reductions"
+    __table_args__ = (
+        UniqueConstraint("engagement_id", "month", "category"),
+        CheckConstraint(
+            "before_hours BETWEEN 0 AND 400", name="reduction_before_range"
+        ),
+        CheckConstraint("after_hours BETWEEN 0 AND 400", name="reduction_after_range"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    engagement_id: Mapped[int] = mapped_column(ForeignKey("engagements.id"))
+    month: Mapped[str] = mapped_column(String(7))
+    category: Mapped[NeedKind] = mapped_column(
+        stored_enum(NeedKind, name="reduction_category")
+    )
+    before_hours: Mapped[int]
+    after_hours: Mapped[int]
+    status: Mapped[ReductionStatus] = mapped_column(
+        stored_enum(ReductionStatus), default=ReductionStatus.DRAFT
+    )
+    confirmed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    confirmed_at: Mapped[datetime | None]
+    updated_at: Mapped[datetime] = mapped_column(default=utc_now, onupdate=utc_now)
+
+
+class Statement(Created, Base):
+    __tablename__ = "statements"
+    __table_args__ = (
+        UniqueConstraint("engagement_id", "month"),
+        CheckConstraint(
+            "fee_yen >= 0 AND fee_yen * 2 <= value_yen", name="statement_fee_range"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    engagement_id: Mapped[int] = mapped_column(ForeignKey("engagements.id"))
+    month: Mapped[str] = mapped_column(String(7))
+    reduced_hours: Mapped[int]
+    hourly_rate_yen: Mapped[int]
+    fee_share_bp: Mapped[int]
+    fee_cap_yen: Mapped[int | None]
+    value_yen: Mapped[int]
+    fee_yen: Mapped[int]
+    waived: Mapped[bool]
+    rules_version: Mapped[str] = mapped_column(String(20))
+    status: Mapped[StatementStatus] = mapped_column(stored_enum(StatementStatus))
+    finalized_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    finalized_at: Mapped[datetime | None]

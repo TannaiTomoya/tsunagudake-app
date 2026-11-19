@@ -10,8 +10,14 @@ from wtforms import IntegerField, SelectField  # type: ignore[import-untyped]
 from wtforms.fields.choices import SelectChoice  # type: ignore[import-untyped]
 from wtforms.validators import InputRequired, NumberRange, Optional  # type: ignore[import-untyped]
 
-from app.authz import require_need, require_office
+from app.authz import (
+    require_need,
+    require_office,
+    require_office_engagement,
+    require_talent_engagement,
+)
 from app.blueprints.needs import CATEGORIES, WEEKDAYS
+from app.blueprints.statements import activity_for
 from app.extensions import db
 from app.models import (
     CandidateStatus,
@@ -228,7 +234,7 @@ def answer_invitation(candidate_id: int, answer: str) -> ResponseReturnValue:
     return redirect(url_for("auth.talent_home"))
 
 
-def _engagement_page(engagement: Engagement) -> str:
+def _engagement_page(engagement: Engagement, *, office_side: bool) -> str:
     need = db.session.scalar(
         select(Need).where(
             Need.id == engagement.need_id,
@@ -242,6 +248,8 @@ def _engagement_page(engagement: Engagement) -> str:
         engagement=engagement,
         need=need,
         weekdays=dict(WEEKDAYS),
+        activity=activity_for(engagement, office_side=office_side),
+        categories=CATEGORIES,
         ledger=[
             (row, json.loads(row.payload)["data"]) for row in records_for_need(need)
         ],
@@ -251,32 +259,12 @@ def _engagement_page(engagement: Engagement) -> str:
 @bp.get("/o/<int:office_id>/engagements/<int:engagement_id>")
 @login_required  # type: ignore[untyped-decorator]
 def office_engagement(office_id: int, engagement_id: int) -> str:
-    office = require_office(office_id)
-    engagement = db.session.scalar(
-        select(Engagement).where(
-            Engagement.office_id == office.id,
-            Engagement.id == engagement_id,
-        )
+    return _engagement_page(
+        require_office_engagement(office_id, engagement_id), office_side=True
     )
-    if engagement is None:
-        abort(404)
-    return _engagement_page(engagement)
 
 
 @bp.get("/t/engagements/<int:engagement_id>")
 @login_required  # type: ignore[untyped-decorator]
 def talent_engagement(engagement_id: int) -> str:
-    user = _actor()
-    if user.role != Role.TSUNAGITE:
-        abort(404)
-    engagement = db.session.scalar(
-        select(Engagement)
-        .join(Talent)
-        .where(
-            Engagement.id == engagement_id,
-            Talent.user_id == user.id,
-        )
-    )
-    if engagement is None:
-        abort(404)
-    return _engagement_page(engagement)
+    return _engagement_page(require_talent_engagement(engagement_id), office_side=False)

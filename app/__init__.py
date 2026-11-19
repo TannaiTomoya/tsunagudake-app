@@ -36,5 +36,8 @@ def create_app(config: Mapping[str, Any] | None = None) -> Flask:
 
     app.register_blueprint(needs_bp)
     app.register_blueprint(matching_bp)
+    from app.blueprints.statements import bp as statements_bp
+
+    app.register_blueprint(statements_bp)
     init_cli(app)
     return app

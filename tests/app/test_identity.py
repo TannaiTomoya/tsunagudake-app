@@ -1,5 +1,6 @@
 import os
 import re
+from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from threading import Barrier
@@ -29,12 +30,16 @@ from app.models import (
     Need,
     Office,
     OfficeMember,
+    Reduction,
     Role,
+    Statement,
     Talent,
     TravelTime,
     TrustItem,
     TrustKind,
     User,
+    Visit,
+    today_in_japan,
 )
 
 PASSWORD = "fixture passphrase only"
@@ -555,11 +560,12 @@ def test_t22_staff_cannot_invite(identity_app: Flask) -> None:
     )
 
 
-def test_t33_mysql_concurrent_invitations(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.fixture
+def mysql_identity_app(monkeypatch: pytest.MonkeyPatch) -> Iterator[Flask]:
     url = make_url(os.environ.get("TEST_DATABASE_URL") or "sqlite://")
     if url.get_backend_name() != "mysql":
         pytest.skip("MySQL のテスト DB が必要です。")
-    schema = f"tsunagudake_t33_{uuid4().hex}"
+    schema = f"tsunagudake_test_{uuid4().hex}"
     engine = create_engine(url)
     with engine.begin() as conn:
         conn.execute(CreateSchema(schema))
@@ -567,33 +573,205 @@ def test_t33_mysql_concurrent_invitations(monkeypatch: pytest.MonkeyPatch) -> No
         monkeypatch.setenv("APP_ENV", "test")
         app = create_app({"SQLALCHEMY_DATABASE_URI": url.set(database=schema)})
         _seed_identity(app)
-        _seed_candidates(app)
-        office = app.test_client()
-        assert sign_in(office, "office@example.org") == 302
-        _, match_path = _publish_and_generate(office)
-        candidate_ids = [row[0] for row in _ranks(app)[:2]]
-        barrier = Barrier(2, timeout=10)
-
-        def send(candidate_id: int) -> int:
-            client = app.test_client()
-            assert sign_in(client, "office@example.org") == 302
-            csrf = token(client, match_path)
-            barrier.wait()
-            return client.post(
-                f"{match_path}/{candidate_id}/invite", data=_offer_data(csrf)
-            ).status_code
-
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            assert sorted(pool.map(send, candidate_ids)) == [302, 409]
-        with app.app_context():
-            invited = db.session.scalars(
-                select(MatchCandidate).where(
-                    MatchCandidate.status == CandidateStatus.INVITED
-                )
-            ).all()
-            assert len(invited) == 1
-            db.engine.dispose()
+        try:
+            yield app
+        finally:
+            with app.app_context():
+                db.engine.dispose()
     finally:
         with engine.begin() as conn:
             conn.execute(DropSchema(schema))
         engine.dispose()
+
+
+def test_t33_mysql_concurrent_invitations(mysql_identity_app: Flask) -> None:
+    app = mysql_identity_app
+    _seed_candidates(app)
+    office = app.test_client()
+    assert sign_in(office, "office@example.org") == 302
+    _, match_path = _publish_and_generate(office)
+    candidate_ids = [row[0] for row in _ranks(app)[:2]]
+    barrier = Barrier(2, timeout=10)
+
+    def send(candidate_id: int) -> int:
+        client = app.test_client()
+        assert sign_in(client, "office@example.org") == 302
+        csrf = token(client, match_path)
+        barrier.wait()
+        return client.post(
+            f"{match_path}/{candidate_id}/invite", data=_offer_data(csrf)
+        ).status_code
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        assert sorted(pool.map(send, candidate_ids)) == [302, 409]
+    with app.app_context():
+        invited = db.session.scalars(
+            select(MatchCandidate).where(
+                MatchCandidate.status == CandidateStatus.INVITED
+            )
+        ).all()
+        assert len(invited) == 1
+
+
+@pytest.fixture(params=["identity_app", "mysql_identity_app"], ids=["sqlite", "mysql"])
+def activity_app(request: pytest.FixtureRequest) -> Flask:
+    app = request.getfixturevalue(request.param)
+    assert isinstance(app, Flask)
+    return app
+
+
+def _agree(app: Flask) -> tuple[FlaskClient, FlaskClient, str, str]:
+    _seed_candidates(app)
+    office = app.test_client()
+    assert sign_in(office, "office@example.org") == 302
+    _, match_path = _publish_and_generate(office)
+    candidate_id = _ranks(app)[0][0]
+    invitation = f"{match_path}/{candidate_id}/invite"
+    assert (
+        office.post(invitation, data=_offer_data(token(office, match_path))).status_code
+        == 302
+    )
+    talent = app.test_client()
+    assert sign_in(talent, "tsunagite@example.org") == 302
+    response = talent.post(
+        f"/t/invitations/{candidate_id}/accept",
+        data={"csrf_token": token(talent, "/t/")},
+    )
+    assert response.status_code == 302
+    talent_path = response.headers["Location"]
+    return office, talent, talent_path.replace("/t/", "/o/1/", 1), talent_path
+
+
+def test_t28_confirmed_visit_is_immutable_and_counted(activity_app: Flask) -> None:
+    office, talent, office_path, talent_path = _agree(activity_app)
+    visit_path = talent_path + "/visits/new"
+    assert "顧問先の名前と金額を書かない" in talent.get(visit_path).get_data(
+        as_text=True
+    )
+    today = today_in_japan()
+    visit = {
+        "csrf_token": token(talent, visit_path),
+        "day": today.isoformat(),
+        "minutes": "60",
+        "category": "collect",
+        "note": "架空の記録",
+    }
+    assert (
+        talent.post(
+            visit_path, data={**visit, "day": (today + timedelta(days=1)).isoformat()}
+        ).status_code
+        == 409
+    )
+    assert talent.post(visit_path, data=visit).status_code == 302
+    assert talent.post(visit_path, data=visit).status_code == 409
+    assert "0回" in talent.get("/t/").get_data(as_text=True)
+    with activity_app.app_context():
+        row = db.session.scalar(select(Visit))
+        assert row is not None
+        visit_id = row.id
+    edit = f"{talent_path}/visits/{visit_id}/edit"
+    assert talent.post(edit, data={**visit, "minutes": "75"}).status_code == 302
+    assert (
+        office.post(
+            f"{office_path}/visits/{visit_id}/confirm",
+            data={"csrf_token": token(office, office_path)},
+        ).status_code
+        == 302
+    )
+    assert "1回" in talent.get("/t/").get_data(as_text=True)
+    assert talent.post(edit, data=visit).status_code == 409
+    assert "75分" in office.get(office_path).get_data(as_text=True)
+
+
+def test_t22_t27_finalize_confirmed_hours_once(
+    activity_app: Flask, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "app.services.ledger.utc_now", lambda: datetime(2030, 1, 1, 0, 0, 0, 900000)
+    )
+    office, talent, office_path, _ = _agree(activity_app)
+    month = today_in_japan().strftime("%Y-%m")
+    csrf = token(office, office_path)
+    reduction = {
+        "csrf_token": csrf,
+        "month": month,
+        "category": "collect",
+        "before": "30",
+        "after": "10",
+    }
+    endpoint = f"{office_path}/statements/{month}/finalize"
+    assert office.post(endpoint, data={"csrf_token": csrf}).status_code == 409
+    assert office.post(office_path + "/reductions", data=reduction).status_code == 302
+    assert office.post(endpoint, data={"csrf_token": csrf}).status_code == 409
+    with activity_app.app_context():
+        row = db.session.scalar(select(Reduction))
+        assert row is not None
+        reduction_id = row.id
+        member = db.session.scalar(select(OfficeMember))
+        assert member is not None
+        member.member_role = MemberRole.STAFF
+        db.session.commit()
+    confirm = f"{office_path}/reductions/{reduction_id}/confirm"
+    assert office.post(confirm, data={"csrf_token": csrf}).status_code == 403
+    assert office.post(endpoint, data={"csrf_token": csrf}).status_code == 403
+    assert (
+        talent.post(endpoint, data={"csrf_token": token(talent, "/t/")}).status_code
+        == 404
+    )
+    assert (
+        office.post(
+            endpoint.replace("/o/1/", "/o/2/"), data={"csrf_token": csrf}
+        ).status_code
+        == 404
+    )
+    with activity_app.app_context():
+        member = db.session.scalar(select(OfficeMember))
+        assert member is not None
+        member.member_role = MemberRole.OWNER
+        db.session.commit()
+    assert office.post(confirm, data={"csrf_token": csrf}).status_code == 302
+    assert office.post(office_path + "/reductions", data=reduction).status_code == 409
+    for _ in range(2):
+        assert office.post(endpoint, data={"csrf_token": csrf}).status_code == 302
+    page = office.get(office_path + f"?month={month}").get_data(as_text=True)
+    assert "確定済みの明細" in page
+    assert "<strong>32,000円</strong>" in page
+    assert "20時間 × 4,000円 ＝ 80,000円" in page
+    with activity_app.app_context():
+        statements = db.session.scalars(select(Statement)).all()
+        assert len(statements) == 1 and statements[0].fee_yen == 32000
+        entries = db.session.scalars(
+            select(LedgerRecord).where(LedgerRecord.kind == "statement_finalized")
+        ).all()
+        assert len(entries) == 1
+    result = activity_app.test_cli_runner().invoke(args=["verify-ledger"])
+    assert result.exit_code == 0, result.output
+
+    zero_month = (today_in_japan().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+    assert (
+        office.post(
+            office_path + "/reductions",
+            data={**reduction, "month": zero_month, "before": "0", "after": "0"},
+        ).status_code
+        == 302
+    )
+    with activity_app.app_context():
+        zero = db.session.scalar(select(Reduction).where(Reduction.month == zero_month))
+        assert zero is not None
+        zero_id = zero.id
+    assert (
+        office.post(
+            f"{office_path}/reductions/{zero_id}/confirm", data={"csrf_token": csrf}
+        ).status_code
+        == 302
+    )
+    assert (
+        office.post(
+            f"{office_path}/statements/{zero_month}/finalize", data={"csrf_token": csrf}
+        ).status_code
+        == 302
+    )
+    zero_page = office.get(office_path + f"?month={zero_month}").get_data(as_text=True)
+    assert (
+        "<strong>0円</strong>" in zero_page and "減らなかったので0円です。" in zero_page
+    )
