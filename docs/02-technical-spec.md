@@ -96,7 +96,7 @@ tsunagudake-app/
 │  ├─ audit.py             # 監査記録
 │  ├─ ratelimit.py         # 回数制限
 │  ├─ security.py          # Host の確認・応答ヘッダー（CSP など）
-│  ├─ cli.py               # flask create-user / seed-demo / reset-demo / verify-ledger / build-region-stats
+│  ├─ cli.py               # flask create-user / seed-demo / reset-demo / verify-ledger
 │  ├─ blueprints/
 │  │  ├─ public.py         # / ・ /how ・ /healthz
 │  │  ├─ auth.py           # /login ・ /logout ・（demo）/demo/enter
