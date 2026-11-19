@@ -68,6 +68,9 @@
   </tbody>
   <tfoot><tr><th scope="row">料金</th><td data-numeric><strong>{{ "{:,}".format(activity.fee.fee_yen) }}円</strong></td></tr></tfoot>
 </table></div>
+{% if activity.statement and activity.statement.returned_to %}
+<p>戻った先：{{ activity.statement.returned_to }}</p>
+{% endif %}
 {% if activity.fee.waived and (activity.finalized or (activity.reductions and not activity.reductions | selectattr("status", "equalto", "draft") | list)) %}
 <p>減らなかったので0円です。</p>
 {% endif %}
@@ -78,7 +81,10 @@
 <p>確認待ちの時間をすべて確かめると明細を確定できます。</p>
 {% else %}
 <form method="post" action="{{ url_for('statements.statement_finalize', office_id=engagement.office_id, engagement_id=engagement.id, month=activity.month) }}">
-  {{ csrf() }}<button>明細を確定する</button>
+  {{ csrf() }}
+  <label for="returned_to">この時間は、何に戻りましたか（任意）</label>
+  <input id="returned_to" name="returned_to" type="text" maxlength="100">
+  <button>明細を確定する</button>
 </form>
 {% endif %}
 {% endif %}
