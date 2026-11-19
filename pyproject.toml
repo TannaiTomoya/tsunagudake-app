@@ -1,0 +1,44 @@
+[project]
+name = "tsunagudake"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+    "cryptography>=50.0.2",
+    "email-validator>=2.4.0",
+    "flask>=3.1,<3.2",
+    "flask-login>=0.6.3",
+    "flask-migrate>=4.1.0",
+    "flask-sqlalchemy>=3.1,<3.2",
+    "flask-wtf>=1.3.0",
+    "gunicorn>=27.0.1",
+    "pymysql>=1.2.4",
+    "python-dotenv>=1.2.4",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.1",
+    "pytest>=9.2.0",
+    "ruff>=0.17.5",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+target-version = "py314"
+extend-exclude = ["migrations", "*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.14"
+files = ["app", "tests"]
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["flask_login.*", "flask_migrate.*", "flask_wtf.*"]
+ignore_missing_imports = true
