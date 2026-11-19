@@ -1,0 +1,58 @@
+# ==== 秘密の設定（絶対に Git に入れない）====
+.env
+.env.*
+!.env.example
+*.env
+!deploy/env.example
+s3.env
+.my.cnf
+*.cnf
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+github_deploy_*
+*.htpasswd
+
+# ==== データ（開発の DB・アップロード・バックアップ）====
+instance/
+uploads/
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
+*.db
+*.sql
+*.sql.gz
+*.dump
+backup/
+*.tar.gz
+
+# ==== Python ====
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# ==== 手元の道具 ====
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+.claude/settings.local.json
+
+# ==== 入れるもの（消さないための覚え書き）====
+# uv.lock      … 入れる。全員と本番で同じ版にそろえるため
+# .flaskenv    … 入れる。FLASK_APP だけを書く（秘密は書かない）
+# .env.example … 入れる。項目の一覧（値は空）
+# .mcp.json    … 入れる。キーは書かず ${名前} で環境変数を指す
