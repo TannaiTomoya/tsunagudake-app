@@ -97,7 +97,11 @@ def _rank(
         )
     }
     routes[request.municipality, request.municipality] = 15
-    query = select(Talent, User).join(User, User.id == Talent.user_id)
+    query = (
+        select(Talent, User)
+        .join(User, User.id == Talent.user_id)
+        .where(User.is_demo.is_(office.is_demo))
+    )
     if only is not None:
         query = query.where(Talent.id == only)
     pool = []

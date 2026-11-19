@@ -76,3 +76,47 @@ def init_cli(app: Flask) -> None:
         if failures:
             raise click.ClickException("台帳の不一致: " + "、".join(failures))
         click.echo("台帳の検証が完了しました。")
+
+    def run_demo(*, reset: bool) -> None:
+        from sqlalchemy.exc import SQLAlchemyError
+
+        from app.services.demo import (
+            DemoError,
+            clear_demo,
+            demo_allowed,
+            demo_password,
+            seed_demo,
+        )
+
+        if not demo_allowed():
+            raise click.ClickException(
+                "デモ操作は demo・development 環境で実行してください。"
+            )
+        try:
+            password = demo_password()
+            if reset:
+                clear_demo()
+            created = seed_demo(password)
+            db.session.commit()
+        except DemoError as exc:
+            db.session.rollback()
+            raise click.ClickException(str(exc)) from None
+        except SQLAlchemyError:
+            db.session.rollback()
+            raise click.ClickException(
+                "デモを保存できませんでした。既存のデータとマイグレーションをご確認ください。"
+            ) from None
+        click.echo(
+            "デモを用意しました。" if created else "デモはすでに用意されています。"
+        )
+
+    @app.cli.command("seed-demo")
+    def seed_demo_command() -> None:
+        run_demo(reset=False)
+
+    @app.cli.command("reset-demo")
+    @click.option("--yes", is_flag=True, help="既存のデモデータを初期化します。")
+    def reset_demo_command(yes: bool) -> None:
+        if not yes:
+            raise click.ClickException("デモの初期化には --yes を指定してください。")
+        run_demo(reset=True)

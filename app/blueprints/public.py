@@ -3,6 +3,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
+from tsunagu_rules.ledger import REQUIRED_BOUNDARIES
 
 bp = Blueprint("public", __name__)
 
@@ -20,3 +21,8 @@ def healthz() -> Response:
         db.session.rollback()
         return Response("unavailable", status=503, mimetype="text/plain")
     return Response("ok", mimetype="text/plain")
+
+
+@bp.get("/how")
+def how() -> str:
+    return render_template("public/how.html", boundaries=REQUIRED_BOUNDARIES)

@@ -39,5 +39,9 @@ def create_app(config: Mapping[str, Any] | None = None) -> Flask:
     from app.blueprints.statements import bp as statements_bp
 
     app.register_blueprint(statements_bp)
+    if app.config["APP_ENV"] in {"demo", "development"}:
+        from app.blueprints.demo import bp as demo_bp
+
+        app.register_blueprint(demo_bp)
     init_cli(app)
     return app

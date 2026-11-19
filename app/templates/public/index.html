@@ -2,5 +2,7 @@
 {% block content %}
 <h1>税理士は、判断するだけ。</h1>
 <p><a href="{{ url_for('auth.login') }}">ログイン</a></p>
+{% if config.APP_ENV in ("demo", "development") %}<p><a href="{{ url_for('demo.enter') }}">デモで入る</a></p>{% endif %}
+<p><a href="{{ url_for('public.how') }}">しくみを見る</a></p>
 <p>会計とITの両方がわかる人が、毎週、会計事務所を支えます。</p>
 {% endblock %}
