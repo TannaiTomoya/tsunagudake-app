@@ -12,6 +12,7 @@ from wtforms.validators import InputRequired, NumberRange, Optional  # type: ign
 
 from app.authz import (
     require_need,
+    require_need_office,
     require_office,
     require_office_engagement,
     require_talent_engagement,
@@ -134,7 +135,7 @@ def candidates(office_id: int, need_id: int) -> str:
 @bp.post("/o/<int:office_id>/needs/<int:need_id>/candidates")
 @login_required  # type: ignore[untyped-decorator]
 def run_match(office_id: int, need_id: int) -> ResponseReturnValue:
-    office = require_office(office_id, write=True)
+    office = require_need_office(office_id, need_id)
     try:
         generate(office, need_id, _actor().id)
     except MatchConflict as exc:
@@ -151,7 +152,7 @@ def run_match(office_id: int, need_id: int) -> ResponseReturnValue:
 )
 @login_required  # type: ignore[untyped-decorator]
 def invitation(office_id: int, need_id: int, candidate_id: int) -> ResponseReturnValue:
-    office = require_office(office_id, owner_only=True)
+    office = require_need_office(office_id, need_id, owner_only=True)
     try:
         if request.path.endswith("/cancel"):
             cancel(office, need_id, candidate_id, _actor().id)

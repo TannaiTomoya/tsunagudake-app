@@ -727,7 +727,7 @@ def test_t22_t27_finalize_confirmed_hours_once(
     assert office.post(endpoint, data={"csrf_token": csrf}).status_code == 403
     assert (
         talent.post(endpoint, data={"csrf_token": token(talent, "/t/")}).status_code
-        == 404
+        == 403
     )
     assert (
         office.post(

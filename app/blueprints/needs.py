@@ -10,7 +10,7 @@ from wtforms import IntegerField, SelectField, SelectMultipleField, TextAreaFiel
 from wtforms.fields.choices import SelectChoice  # type: ignore[import-untyped]
 from wtforms.validators import InputRequired, Length, NumberRange  # type: ignore[import-untyped]
 
-from app.authz import require_need, require_office
+from app.authz import require_need, require_need_office, require_office
 from app.extensions import db
 from app.models import (
     Engagement,
@@ -172,7 +172,7 @@ def new(office_id: int) -> ResponseReturnValue:
 @bp.route("/<int:need_id>/edit", methods=["GET", "POST"])
 @login_required  # type: ignore[untyped-decorator]
 def edit(office_id: int, need_id: int) -> ResponseReturnValue:
-    office = require_office(office_id, write=True)
+    office = require_need_office(office_id, need_id)
     need = require_need(office, need_id)
     if need.status not in EDITABLE:
         return _detail(office, need_id, "この困りごとは書き直せません。"), 409
@@ -218,7 +218,7 @@ def detail(office_id: int, need_id: int) -> str:
 @bp.post("/<int:need_id>/publish")
 @login_required  # type: ignore[untyped-decorator]
 def publish(office_id: int, need_id: int) -> ResponseReturnValue:
-    office = require_office(office_id, owner_only=True)
+    office = require_need_office(office_id, need_id, owner_only=True)
     try:
         publish_need(office, need_id, cast(User, current_user).id)
     except NeedConflict as exc:
@@ -229,7 +229,7 @@ def publish(office_id: int, need_id: int) -> ResponseReturnValue:
 @bp.post("/<int:need_id>/withdraw")
 @login_required  # type: ignore[untyped-decorator]
 def withdraw(office_id: int, need_id: int) -> ResponseReturnValue:
-    office = require_office(office_id, owner_only=True)
+    office = require_need_office(office_id, need_id, owner_only=True)
     try:
         withdraw_need(office, need_id, cast(User, current_user).id)
     except NeedConflict as exc:
