@@ -7,6 +7,8 @@
 {% if error %}<p role="alert">{{ error }}</p>{% endif %}
 <p>{{ need.body }}</p>
 <p>来てほしい曜日 {% for label in weekdays %}{{ label }} {% endfor %}</p>
+{% if need.status == "published" or need.status == "engaged" %}<p><a href="{{ url_for('matching.candidates', office_id=office.id, need_id=need.id) }}">候補と理由を見る</a></p>{% endif %}
+{% if engagement_id %}<p><a href="{{ url_for('matching.office_engagement', office_id=office.id, engagement_id=engagement_id) }}">伴走と境界線台帳を見る</a></p>{% endif %}
 <h2>翻訳の結果</h2>
 {% if need.block_reason %}
 <p role="alert">税理士業務にあたる可能性があるため公開できません。判断に使った言葉は「{{ need.block_reason }}」です。</p>
@@ -42,4 +44,5 @@
   <button type="submit">{{ "取り下げる" if need.status == "published" else "公開する" }}</button>
 </form>
 {% endif %}
+{% if ledger %}<h2>境界線台帳</h2>{% include "matching/ledger.html" %}{% endif %}
 {% endblock %}

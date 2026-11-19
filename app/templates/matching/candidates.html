@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}候補と理由｜つなぐだけ{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('needs.detail', office_id=office.id, need_id=need.id) }}">困りごとに戻る</a></p>
+<h1>候補と理由</h1>
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+{% if writable and not pending %}
+<form method="post" action="{{ url_for('matching.run_match', office_id=office.id, need_id=need.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit">{{ "候補を出し直す" if run else "候補を出す" }}</button>
+</form>
+{% endif %}
+{% if run %}
+  {% if candidates %}
+  <div class="overflow-auto"><table>
+    <thead><tr><th scope="col">順位</th><th scope="col">表示名</th><th scope="col">簿記</th><th scope="col">理由</th><th scope="col">点数</th><th scope="col">状態</th></tr></thead>
+    <tbody>{% for candidate, talent, name, town in candidates %}
+    <tr>
+      <td>{{ candidate.rank }}</td><td>{{ name }}（{{ town }}）</td>
+      <td>{{ talent.bookkeeping_level ~ "級" if talent.level_verified_at and talent.bookkeeping_level != "none" else "—" }}</td>
+      <td><ul>{% for reason in candidate.reasons %}<li>{{ reason }}</li>{% endfor %}</ul></td>
+      <td>{{ candidate.score }}</td><td>{{ labels[candidate.status] }}</td>
+    </tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p>条件に合う人が、今はいません。</p>{% endif %}
+  {% if run.excluded_summary %}
+  <h2>候補から外れた理由</h2>
+  <ul>{% for reason, count in run.excluded_summary.items() %}<li>{{ exclusions[reason] }} {{ count }}人</li>{% endfor %}</ul>
+  {% endif %}
+{% else %}<p>候補はまだ計算されていません。</p>{% endif %}
+{% if owner and writable %}
+  {% for candidate, talent, name, town in candidates %}
+    {% if candidate.status == "listed" and not pending %}
+    <details>
+      <summary>{{ name }}さんに声をかける</summary>
+      <form method="post" action="{{ url_for('matching.invitation', office_id=office.id, need_id=need.id, candidate_id=candidate.id) }}">
+        {{ offer_form.hidden_tag() }}
+        {{ offer_form.weekday.label }} {{ offer_form.weekday() }}
+        {{ offer_form.share_bp.label }} {{ offer_form.share_bp(min=1, max=4999, required=true) }}
+        {{ offer_form.cap_yen.label }} {{ offer_form.cap_yen(min=0) }}
+        <button type="submit">声をかける</button>
+      </form>
+    </details>
+    {% elif candidate.status == "invited" %}
+    <form method="post" action="{{ url_for('matching.cancel_invitation', office_id=office.id, need_id=need.id, candidate_id=candidate.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="secondary outline">{{ name }}さんへの声かけを取り消す</button>
+    </form>
+    {% endif %}
+  {% endfor %}
+{% endif %}
+{% endblock %}

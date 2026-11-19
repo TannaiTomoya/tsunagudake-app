@@ -15,6 +15,7 @@ from app.models import (
     TranslationSource,
     utc_now,
 )
+from app.services.ledger import append_record
 from tsunagu_rules import RULES_VERSION
 from tsunagu_rules.translation import load_dictionary, translate
 from tsunagu_rules.types import NeedKind, Pattern
@@ -120,6 +121,9 @@ def publish_need(office: Office, need_id: int, actor_id: int) -> None:
     need.published_by = actor_id
     need.published_at = utc_now()
     need.value_yen_month = need.monthly_hours * office.hourly_rate_yen
+    append_record(
+        need, "published", actor_id, {"value_yen_month": need.value_yen_month}
+    )
     record_audit(
         "need_published",
         actor_id=actor_id,

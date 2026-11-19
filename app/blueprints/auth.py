@@ -11,7 +11,8 @@ from wtforms import EmailField, PasswordField  # type: ignore[import-untyped]
 from wtforms.validators import InputRequired, Length  # type: ignore[import-untyped]
 
 from app.authz import require_municipality, require_office
-from app.blueprints.needs import STATUSES
+from app.blueprints.matching import talent_activity
+from app.blueprints.needs import STATUSES, WEEKDAYS
 from app.extensions import db
 from app.models import (
     Municipality,
@@ -25,6 +26,7 @@ from app.models import (
 )
 from app.services.auth import authenticate
 from app.services.trust import trust_statuses
+from tsunagu_rules.ledger import REQUIRED_BOUNDARIES
 
 bp = Blueprint("auth", __name__)
 
@@ -116,6 +118,7 @@ def talent_home() -> str:
     if user.role != Role.TSUNAGITE:
         abort(404)
     talent = db.session.scalar(select(Talent).where(Talent.user_id == user.id))
+    invitations, engagements = talent_activity(user.id)
     today = datetime.now(ZoneInfo("Asia/Tokyo")).date()
     return render_template(
         "auth/talent_home.html",
@@ -125,6 +128,10 @@ def talent_home() -> str:
         today=today,
         # 訪問の記録は段階7で追加し、確認済みの行をここで集計します。
         confirmed_visits=0,
+        invitations=invitations,
+        weekday_names=dict(WEEKDAYS),
+        boundaries=REQUIRED_BOUNDARIES,
+        engagements=engagements,
     )
 
 

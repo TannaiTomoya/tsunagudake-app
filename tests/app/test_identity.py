@@ -1,24 +1,37 @@
+import os
 import re
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
+from threading import Barrier
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import pytest
 from flask import Flask
 from flask.testing import FlaskClient
-from sqlalchemy import select
+from sqlalchemy import create_engine, select
+from sqlalchemy.engine import make_url
+from sqlalchemy.schema import CreateSchema, DropSchema
 
 from app import create_app
 from app.extensions import db
 from app.models import (
     AuditLog,
     BookkeepingLevel,
+    CandidateStatus,
+    Engagement,
+    LedgerRecord,
+    MatchCandidate,
+    MatchRun,
     MemberRole,
     Municipality,
     MunicipalityMember,
+    Need,
     Office,
     OfficeMember,
     Role,
     Talent,
+    TravelTime,
     TrustItem,
     TrustKind,
     User,
@@ -31,6 +44,11 @@ PASSWORD = "fixture passphrase only"
 def identity_app(monkeypatch: pytest.MonkeyPatch) -> Flask:
     monkeypatch.setenv("APP_ENV", "test")
     app = create_app({"SQLALCHEMY_DATABASE_URI": "sqlite://"})
+    _seed_identity(app)
+    return app
+
+
+def _seed_identity(app: Flask) -> None:
     with app.app_context():
         db.create_all()
         for index, role in enumerate(Role, start=1):
@@ -67,7 +85,6 @@ def identity_app(monkeypatch: pytest.MonkeyPatch) -> Flask:
             ]
         )
         db.session.commit()
-    return app
 
 
 def token(client: FlaskClient, path: str) -> str:
@@ -365,3 +382,218 @@ def test_create_talent_profile_with_registered_municipality(
     page = client.get("/t/").get_data(as_text=True)
     assert "記録がありません" in page
     assert "候補に出る設定が無効です。" in page
+
+
+def _seed_candidates(app: Flask) -> None:
+    today = datetime.now(ZoneInfo("Asia/Tokyo")).date()
+    with app.app_context():
+        db.session.add(
+            TravelTime(from_municipality_id=2, to_municipality_id=1, minutes=70)
+        )
+        for index in range(6):
+            if index == 0:
+                user = db.session.get(User, 2)
+                assert user is not None
+                user.display_name = "架空候補0"
+            else:
+                user = User(
+                    email=f"talent{index}@example.org",
+                    display_name=f"架空候補{index}",
+                    role=Role.TSUNAGITE,
+                )
+                user.set_password(PASSWORD)
+                db.session.add(user)
+                db.session.flush()
+            talent = Talent(
+                user_id=user.id,
+                municipality_id=2 if index == 3 else 1,
+                weekdays_mask=2 if index == 4 else 1,
+                is_listed=True,
+                capacity=1,
+            )
+            db.session.add(talent)
+            db.session.flush()
+            for kind in TrustKind:
+                expired = index == 2 and kind == TrustKind.PLEDGE
+                db.session.add(
+                    TrustItem(
+                        talent_id=talent.id,
+                        kind=kind,
+                        valid_from=today - timedelta(days=366),
+                        expires_on=today + timedelta(days=-1 if expired else 1),
+                        recorded_by=4,
+                    )
+                )
+        db.session.commit()
+
+
+def _publish_and_generate(client: FlaskClient) -> tuple[str, str]:
+    path = _write_need(client, "/o/1/needs/new", "資料が集まらない。機密の本文です。")
+    assert (
+        client.post(
+            path + "/publish", data={"csrf_token": token(client, path)}
+        ).status_code
+        == 302
+    )
+    match_path = path + "/candidates"
+    assert (
+        client.post(
+            match_path, data={"csrf_token": token(client, match_path)}
+        ).status_code
+        == 302
+    )
+    return path, match_path
+
+
+def _offer_data(csrf: str) -> dict[str, str]:
+    return {"csrf_token": csrf, "weekday": "0", "share_bp": "4000", "cap_yen": "32000"}
+
+
+def _ranks(app: Flask) -> list[tuple[int, int, int, list[str]]]:
+    with app.app_context():
+        run = db.session.scalar(select(MatchRun).order_by(MatchRun.id.desc()).limit(1))
+        assert run is not None
+        candidates = db.session.scalars(
+            select(MatchCandidate)
+            .where(MatchCandidate.match_id == run.id)
+            .order_by(MatchCandidate.rank)
+        )
+        return [(row.id, row.talent_id, row.score, row.reasons) for row in candidates]
+
+
+def test_matching_invite_agreement_and_ledger(identity_app: Flask) -> None:
+    _seed_candidates(identity_app)
+    office = identity_app.test_client()
+    assert sign_in(office, "office@example.org") == 302
+    path, match_path = _publish_and_generate(office)
+    page = office.get(match_path).get_data(as_text=True)
+    for excluded in ("守秘の誓約 1人", "移動時間 1人", "曜日 1人"):
+        assert excluded in page
+    for name in ("架空候補2", "架空候補3", "架空候補4"):
+        assert name not in page
+    previous = _ranks(identity_app)
+    csrf = token(office, match_path)
+    assert office.post(match_path, data={"csrf_token": csrf}).status_code == 302
+    ranks = _ranks(identity_app)
+    assert [row[1:] for row in ranks] == [row[1:] for row in previous]
+    first, second, _ = [row[0] for row in ranks]
+    first_url = f"{match_path}/{first}/invite"
+    second_url = f"{match_path}/{second}/invite"
+    assert office.post(first_url, data=_offer_data(csrf)).status_code == 302
+    assert office.post(second_url, data=_offer_data(csrf)).status_code == 409
+    assert office.get(match_path.replace("/o/1/", "/o/2/")).status_code == 404
+    outsider = identity_app.test_client()
+    assert sign_in(outsider, "talent1@example.org") == 302
+    assert (
+        outsider.post(
+            f"/t/invitations/{first}/accept",
+            data={"csrf_token": token(outsider, "/t/")},
+        ).status_code
+        == 404
+    )
+    talent = identity_app.test_client()
+    assert sign_in(talent, "tsunagite@example.org") == 302
+    offer = talent.get("/t/").get_data(as_text=True)
+    assert "あなたへの声かけ" in offer and "資料回収" in offer
+    assert "機密の本文" not in offer
+    assert talent.get(path).status_code == 404
+    answer = f"/t/invitations/{first}/accept"
+    response = talent.post(answer, data={"csrf_token": token(talent, "/t/")})
+    assert response.status_code == 302
+    engagement_path = response.headers["Location"]
+    page = talent.get(engagement_path).get_data(as_text=True)
+    assert "機密の本文" in page and "顧問先の生データの持ち出し" in page
+    assert outsider.get(engagement_path).status_code == 404
+    assert (
+        talent.post(answer, data={"csrf_token": token(talent, "/t/")}).status_code
+        == 404
+    )
+    office_engagement = engagement_path.replace("/t/", "/o/1/")
+    assert office.get(office_engagement).status_code == 200
+    assert office.get(office_engagement.replace("/o/1/", "/o/2/")).status_code == 404
+    _, later_match_path = _publish_and_generate(office)
+    page = office.get(later_match_path).get_data(as_text=True)
+    assert "受け持ち上限 1人" in page and "架空候補0" not in page
+
+    runner = identity_app.test_cli_runner()
+    assert runner.invoke(args=["verify-ledger"]).exit_code == 0
+    with identity_app.app_context():
+        assert len(db.session.scalars(select(Engagement)).all()) == 1
+        chain = list(
+            db.session.scalars(
+                select(LedgerRecord)
+                .join(Need)
+                .where(Need.id == 1)
+                .order_by(LedgerRecord.seq)
+            )
+        )
+        assert [row.kind for row in chain] == ["published", "invited", "agreed"]
+        chain[-1].payload = chain[-1].payload.replace("持ち出し", "持出し")
+        db.session.commit()
+    result = runner.invoke(args=["verify-ledger"])
+    assert result.exit_code == 1 and "行 3" in result.output
+
+
+def test_t22_staff_cannot_invite(identity_app: Flask) -> None:
+    _seed_candidates(identity_app)
+    client = identity_app.test_client()
+    assert sign_in(client, "office@example.org") == 302
+    _, match_path = _publish_and_generate(client)
+    candidate, *_ = _ranks(identity_app)
+    csrf = token(client, match_path)
+    with identity_app.app_context():
+        member = db.session.scalar(select(OfficeMember))
+        assert member is not None
+        member.member_role = MemberRole.STAFF
+        db.session.commit()
+    assert client.get(match_path).status_code == 200
+    assert (
+        client.post(
+            f"{match_path}/{candidate[0]}/invite", data=_offer_data(csrf)
+        ).status_code
+        == 403
+    )
+
+
+def test_t33_mysql_concurrent_invitations(monkeypatch: pytest.MonkeyPatch) -> None:
+    url = make_url(os.environ.get("TEST_DATABASE_URL") or "sqlite://")
+    if url.get_backend_name() != "mysql":
+        pytest.skip("MySQL のテスト DB が必要です。")
+    schema = f"tsunagudake_t33_{uuid4().hex}"
+    engine = create_engine(url)
+    with engine.begin() as conn:
+        conn.execute(CreateSchema(schema))
+    try:
+        monkeypatch.setenv("APP_ENV", "test")
+        app = create_app({"SQLALCHEMY_DATABASE_URI": url.set(database=schema)})
+        _seed_identity(app)
+        _seed_candidates(app)
+        office = app.test_client()
+        assert sign_in(office, "office@example.org") == 302
+        _, match_path = _publish_and_generate(office)
+        candidate_ids = [row[0] for row in _ranks(app)[:2]]
+        barrier = Barrier(2, timeout=10)
+
+        def send(candidate_id: int) -> int:
+            client = app.test_client()
+            assert sign_in(client, "office@example.org") == 302
+            csrf = token(client, match_path)
+            barrier.wait()
+            return client.post(
+                f"{match_path}/{candidate_id}/invite", data=_offer_data(csrf)
+            ).status_code
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            assert sorted(pool.map(send, candidate_ids)) == [302, 409]
+        with app.app_context():
+            invited = db.session.scalars(
+                select(MatchCandidate).where(
+                    MatchCandidate.status == CandidateStatus.INVITED
+                )
+            ).all()
+            assert len(invited) == 1
+            db.engine.dispose()
+    finally:
+        with engine.begin() as conn:
+            conn.execute(DropSchema(schema))
+        engine.dispose()

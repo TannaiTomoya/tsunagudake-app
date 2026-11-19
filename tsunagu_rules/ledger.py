@@ -23,11 +23,11 @@ def with_required_boundaries(entry: LedgerEntry) -> LedgerEntry:
     return replace(entry, data={**entry.data, "not_do": boundaries})
 
 
-def append(prev_hash: str, entry: LedgerEntry) -> str:
+def canonical_payload(entry: LedgerEntry) -> str:
     entry = with_required_boundaries(entry)
     if entry.at.utcoffset() is None:
         raise ValueError("日時にはタイムゾーンが必要です。")
-    payload = json.dumps(
+    return json.dumps(
         {
             "actor": entry.actor,
             "at": entry.at.astimezone(UTC).isoformat(timespec="seconds"),
@@ -42,6 +42,10 @@ def append(prev_hash: str, entry: LedgerEntry) -> str:
         separators=(",", ":"),
         allow_nan=False,
     )
+
+
+def append(prev_hash: str, entry: LedgerEntry) -> str:
+    payload = canonical_payload(entry)
     return hashlib.sha256(f"{prev_hash}\n{payload}".encode()).hexdigest()
 
 
