@@ -57,12 +57,15 @@ def require_office(
 
 
 def require_municipality(code: str) -> Municipality:
-    user = require_role(Role.MUNICIPALITY)
-    municipality = db.session.scalar(
-        select(Municipality)
-        .join(MunicipalityMember)
-        .where(Municipality.code == code, MunicipalityMember.user_id == user.id)
-    )
+    user = cast(User, current_user)
+    query = select(Municipality).where(Municipality.code == code)
+    if user.role == Role.MUNICIPALITY:
+        query = query.join(MunicipalityMember).where(
+            MunicipalityMember.user_id == user.id
+        )
+    elif user.role != Role.ADMIN:
+        abort(404)
+    municipality = db.session.scalar(query)
     if municipality is None:
         abort(404)
     return municipality

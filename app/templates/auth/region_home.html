@@ -1,0 +1,38 @@
+{% extends "auth/home.html" %}
+{% macro metric(value, unit="") %}
+  {% if value is none %}―（少ないため表示しません）{% else %}{{ "{:,}".format(value) }}{{ unit }}{% endif %}
+{% endmacro %}
+{% macro metrics_row(label, metrics) %}
+<tr>
+  <th scope="row">{{ label }}</th>
+  <td data-numeric>{{ metric(metrics.offices) }}</td>
+  <td data-numeric>{{ metric(metrics.talents) }}</td>
+  <td data-numeric>{{ metric(metrics.corps_talents) }}</td>
+  <td data-numeric>{{ metric(metrics.visits) }}</td>
+  <td data-numeric>{{ metric(metrics.reduced_hours, "時間") }}</td>
+</tr>
+{% endmacro %}
+{% block content %}
+<h1>{{ heading }}の地域ダッシュボード</h1>
+<div class="overflow-auto">
+<table>
+  <thead><tr>
+    <th scope="col">地域</th><th scope="col" data-numeric>参加事務所</th>
+    <th scope="col" data-numeric>つなぎ手</th><th scope="col" data-numeric>うち地域おこし協力隊</th>
+    <th scope="col" data-numeric>確認済みの訪問</th><th scope="col" data-numeric>確かめた減った時間</th>
+  </tr></thead>
+  <tbody>{{ metrics_row(heading, dashboard.town) }}</tbody>
+  <tfoot>
+    {% if dashboard.total is not none %}
+      {{ metrics_row(region_group ~ "の合計", dashboard.total) }}
+    {% else %}
+      <tr><th scope="row">{{ region_group }}の合計</th><td colspan="5">{{ metric(none) }}</td></tr>
+    {% endif %}
+  </tfoot>
+</table>
+</div>
+<form method="post" action="{{ url_for('auth.logout') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit" class="secondary outline">ログアウト</button>
+</form>
+{% endblock %}

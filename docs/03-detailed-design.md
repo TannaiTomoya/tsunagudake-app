@@ -349,7 +349,7 @@ waived  = (reduced == 0)                             # このとき fee = 0
 | `TRAVEL_LIMIT_MINUTES` | 60 | M3 |
 | `TRIAL_DAYS` | 30 | お試しの長さ |
 | `PLEDGE_VALID_DAYS` | 365 | 誓約と研修の期限 |
-| `REGION_K_ANONYMITY` | 5 | 匿名の基準 |
+| `REGION_K_ANONYMITY` | 5 | 匿名の基準。5以上 |
 
 ## 6. 状態と遷移
 

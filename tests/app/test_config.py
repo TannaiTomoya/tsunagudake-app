@@ -62,3 +62,19 @@ def test_test_database_is_isolated() -> None:
         {"APP_ENV": "test", "DATABASE_URL": "sqlite:///development.db"}
     )
     assert config["SQLALCHEMY_DATABASE_URI"] == "sqlite:///:memory:"
+
+
+@pytest.mark.parametrize("value", ["4", "invalid", "5.5"])
+def test_region_threshold_rejects_unsafe_configuration(value: str) -> None:
+    with pytest.raises(ConfigError, match="REGION_K_ANONYMITY"):
+        load_config({"APP_ENV": "test", "REGION_K_ANONYMITY": value})
+
+
+def test_region_threshold_can_be_stricter() -> None:
+    assert load_config({"APP_ENV": "test"})["REGION_K_ANONYMITY"] == 5
+    assert (
+        load_config({"APP_ENV": "test", "REGION_K_ANONYMITY": "7"})[
+            "REGION_K_ANONYMITY"
+        ]
+        == 7
+    )

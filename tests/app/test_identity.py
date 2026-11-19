@@ -31,16 +31,20 @@ from app.models import (
     Office,
     OfficeMember,
     Reduction,
+    ReductionStatus,
     Role,
     Statement,
     Talent,
+    TalentAffiliation,
     TravelTime,
     TrustItem,
     TrustKind,
     User,
     Visit,
+    VisitStatus,
     today_in_japan,
 )
+from tsunagu_rules.types import NeedKind
 
 PASSWORD = "fixture passphrase only"
 
@@ -125,7 +129,7 @@ def test_t20_anonymous_redirect(identity_app: Flask, path: str) -> None:
         (Role.OFFICE, "/o/2/", 404),
         (Role.OFFICE, "/o/999/", 404),
         (Role.OFFICE, "/t/", 404),
-        (Role.OFFICE, "/r/90001/", 403),
+        (Role.OFFICE, "/r/90001/", 404),
         (Role.TSUNAGITE, "/o/1/", 404),
         (Role.TSUNAGITE, "/t/", 200),
         (Role.MUNICIPALITY, "/o/1/", 404),
@@ -614,7 +618,7 @@ def test_t33_mysql_concurrent_invitations(mysql_identity_app: Flask) -> None:
 
 
 @pytest.fixture(params=["identity_app", "mysql_identity_app"], ids=["sqlite", "mysql"])
-def activity_app(request: pytest.FixtureRequest) -> Flask:
+def database_app(request: pytest.FixtureRequest) -> Flask:
     app = request.getfixturevalue(request.param)
     assert isinstance(app, Flask)
     return app
@@ -642,8 +646,8 @@ def _agree(app: Flask) -> tuple[FlaskClient, FlaskClient, str, str]:
     return office, talent, talent_path.replace("/t/", "/o/1/", 1), talent_path
 
 
-def test_t28_confirmed_visit_is_immutable_and_counted(activity_app: Flask) -> None:
-    office, talent, office_path, talent_path = _agree(activity_app)
+def test_t28_confirmed_visit_is_immutable_and_counted(database_app: Flask) -> None:
+    office, talent, office_path, talent_path = _agree(database_app)
     visit_path = talent_path + "/visits/new"
     assert "顧問先の名前と金額を書かない" in talent.get(visit_path).get_data(
         as_text=True
@@ -665,7 +669,7 @@ def test_t28_confirmed_visit_is_immutable_and_counted(activity_app: Flask) -> No
     assert talent.post(visit_path, data=visit).status_code == 302
     assert talent.post(visit_path, data=visit).status_code == 409
     assert "0回" in talent.get("/t/").get_data(as_text=True)
-    with activity_app.app_context():
+    with database_app.app_context():
         row = db.session.scalar(select(Visit))
         assert row is not None
         visit_id = row.id
@@ -684,12 +688,12 @@ def test_t28_confirmed_visit_is_immutable_and_counted(activity_app: Flask) -> No
 
 
 def test_t22_t27_finalize_confirmed_hours_once(
-    activity_app: Flask, monkeypatch: pytest.MonkeyPatch
+    database_app: Flask, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
         "app.services.ledger.utc_now", lambda: datetime(2030, 1, 1, 0, 0, 0, 900000)
     )
-    office, talent, office_path, _ = _agree(activity_app)
+    office, talent, office_path, _ = _agree(database_app)
     month = today_in_japan().strftime("%Y-%m")
     csrf = token(office, office_path)
     reduction = {
@@ -703,7 +707,7 @@ def test_t22_t27_finalize_confirmed_hours_once(
     assert office.post(endpoint, data={"csrf_token": csrf}).status_code == 409
     assert office.post(office_path + "/reductions", data=reduction).status_code == 302
     assert office.post(endpoint, data={"csrf_token": csrf}).status_code == 409
-    with activity_app.app_context():
+    with database_app.app_context():
         row = db.session.scalar(select(Reduction))
         assert row is not None
         reduction_id = row.id
@@ -724,7 +728,7 @@ def test_t22_t27_finalize_confirmed_hours_once(
         ).status_code
         == 404
     )
-    with activity_app.app_context():
+    with database_app.app_context():
         member = db.session.scalar(select(OfficeMember))
         assert member is not None
         member.member_role = MemberRole.OWNER
@@ -737,14 +741,14 @@ def test_t22_t27_finalize_confirmed_hours_once(
     assert "確定済みの明細" in page
     assert "<strong>32,000円</strong>" in page
     assert "20時間 × 4,000円 ＝ 80,000円" in page
-    with activity_app.app_context():
+    with database_app.app_context():
         statements = db.session.scalars(select(Statement)).all()
         assert len(statements) == 1 and statements[0].fee_yen == 32000
         entries = db.session.scalars(
             select(LedgerRecord).where(LedgerRecord.kind == "statement_finalized")
         ).all()
         assert len(entries) == 1
-    result = activity_app.test_cli_runner().invoke(args=["verify-ledger"])
+    result = database_app.test_cli_runner().invoke(args=["verify-ledger"])
     assert result.exit_code == 0, result.output
 
     zero_month = (today_in_japan().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
@@ -755,7 +759,7 @@ def test_t22_t27_finalize_confirmed_hours_once(
         ).status_code
         == 302
     )
-    with activity_app.app_context():
+    with database_app.app_context():
         zero = db.session.scalar(select(Reduction).where(Reduction.month == zero_month))
         assert zero is not None
         zero_id = zero.id
@@ -775,3 +779,103 @@ def test_t22_t27_finalize_confirmed_hours_once(
     assert (
         "<strong>0円</strong>" in zero_page and "減らなかったので0円です。" in zero_page
     )
+
+
+def test_t16_t17_t24_region_dashboard(database_app: Flask) -> None:
+    _agree(database_app)
+    with database_app.app_context():
+        db.session.add_all(
+            Office(name=f"非公開架空事務所{number}", municipality_id=1)
+            for number in range(5)
+        )
+        db.session.add_all(
+            [
+                Office(name="非公開架空事務所・隣町", municipality_id=2),
+                Office(
+                    name="非公開架空事務所・休止", municipality_id=1, is_active=False
+                ),
+            ]
+        )
+        for talent in db.session.scalars(
+            select(Talent).where(Talent.municipality_id == 1)
+        ):
+            talent.affiliation = TalentAffiliation.KYORYOKUTAI
+        engagement = db.session.scalar(select(Engagement))
+        assert engagement is not None
+        day = today_in_japan()
+        for index, status in enumerate(
+            [VisitStatus.CONFIRMED] * 5 + [VisitStatus.RECORDED, VisitStatus.DISPUTED]
+        ):
+            db.session.add(
+                Visit(
+                    engagement_id=engagement.id,
+                    visit_date=day - timedelta(days=index),
+                    minutes=60,
+                    category=NeedKind.COLLECT,
+                    status=status,
+                    note="非公開の架空メモ",
+                )
+            )
+        db.session.add_all(
+            Reduction(
+                engagement_id=engagement.id,
+                month=day.strftime("%Y-%m"),
+                category=category,
+                before_hours=before,
+                after_hours=after,
+                status=status,
+            )
+            for category, before, after, status in (
+                (NeedKind.COLLECT, 30, 10, ReductionStatus.CONFIRMED),
+                (NeedKind.CHECK, 9, 2, ReductionStatus.CONFIRMED),
+                (NeedKind.ENTRY, 1, 7, ReductionStatus.CONFIRMED),
+                (NeedKind.REPORT, 50, 0, ReductionStatus.DRAFT),
+            )
+        )
+        db.session.commit()
+
+    town = database_app.test_client()
+    assert sign_in(town, "municipality@example.org") == 302
+    response = town.get("/r/90001/")
+    assert response.status_code == 200
+    page = response.get_data(as_text=True)
+    own_row = page.split("<tbody>")[1].split("</tbody>")[0]
+    cells = re.findall(r"<td data-numeric>(.*?)</td>", own_row, flags=re.S)
+    assert [cell.strip() for cell in cells] == ["6", "5", "5", "5", "27時間"]
+    assert "少ないため表示しません" in page.split("<tfoot>")[1]
+    for private in (
+        "架空町",
+        "架空事務所",
+        "架空候補",
+        "機密の本文",
+        "非公開の架空メモ",
+    ):
+        assert private not in page
+    assert town.get("/r/90002/").status_code == 404
+    for account in ("office", "tsunagite"):
+        outsider = database_app.test_client()
+        assert sign_in(outsider, f"{account}@example.org") == 302
+        assert outsider.get("/r/90001/").status_code == 404
+
+    admin = database_app.test_client()
+    assert sign_in(admin, "admin@example.org") == 302
+    response = admin.get("/r/90002/")
+    assert response.status_code == 200
+    page = response.get_data(as_text=True)
+    assert (
+        page.split("<tbody>")[1].split("</tbody>")[0].count("少ないため表示しません")
+        == 5
+    )
+    assert "少ないため表示しません" in page.split("<tfoot>")[1]
+
+    with database_app.app_context():
+        db.session.add_all(
+            Office(name=f"非公開架空事務所・隣町{number}", municipality_id=2)
+            for number in range(3)
+        )
+        db.session.commit()
+    page = town.get("/r/90001/").get_data(as_text=True)
+    total = page.split("<tfoot>")[1].split("</tfoot>")[0]
+    assert "架空広域の合計" in total
+    assert ">11<" in total.strip().replace(" ", "").replace("\n", "")
+    assert "架空町" not in page
