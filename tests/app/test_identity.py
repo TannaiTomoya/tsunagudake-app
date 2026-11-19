@@ -187,3 +187,87 @@ def test_create_user_prompts_for_password(identity_app: Flask) -> None:
     assert result.exit_code == 0, result.output
     assert PASSWORD not in result.output
     assert sign_in(identity_app.test_client(), "new@example.org") == 302
+
+
+def _write_need(client: FlaskClient, path: str, body: str, category: str = "") -> str:
+    response = client.post(
+        path,
+        data={
+            "csrf_token": token(client, path),
+            "body": body,
+            "monthly_hours": "30",
+            "weekdays": ["0", "2"],
+            "manual_kind": category,
+        },
+    )
+    assert response.status_code == 302, response.get_data(as_text=True)
+    return response.headers["Location"]
+
+
+def test_needs_demo_flow(identity_app: Flask) -> None:
+    client = identity_app.test_client()
+    assert sign_in(client, "office@example.org") == 302
+    assert "顧問先の名前と金額を書かないでください。" in client.get(
+        "/o/1/needs/new"
+    ).get_data(as_text=True)
+    path = _write_need(client, "/o/1/needs/new", "資料が集まらない。過去と見比べる。")
+    page = client.get(path).get_data(as_text=True)
+    for text in ("資料回収", "チェックと比較", "集まらない", "120,000円", "水曜"):
+        assert text in page
+    assert (
+        client.post(
+            path + "/publish", data={"csrf_token": token(client, path)}
+        ).status_code
+        == 302
+    )
+    assert client.get(path + "/edit").status_code == 409
+    with identity_app.app_context():
+        office = db.session.get(Office, 1)
+        assert office is not None
+        office.hourly_rate_yen = 5000
+        db.session.commit()
+    assert "120,000円" in client.get(path).get_data(as_text=True)
+    assert (
+        client.post(
+            path + "/withdraw", data={"csrf_token": token(client, path)}
+        ).status_code
+        == 302
+    )
+    assert "取り下げ済み" in client.get(path).get_data(as_text=True)
+
+
+def test_t25_block_precedes_manual_choice(identity_app: Flask) -> None:
+    client = identity_app.test_client()
+    assert sign_in(client, "office@example.org") == 302
+    path = _write_need(client, "/o/1/needs/new", "申告書の作成")
+    _write_need(client, path + "/edit", "申告書の作成", "collect")
+    assert "判断に使った言葉は「申告書の作成」" in client.get(path).get_data(
+        as_text=True
+    )
+    csrf = token(client, path + "/edit")
+    assert client.post(path + "/publish", data={"csrf_token": csrf}).status_code == 409
+    _write_need(client, path + "/edit", "やり方に困っています", "collect")
+    assert "手動で選択しました。" in client.get(path).get_data(as_text=True)
+    assert client.post(path + "/publish", data={"csrf_token": csrf}).status_code == 302
+
+
+def test_t21_t22_need_access(identity_app: Flask) -> None:
+    client = identity_app.test_client()
+    assert sign_in(client, "office@example.org") == 302
+    path = _write_need(client, "/o/1/needs/new", "資料が集まらない")
+    csrf = token(client, path + "/edit")
+    other = path.replace("/o/1/", "/o/2/", 1)
+    assert client.get(other).status_code == 404
+    assert client.post(other + "/publish", data={"csrf_token": csrf}).status_code == 404
+    with identity_app.app_context():
+        member = db.session.scalar(select(OfficeMember))
+        assert member is not None
+        member.member_role = MemberRole.STAFF
+        db.session.commit()
+    assert client.get(path).status_code == 200
+    assert client.post(path + "/publish", data={"csrf_token": csrf}).status_code == 403
+    assert client.post(path + "/withdraw", data={"csrf_token": csrf}).status_code == 403
+    admin = identity_app.test_client()
+    assert sign_in(admin, "admin@example.org") == 302
+    assert admin.get(path).status_code == 200
+    assert admin.get(path + "/edit").status_code == 403

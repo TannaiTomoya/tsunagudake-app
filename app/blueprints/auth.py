@@ -1,15 +1,18 @@
 from flask import Blueprint, redirect, render_template, session, url_for
-from flask_login import login_required, login_user, logout_user
+from flask_login import current_user, login_required, login_user, logout_user
 from flask_wtf import FlaskForm
+from sqlalchemy import select
 from werkzeug.wrappers import Response
 from wtforms import EmailField, PasswordField  # type: ignore[import-untyped]
 from wtforms.validators import InputRequired, Length  # type: ignore[import-untyped]
 
 from app.authz import require_municipality, require_office, require_role
+from app.blueprints.needs import STATUSES
 from app.extensions import db
 from app.models import (
     Municipality,
     MunicipalityMember,
+    Need,
     Office,
     OfficeMember,
     Role,
@@ -87,7 +90,17 @@ def account() -> str:
 @login_required  # type: ignore[untyped-decorator]
 def office_home(office_id: int) -> str:
     office = require_office(office_id)
-    return render_template("auth/home.html", heading=office.name)
+    items = db.session.scalars(
+        select(Need).where(Need.office_id == office.id).order_by(Need.id.desc())
+    ).all()
+    return render_template(
+        "needs/office.html",
+        heading=office.name,
+        office=office,
+        items=items,
+        statuses=STATUSES,
+        can_write=current_user.role == Role.OFFICE,
+    )
 
 
 @bp.get("/t/")

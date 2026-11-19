@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}困りごと｜つなぐだけ{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('auth.office_home', office_id=office.id) }}">事務所のホーム</a></p>
+<h1>困りごと</h1>
+<p>{{ status }}</p>
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+<p>{{ need.body }}</p>
+<p>来てほしい曜日 {% for label in weekdays %}{{ label }} {% endfor %}</p>
+<h2>翻訳の結果</h2>
+{% if need.block_reason %}
+<p role="alert">税理士業務にあたる可能性があるため公開できません。判断に使った言葉は「{{ need.block_reason }}」です。</p>
+{% elif rows %}
+<table>
+  <thead><tr><th scope="col">業務の型</th><th scope="col">ITの作業</th><th scope="col">根拠</th></tr></thead>
+  <tbody>
+    {% for row in rows %}
+    <tr><td>{{ categories[row.category] }}</td><td>{{ tasks[row.it_task] }}</td><td>{{ row.evidence }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>規則では訳せませんでした。型を選んでください。</p>
+{% endif %}
+<h2>月の価値 {{ "{:,}".format(estimate.monthly_value_yen) }}円</h2>
+<p>減らせる見込みです。約束ではありません。</p>
+<table>
+  <thead><tr><th scope="col">見込み</th><th scope="col">時間</th><th scope="col">価値</th></tr></thead>
+  <tbody>
+    {% for label in ["少なめ", "真ん中", "多め"] %}
+    <tr><th scope="row">{{ label }}</th><td>{{ estimate.projected_hours[loop.index0] }}時間</td><td>{{ "{:,}".format(estimate.projected_value_yen[loop.index0]) }}円</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% if editable %}
+<p><a href="{{ url_for('needs.edit', office_id=office.id, need_id=need.id) }}">{{ "型を選ぶ・書き直す" if not rows and not need.block_reason else "書き直す" }}</a></p>
+{% endif %}
+{% if owner and ((need.status == "draft" and rows) or need.status == "published") %}
+{% set action = "needs.withdraw" if need.status == "published" else "needs.publish" %}
+<form method="post" action="{{ url_for(action, office_id=office.id, need_id=need.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit">{{ "取り下げる" if need.status == "published" else "公開する" }}</button>
+</form>
+{% endif %}
+{% endblock %}

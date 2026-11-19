@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}困りごとを書く｜つなぐだけ{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('auth.office_home', office_id=office.id) }}">事務所のホーム</a></p>
+<h1>{{ "困りごとを直す" if need_id else "困りごとを書く" }}</h1>
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+<form method="post">
+  {{ form.hidden_tag() }}
+  {{ form.body.label }}
+  <small id="body-note">顧問先の名前と金額を書かないでください。</small>
+  {{ form.body(maxlength=1000, required=true, **{"aria-describedby": "body-note"}) }}
+  {% for message in form.body.errors %}<p role="alert">{{ message }}</p>{% endfor %}
+  {{ form.monthly_hours.label }} {{ form.monthly_hours(min=1, max=400, required=true) }}
+  {% for message in form.monthly_hours.errors %}<p role="alert">{{ message }}</p>{% endfor %}
+  <fieldset>
+    <legend>{{ form.weekdays.label.text }}</legend>
+    {% for day in form.weekdays %}
+    <label><input type="checkbox" name="{{ form.weekdays.name }}" value="{{ day.data }}"{% if day.checked %} checked{% endif %}>{{ day.label.text }}</label>
+    {% endfor %}
+    {% if form.weekdays.errors %}<p role="alert">来てほしい曜日を選んでください。</p>{% endif %}
+  </fieldset>
+  {% if need_id %}
+    {{ form.manual_kind.label }} <small>規則で訳せない場合に使います。</small>
+    {{ form.manual_kind() }}
+  {% endif %}
+  {% if form.manual_kind.errors %}<p role="alert">一覧から型を選んでください。</p>{% endif %}
+  <button type="submit">下書きを保存して翻訳する</button>
+</form>
+{% endblock %}

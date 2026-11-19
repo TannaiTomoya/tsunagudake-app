@@ -25,11 +25,13 @@ def create_app(config: Mapping[str, Any] | None = None) -> Flask:
     init_security(app)
 
     from app.blueprints.auth import bp as auth_bp
+    from app.blueprints.needs import bp as needs_bp
     from app.blueprints.public import bp
 
     login_manager.login_view = "auth.login"
     login_manager.login_message = None
     app.register_blueprint(bp)
     app.register_blueprint(auth_bp)
+    app.register_blueprint(needs_bp)
     init_cli(app)
     return app

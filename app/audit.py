@@ -7,7 +7,12 @@ from app.models import AuditLog
 
 
 def record_audit(
-    action: str, *, actor_id: int | None = None, office_id: int | None = None
+    action: str,
+    *,
+    actor_id: int | None = None,
+    office_id: int | None = None,
+    target_type: str | None = None,
+    target_id: int | None = None,
 ) -> None:
     ip = request.remote_addr
     key = current_app.secret_key
@@ -17,6 +22,8 @@ def record_audit(
         AuditLog(
             actor_user_id=actor_id,
             action=action,
+            target_type=target_type,
+            target_id=target_id,
             office_id=office_id,
             ip_hash=hmac.digest(key, ip.encode(), "sha256").hex()
             if key and ip

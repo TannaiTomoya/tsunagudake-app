@@ -3,11 +3,20 @@ from enum import StrEnum
 from secrets import token_hex
 
 from flask_login import UserMixin
-from sqlalchemy import CheckConstraint, Enum, ForeignKey, String, UniqueConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    Enum,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 from werkzeug.security import generate_password_hash
 
 from app.extensions import Base
+from tsunagu_rules.types import NeedKind
 
 
 def utc_now() -> datetime:
@@ -141,3 +150,81 @@ class AuditLog(Created, Base):
     target_id: Mapped[int | None]
     office_id: Mapped[int | None] = mapped_column(ForeignKey("offices.id"))
     ip_hash: Mapped[str | None] = mapped_column(String(64))
+
+
+class NeedStatus(StrEnum):
+    DRAFT = "draft"
+    BLOCKED = "blocked"
+    PUBLISHED = "published"
+    WITHDRAWN = "withdrawn"
+    ENGAGED = "engaged"
+    CLOSED = "closed"
+
+
+class TranslationSource(StrEnum):
+    RULE = "rule"
+    MANUAL = "manual"
+    AI_ACCEPTED = "ai_accepted"
+
+
+class ItTask(StrEnum):
+    REMINDER_FLOW = "reminder_flow"
+    INTAKE_FORM = "intake_form"
+    COMPARE_SHEET = "compare_sheet"
+    IMPORT_RULE = "import_rule"
+    TEMPLATE = "template"
+    API_LINK = "api_link"
+    MANUAL = "manual"
+    TRAINING = "training"
+
+
+def stored_enum[T: StrEnum](kind: type[T]) -> Enum:
+    return Enum(
+        kind,
+        native_enum=False,
+        length=20,
+        values_callable=lambda items: [item.value for item in items],
+        create_constraint=True,
+    )
+
+
+class Need(Created, Base):
+    __tablename__ = "needs"
+    __table_args__ = (
+        CheckConstraint(
+            "monthly_hours BETWEEN 1 AND 400", name="need_monthly_hours_range"
+        ),
+        CheckConstraint(
+            "weekdays_mask BETWEEN 1 AND 127", name="need_weekdays_mask_range"
+        ),
+        Index("ix_needs_status_published_at", "status", "published_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    office_id: Mapped[int] = mapped_column(ForeignKey("offices.id"), index=True)
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    body: Mapped[str] = mapped_column(Text)
+    monthly_hours: Mapped[int]
+    weekdays_mask: Mapped[int]
+    status: Mapped[NeedStatus] = mapped_column(
+        stored_enum(NeedStatus), default=NeedStatus.DRAFT
+    )
+    block_reason: Mapped[str | None] = mapped_column(String(200))
+    value_yen_month: Mapped[int | None]
+    rules_version: Mapped[str | None] = mapped_column(String(20))
+    input_hash: Mapped[str | None] = mapped_column(String(64))
+    published_at: Mapped[datetime | None]
+    published_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    updated_at: Mapped[datetime] = mapped_column(default=utc_now, onupdate=utc_now)
+
+
+class NeedTranslation(Created, Base):
+    __tablename__ = "need_translations"
+    __table_args__ = (UniqueConstraint("need_id", "category", "it_task"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    need_id: Mapped[int] = mapped_column(ForeignKey("needs.id"))
+    category: Mapped[NeedKind] = mapped_column(stored_enum(NeedKind))
+    it_task: Mapped[ItTask] = mapped_column(stored_enum(ItTask))
+    evidence: Mapped[str] = mapped_column(String(200))
+    source: Mapped[TranslationSource] = mapped_column(stored_enum(TranslationSource))
