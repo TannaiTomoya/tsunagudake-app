@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}ログイン｜つなぐだけ{% endblock %}
+{% block content %}
+<h1>ログイン</h1>
+{% if failed %}<p role="alert">メールアドレスまたはパスワードをご確認ください。</p>{% endif %}
+<form method="post" action="{{ url_for('auth.login') }}">
+  {{ form.hidden_tag() }}
+  {{ form.email.label }} {{ form.email(autocomplete="username", maxlength=255) }}
+  {{ form.password.label }} {{ form.password(autocomplete="current-password", maxlength=1024) }}
+  <button type="submit">ログイン</button>
+</form>
+{% endblock %}

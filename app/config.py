@@ -78,6 +78,7 @@ def load_config(environ: Mapping[str, str]) -> dict[str, Any]:
         "SESSION_COOKIE_HTTPONLY": True,
         "SESSION_COOKIE_SAMESITE": "Lax",
         "PERMANENT_SESSION_LIFETIME": timedelta(hours=8),
+        "SESSION_REFRESH_EACH_REQUEST": False,
         "TRUSTED_HOSTS": [
             host.strip()
             for host in environ.get(
