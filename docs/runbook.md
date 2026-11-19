@@ -198,7 +198,7 @@ chmod 600 .env
 ## 7. DB を作る
 ```bash
 uv run --frozen --no-dev flask db upgrade     # 出力に MySQLImpl と出ること（SQLiteImpl なら DATABASE_URL が効いていない）
-uv run --frozen --no-dev flask seed-demo      # 架空のデータ
+# 段階9の実装後に実行: uv run --frozen --no-dev flask seed-demo
 # 手で起動して確かめる
 uv run --frozen --no-dev --env-file .env gunicorn -c deploy/gunicorn.conf.py "app:create_app()"
 # 別のターミナルで
@@ -279,7 +279,7 @@ server {
     client_max_body_size 1m;           # アップロードが無い
 
     # 隠しファイル（.env・.git など）は、見せない
-    location ~ /\.(?!well-known) { deny all; }
+    location ~ /\.(?!well-known(?:/|$)) { deny all; }
 
     location /static/ {
         alias /var/www/tsunagudake-app/app/static/;
@@ -325,8 +325,10 @@ sudo systemctl status certbot.timer    # 自動で更新される
 自動デプロイ（段階11）の前は、手で：
 ```bash
 cd /var/www/tsunagudake-app
-bash deploy/deploy.sh
+bash deploy/deploy.sh https://tsunagudake.example.jp
 ```
+更新前に §13 の `my.cnf` を用意する。更新用の控えは `~/.local/state/tsunagudake/backups/` に保存される。
+
 `deploy/deploy.sh` がすること：①DB をバックアップ ②`git pull --ff-only` ③`uv sync --frozen --no-dev` ④`uv run --frozen --no-dev flask db upgrade` ⑤`sudo systemctl restart tsunagudake` ⑥`/healthz` が 200 を返すまで待つ（返らなければ、失敗として終わる）。
 **サーバーの上でファイルを直さない。** 直すのは自分の PC で、push して、ここで取り込む。
 
