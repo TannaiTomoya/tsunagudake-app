@@ -104,7 +104,11 @@ def logout() -> Response:
 @bp.get("/account")
 @login_required  # type: ignore[untyped-decorator]
 def account() -> str:
-    return render_template("auth/home.html", heading="ログインしました")
+    return render_template(
+        "auth/home.html",
+        heading="マイページ",
+        workspace_url=_destination(cast(User, current_user)),
+    )
 
 
 @bp.get("/o/<int:office_id>/")

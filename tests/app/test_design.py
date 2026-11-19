@@ -15,12 +15,13 @@ def luminance(value: str) -> float:
 @pytest.mark.parametrize(
     ("foreground", "background"),
     [
-        ("ink", "paper"),
-        ("paper", "indigo"),
-        ("indigo", "paper"),
-        ("vermilion", "paper"),
-        ("ink", "pale-green"),
-        ("gray", "paper"),
+        ("text", "canvas"),
+        ("text", "surface"),
+        ("muted", "surface"),
+        ("muted", "rail"),
+        ("deep", "mint"),
+        ("mint", "surface"),
+        ("error", "surface"),
     ],
 )
 def test_t31_theme_contrast(foreground: str, background: str) -> None:

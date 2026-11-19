@@ -43,7 +43,27 @@ def test_t32_bad_host(client: FlaskClient) -> None:
 def test_home_uses_local_styles(client: FlaskClient) -> None:
     response = client.get("/")
     assert response.status_code == 200
-    assert "税理士は、判断するだけ。" in response.get_data(as_text=True)
+    assert "税理士は、判断するだけ。" in response.get_data(as_text=True).replace(
+        "<wbr>", ""
+    )
     for path in ("/static/vendor/pico.min.css", "/static/css/theme.css"):
         assert path in response.get_data(as_text=True)
         assert client.get(path).status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("path", "title", "status"),
+    [
+        ("/", "経理アプリ-Tsunagudake-", 200),
+        ("/how", "しくみ｜経理アプリ-Tsunagudake-", 200),
+        ("/login", "ログイン｜経理アプリ-Tsunagudake-", 200),
+        ("/missing", "確認してください｜経理アプリ-Tsunagudake-", 404),
+    ],
+)
+def test_branded_pages(client: FlaskClient, path: str, title: str, status: int) -> None:
+    response = client.get(path)
+    assert response.status_code == status
+    html = response.get_data(as_text=True)
+    assert f"<title>{title}</title>" in html
+    assert 'aria-label="メインメニュー"' in html
+    assert "/demo/enter" not in html

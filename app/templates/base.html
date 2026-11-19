@@ -1,18 +1,49 @@
+{% from "icons.html" import icon %}
+{% set brand = "経理アプリ-Tsunagudake-" %}
+{% set home = request.endpoint == 'public.index' %}
+{% set demo_available = config.APP_ENV in ('demo', 'development') %}
+{% set signed_in = session.get('_user_id') %}
+{% set navigation = [('public.index', 'ホーム', 'home'), ('public.how', 'しくみ', 'book')] %}
 <!doctype html>
-<html lang="ja" data-theme="light">
+<html lang="ja" data-theme="dark">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}つなぐだけ{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/pico.min.css') }}">
+    <title>{% if not home %}{% block title %}ワークスペース{% endblock %}｜{% endif %}{{ brand }}</title>
+    <link rel="preload" as="style" href="{{ url_for('static', filename='vendor/pico.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
   </head>
   <body>
     <a class="skip-link" href="#main">本文へ移動します</a>
-    <header class="container"><a href="{{ url_for('public.index') }}">つなぐだけ</a></header>
-    {% if config.APP_ENV == 'demo' %}
-    <aside class="container">発表用のデモです。データはすべて架空です。本物の情報を入力しないでください。 <a href="{{ url_for('demo.enter') }}">立場を切り替える</a></aside>
-    {% endif %}
-    <main id="main" class="container">{% block content %}{% endblock %}</main>
+    <div class="shell">
+      <header class="rail">
+        <a class="brand" href="{{ url_for('public.index') }}" aria-label="{{ brand }}">
+          <span class="brand-mark">{{ icon('layers') }}</span>
+          <span class="brand-type"><small>経理アプリ</small><b>-Tsunagudake-</b></span>
+        </a>
+        <nav aria-label="メインメニュー">
+          {% for endpoint, label, glyph in navigation %}
+          <a href="{{ url_for(endpoint) }}"{% if request.endpoint == endpoint %} aria-current="page"{% endif %}>{{ icon(glyph) }}{{ label }}</a>
+          {% endfor %}
+          {% if demo_available %}<a href="{{ url_for('demo.enter') }}"{% if request.endpoint == 'demo.enter' %} aria-current="page"{% endif %}>{{ icon('play') }}デモで入る</a>{% endif %}
+        </nav>
+        <nav class="guide-nav" aria-label="利用ガイド">
+          <h2>利用ガイド</h2>
+          <a href="{{ url_for('public.how', _anchor='translation') }}">{{ icon('layers') }}困りごとの翻訳</a>
+          <a href="{{ url_for('public.how', _anchor='matching') }}">{{ icon('match') }}候補の選び方</a>
+          <a href="{{ url_for('public.how', _anchor='fees') }}">{{ icon('receipt') }}料金の計算</a>
+        </nav>
+      </header>
+      <div class="workspace">
+        <div class="topbar">
+          <span class="breadcrumb">{{ icon('home') }}<span>ワークスペース</span><i aria-hidden="true">/</i><b>{{ 'ホーム' if home else self.title() }}</b></span>
+          <a class="account-link" href="{{ url_for('auth.account' if signed_in else 'auth.login') }}">{{ icon('user') }}{{ 'マイページ' if signed_in else 'ログイン' }}</a>
+        </div>
+        {% if config.APP_ENV == 'demo' %}
+        <aside class="demo-notice">発表用のデモです。データはすべて架空です。本物の情報を入力しないでください。 <a href="{{ url_for('demo.enter') }}">立場を切り替える</a></aside>
+        {% endif %}
+        <main id="main" tabindex="-1" class="{% block layout %}page{% endblock %}">{% block content %}{% endblock %}</main>
+      </div>
+    </div>
   </body>
 </html>

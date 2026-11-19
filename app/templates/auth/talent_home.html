@@ -8,7 +8,7 @@
 <p>運営の確認待ち</p>
 {% else %}<p>運営が確認済みです。</p>{% endif %}
 <h2>守秘の誓約と研修</h2>
-<table>
+<div class="overflow-auto" role="region" aria-label="守秘の誓約と研修" tabindex="0"><table>
   <thead><tr><th scope="col">項目</th><th scope="col">期限</th><th scope="col">状態</th></tr></thead>
   <tbody>
   {% for item in statuses %}
@@ -22,7 +22,7 @@
     </tr>
   {% endfor %}
   </tbody>
-</table>
+</table></div>
 {% if not talent.is_listed %}<p>候補に出る設定が無効です。</p>{% endif %}
 {% else %}
 <p>つなぎ手のプロフィールがまだ登録されていません。運営にご確認ください。</p>

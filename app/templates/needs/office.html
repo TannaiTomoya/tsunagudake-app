@@ -4,9 +4,9 @@
 <h2>困りごと</h2>
 {% if can_write %}<p><a href="{{ url_for('needs.new', office_id=office.id) }}" role="button">困りごとを書く</a></p>{% endif %}
 {% if items %}
-<ul>
+<ul class="records">
   {% for item in items %}
-  <li><a href="{{ url_for('needs.detail', office_id=office.id, need_id=item.id) }}">{{ item.body | truncate(65) }}</a>（{{ statuses[item.status] }}）</li>
+  <li><a href="{{ url_for('needs.detail', office_id=office.id, need_id=item.id) }}">{{ item.body | truncate(65) }}</a><span class="state" data-status="{{ item.status }}">{{ statuses[item.status] }}</span></li>
   {% endfor %}
 </ul>
 {% else %}<p>困りごとはまだありません。</p>{% endif %}

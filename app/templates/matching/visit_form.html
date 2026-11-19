@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}訪問の記録｜つなぐだけ{% endblock %}
+{% block title %}訪問の記録{% endblock %}
 {% block content %}
 <p><a href="{{ url_for('matching.talent_engagement', engagement_id=engagement.id) }}">伴走に戻る</a></p>
 <h1>{{ "訪問を修正する" if visit_id else "訪問を記録する" }}</h1>

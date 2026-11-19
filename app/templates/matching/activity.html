@@ -60,7 +60,7 @@
 {% endif %}
 {% set terms = activity.statement if activity.finalized else engagement %}
 <h3>{{ "確定済みの明細" if activity.finalized else "明細の下書き" }}</h3>
-<div class="overflow-auto"><table>
+<div class="overflow-auto statement-table" role="region" aria-label="月次明細" tabindex="0"><table>
   <tbody>
     <tr><th scope="row">確かめた減った時間</th><td data-numeric>{{ activity.fee.reduced_hours }}時間</td></tr>
     <tr><th scope="row">価値</th><td data-numeric>{{ activity.fee.reduced_hours }}時間 × {{ "{:,}".format(terms.hourly_rate_yen) }}円 ＝ {{ "{:,}".format(activity.fee.value_yen) }}円</td></tr>
