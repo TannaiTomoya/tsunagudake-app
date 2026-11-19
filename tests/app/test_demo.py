@@ -133,6 +133,7 @@ def test_demo_rehearsal_before_and_after_reset(monkeypatch: pytest.MonkeyPatch) 
         ranks = _ranks(app)
         assert len(ranks) == 3
         assert "資料回収が得意です" in page
+        assert "所属：地域おこし協力隊" in page
         candidate = ranks[0][0]
         assert (
             office.post(
@@ -201,7 +202,7 @@ def test_demo_rehearsal_before_and_after_reset(monkeypatch: pytest.MonkeyPatch) 
         assert (
             "みなみ市" in page and "60時間" in page and "少ないため表示しません" in page
         )
-        assert "資料回収の時間が60時間減りました" in page
+        assert "資料回収の時間が60時間減り、判断と相談に戻りました" in page
         assert runner.invoke(args=["verify-ledger"]).exit_code == 0
 
     rehearse()
