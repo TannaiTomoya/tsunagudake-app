@@ -2,7 +2,7 @@
 <h2>訪問</h2>
 {% if activity.talent_writer %}<p><a href="{{ url_for('statements.visit_form', engagement_id=engagement.id) }}">訪問を記録する</a></p>{% endif %}
 {% if activity.visits %}
-<div class="overflow-auto"><table>
+<div class="overflow-auto" role="region" aria-label="訪問の一覧" tabindex="0"><table>
   <thead><tr><th scope="col">日付</th><th scope="col">業務の型</th><th scope="col" data-numeric>時間</th><th scope="col">メモ</th><th scope="col">状態</th></tr></thead>
   <tbody>{% for visit in activity.visits %}
   <tr>
@@ -12,7 +12,7 @@
       {% if activity.office_writer %}
         <form method="post">
           {{ csrf() }}
-          <button formaction="{{ url_for('statements.visit_review', office_id=engagement.office_id, engagement_id=engagement.id, visit_id=visit.id, action='confirm') }}">確かめる</button>
+          <button class="secondary outline" formaction="{{ url_for('statements.visit_review', office_id=engagement.office_id, engagement_id=engagement.id, visit_id=visit.id, action='confirm') }}">確かめる</button>
           <button class="secondary outline" formaction="{{ url_for('statements.visit_review', office_id=engagement.office_id, engagement_id=engagement.id, visit_id=visit.id, action='dispute') }}">違う</button>
         </form>
       {% elif activity.talent_writer %}
@@ -31,14 +31,14 @@
   <button class="secondary outline">表示する</button>
 </form>
 {% if activity.reductions %}
-<div class="overflow-auto"><table>
+<div class="overflow-auto" role="region" aria-label="減った時間の記録" tabindex="0"><table>
   <thead><tr><th scope="col">業務の型</th><th scope="col" data-numeric>改善前</th><th scope="col" data-numeric>現在</th><th scope="col">状態</th></tr></thead>
   <tbody>{% for row in activity.reductions %}
   <tr><td>{{ categories[row.category] }}</td><td data-numeric>{{ row.before_hours }}時間</td><td data-numeric>{{ row.after_hours }}時間</td>
     <td>{{ "確認済み" if row.status == "confirmed" else "確認待ち" }}
     {% if activity.owner and not activity.finalized and row.status == "draft" %}
     <form method="post" action="{{ url_for('statements.reduction_confirm', office_id=engagement.office_id, engagement_id=engagement.id, reduction_id=row.id) }}">
-      {{ csrf() }}<button>時間を確かめる</button>
+      {{ csrf() }}<button class="secondary outline">時間を確かめる</button>
     </form>
     {% endif %}</td></tr>
   {% endfor %}</tbody>
@@ -54,13 +54,13 @@
     {{ form.category.label }} {{ form.category() }}
     {{ form.before.label }} {{ form.before(min=0, max=400, required=true) }}
     {{ form.after.label }} {{ form.after(min=0, max=400, required=true) }}
-    <button>下書きを保存する</button>
+    <button class="secondary outline">下書きを保存する</button>
   </form>
 </details>
 {% endif %}
 {% set terms = activity.statement if activity.finalized else engagement %}
 <h3>{{ "確定済みの明細" if activity.finalized else "明細の下書き" }}</h3>
-<div class="overflow-auto"><table>
+<div class="overflow-auto" role="region" aria-label="明細の内訳" tabindex="0"><table>
   <tbody>
     <tr><th scope="row">確かめた減った時間</th><td data-numeric>{{ activity.fee.reduced_hours }}時間</td></tr>
     <tr><th scope="row">価値</th><td data-numeric>{{ activity.fee.reduced_hours }}時間 × {{ "{:,}".format(terms.hourly_rate_yen) }}円 ＝ {{ "{:,}".format(activity.fee.value_yen) }}円</td></tr>

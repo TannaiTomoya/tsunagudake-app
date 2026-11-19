@@ -10,8 +10,8 @@
   <small id="body-note">顧問先の名前と金額を書かないでください。</small>
   {{ form.body(maxlength=1000, required=true, **{"aria-describedby": "body-note"}) }}
   {% for message in form.body.errors %}<p role="alert">{{ message }}</p>{% endfor %}
-  {{ form.monthly_hours.label }} {{ form.monthly_hours(min=1, max=400, required=true) }}
-  {% for message in form.monthly_hours.errors %}<p role="alert">{{ message }}</p>{% endfor %}
+  {{ form.monthly_hours.label }} {{ form.monthly_hours(min=1, max=400, required=true, **({"aria-invalid": "true", "aria-describedby": "hours-error"} if form.monthly_hours.errors else {})) }}
+  {% if form.monthly_hours.errors %}<p role="alert" id="hours-error">月にかかる時間は1〜400の整数で入力してください。</p>{% endif %}
   <fieldset>
     <legend>{{ form.weekdays.label.text }}</legend>
     {% for day in form.weekdays %}

@@ -18,7 +18,8 @@
 <form method="post" action="{{ url_for('admin.grade', talent_id=profile.id) }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <input type="hidden" name="grade" value="{{ profile.bookkeeping_level }}">
-  <button type="submit">合格証を目で確認した</button>
+  <p>合格証を目で確認してから押してください。</p>
+  <button type="submit">級を確認済みにする</button>
 </form>
 {% endif %}
 {% endif %}

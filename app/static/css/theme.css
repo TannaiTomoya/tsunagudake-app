@@ -12,8 +12,30 @@
   --pico-spacing: 1.5rem;
   --pico-background-color: var(--paper);
   --pico-color: var(--ink);
+  --pico-border-color: var(--gray);
+  --pico-muted-border-color: var(--gray);
+  --pico-table-border-color: var(--gray);
+  --pico-table-row-stripped-background-color: var(--paper);
+  --pico-secondary: var(--gray);
+  --pico-secondary-hover: var(--ink);
+  --pico-secondary-background: var(--gray);
+  --pico-secondary-border: var(--gray);
+  --pico-secondary-hover-background: var(--ink);
+  --pico-secondary-hover-border: var(--ink);
+  --pico-secondary-inverse: var(--paper);
+  --pico-form-element-active-background-color: var(--paper);
+  --pico-form-element-active-border-color: var(--indigo);
+  --pico-form-element-selected-background-color: var(--indigo);
+  --pico-form-element-placeholder-color: var(--gray);
+  --pico-form-element-disabled-opacity: 1;
+  --pico-card-border-color: var(--gray);
+  --pico-accordion-border-color: var(--gray);
   --pico-muted-color: var(--gray);
   --pico-primary: var(--indigo);
+  --pico-primary-underline: var(--indigo);
+  --pico-primary-hover-underline: var(--indigo);
+  --pico-secondary-underline: var(--gray);
+  --pico-secondary-hover-underline: var(--ink);
   --pico-primary-background: var(--indigo);
   --pico-primary-border: var(--indigo);
   --pico-primary-hover: var(--indigo);
@@ -40,7 +62,7 @@ h1, h2, h3, h4, h5, h6 {
 
 body { overflow-wrap: anywhere; }
 main { padding-block: 2rem; }
-a:focus-visible, button:focus-visible, input:focus-visible {
+:where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--indigo);
   outline-offset: 4px;
   box-shadow: none;
@@ -53,3 +75,28 @@ td[data-numeric], th[data-numeric] {
   font-variant-numeric: tabular-nums;
 }
 tfoot { border-top: 3px double var(--ink); }
+
+
+.overflow-auto:focus-visible {
+  outline-offset: -2px;
+}
+.overflow-auto table:has(thead tr :nth-child(5)) {
+  min-inline-size: 34rem;
+}
+td, th {
+  padding-inline: clamp(0.5rem, 2vw, 1.5rem);
+  overflow-wrap: anywhere;
+}
+[role="alert"] {
+  color: var(--vermilion);
+}
+button:disabled {
+  background-color: var(--paper);
+  border-color: var(--gray);
+  color: var(--gray);
+  opacity: 1;
+}
+[data-boundaries] {
+  border: 1px solid var(--vermilion);
+  padding: 0.75rem 1rem;
+}

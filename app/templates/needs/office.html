@@ -9,7 +9,7 @@
   <li><a href="{{ url_for('needs.detail', office_id=office.id, need_id=item.id) }}">{{ item.body | truncate(65) }}</a>（{{ statuses[item.status] }}）</li>
   {% endfor %}
 </ul>
-{% else %}<p>困りごとはまだありません。</p>{% endif %}
+{% else %}<p>まだ困りごとはありません。</p>{% endif %}
 <form method="post" action="{{ url_for('auth.logout') }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <button type="submit" class="secondary outline">ログアウト</button>

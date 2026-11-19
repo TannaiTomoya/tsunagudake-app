@@ -14,7 +14,7 @@
 {% endmacro %}
 {% block content %}
 <h1>{{ heading }}の地域ダッシュボード</h1>
-<div class="overflow-auto">
+<div class="overflow-auto" role="region" aria-label="地域の集計表" tabindex="0">
 <table>
   <thead><tr>
     <th scope="col">地域</th><th scope="col" data-numeric>参加事務所</th>

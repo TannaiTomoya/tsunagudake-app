@@ -3,7 +3,7 @@
 <h1>運営</h1>
 <p><a href="{{ url_for('admin.ledger') }}">境界線台帳を検証する</a></p>
 <h2>アカウント</h2>
-<div class="overflow-auto"><table>
+<div class="overflow-auto" role="region" aria-label="アカウントの一覧" tabindex="0"><table>
   <thead><tr><th scope="col">表示名</th><th scope="col">状態</th><th scope="col">操作</th></tr></thead>
   <tbody>{% for account, talent_id in folks %}
   <tr><td>{% if talent_id is not none %}<a href="{{ url_for('admin.talent', talent_id=talent_id) }}">{{ account.display_name }}</a>{% else %}{{ account.display_name }}{% endif %}</td>
