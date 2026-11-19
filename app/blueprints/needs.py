@@ -1,3 +1,4 @@
+import json
 from typing import cast
 
 from flask import Blueprint, redirect, render_template, url_for
@@ -11,7 +12,16 @@ from wtforms.validators import InputRequired, Length, NumberRange  # type: ignor
 
 from app.authz import require_need, require_office
 from app.extensions import db
-from app.models import MemberRole, NeedStatus, Office, OfficeMember, Role, User
+from app.models import (
+    Engagement,
+    MemberRole,
+    NeedStatus,
+    Office,
+    OfficeMember,
+    Role,
+    User,
+)
+from app.services.ledger import records_for_need
 from app.services.needs import (
     EDITABLE,
     NeedConflict,
@@ -131,6 +141,15 @@ def _detail(office: Office, need_id: int, error: str | None = None) -> str:
         "needs/detail.html",
         need=need,
         rows=rows,
+        ledger=[
+            (row, json.loads(row.payload)["data"]) for row in records_for_need(need)
+        ],
+        engagement_id=db.session.scalar(
+            select(Engagement.id).where(
+                Engagement.office_id == office.id,
+                Engagement.need_id == need.id,
+            )
+        ),
         office=office,
         owner=owner,
         editable=user.role == Role.OFFICE and need.status in EDITABLE,

@@ -4,6 +4,7 @@ from secrets import token_hex
 
 from flask_login import UserMixin
 from sqlalchemy import (
+    JSON,
     CheckConstraint,
     Enum,
     ForeignKey,
@@ -321,3 +322,100 @@ class TrustItem(Created, Base):
     valid_from: Mapped[date]
     expires_on: Mapped[date]
     recorded_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+
+
+class CandidateStatus(StrEnum):
+    LISTED = "listed"
+    INVITED = "invited"
+    ACCEPTED = "accepted"
+    DECLINED = "declined"
+    CLOSED = "closed"
+    EXPIRED = "expired"
+
+
+class EngagementStatus(StrEnum):
+    TRIAL = "trial"
+    ACTIVE = "active"
+    ENDED = "ended"
+
+
+class MatchRun(Created, Base):
+    __tablename__ = "matches"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    need_id: Mapped[int] = mapped_column(ForeignKey("needs.id"), index=True)
+    rules_version: Mapped[str] = mapped_column(String(20))
+    input_hash: Mapped[str] = mapped_column(String(64))
+    excluded_summary: Mapped[dict[str, int]] = mapped_column(JSON)
+    run_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    run_at: Mapped[datetime] = mapped_column(default=utc_now)
+
+
+class MatchCandidate(Created, Base):
+    __tablename__ = "match_candidates"
+    __table_args__ = (
+        UniqueConstraint("match_id", "talent_id"),
+        UniqueConstraint("match_id", "rank"),
+        CheckConstraint("`rank` BETWEEN 1 AND 3", name="candidate_rank_range"),
+        CheckConstraint("score BETWEEN 0 AND 100", name="candidate_score_range"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    match_id: Mapped[int] = mapped_column(ForeignKey("matches.id"))
+    talent_id: Mapped[int] = mapped_column(ForeignKey("talents.id"))
+    rank: Mapped[int]
+    score: Mapped[int]
+    reasons: Mapped[list[str]] = mapped_column(JSON)
+    status: Mapped[CandidateStatus] = mapped_column(
+        stored_enum(CandidateStatus), default=CandidateStatus.LISTED
+    )
+    offer_weekday: Mapped[int | None]
+    offer_fee_share_bp: Mapped[int | None]
+    offer_fee_cap_yen: Mapped[int | None]
+    invited_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    invited_at: Mapped[datetime | None]
+    responded_at: Mapped[datetime | None]
+
+
+class Engagement(Created, Base):
+    __tablename__ = "engagements"
+    __table_args__ = (
+        CheckConstraint("weekday BETWEEN 0 AND 6", name="engagement_weekday_range"),
+        CheckConstraint("fee_share_bp BETWEEN 1 AND 4999", name="engagement_fee_range"),
+        CheckConstraint("fee_cap_yen >= 0", name="engagement_fee_cap_range"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    office_id: Mapped[int] = mapped_column(ForeignKey("offices.id"), index=True)
+    need_id: Mapped[int] = mapped_column(ForeignKey("needs.id"), unique=True)
+    talent_id: Mapped[int] = mapped_column(ForeignKey("talents.id"))
+    candidate_id: Mapped[int] = mapped_column(
+        ForeignKey("match_candidates.id"), unique=True
+    )
+    weekday: Mapped[int]
+    hourly_rate_yen: Mapped[int]
+    fee_share_bp: Mapped[int]
+    fee_cap_yen: Mapped[int | None]
+    trial_ends_on: Mapped[date]
+    status: Mapped[EngagementStatus] = mapped_column(
+        stored_enum(EngagementStatus), default=EngagementStatus.TRIAL
+    )
+    agreed_at: Mapped[datetime | None]
+    ended_at: Mapped[datetime | None]
+    end_reason: Mapped[str | None] = mapped_column(String(200))
+    updated_at: Mapped[datetime] = mapped_column(default=utc_now, onupdate=utc_now)
+
+
+class LedgerRecord(Created, Base):
+    __tablename__ = "ledger_entries"
+    __table_args__ = (UniqueConstraint("need_id", "seq"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    need_id: Mapped[int] = mapped_column(ForeignKey("needs.id"))
+    office_id: Mapped[int] = mapped_column(ForeignKey("offices.id"))
+    seq: Mapped[int]
+    kind: Mapped[str] = mapped_column(String(30))
+    payload: Mapped[str] = mapped_column(Text)
+    prev_hash: Mapped[str] = mapped_column(String(64))
+    entry_hash: Mapped[str] = mapped_column(String(64))
+    actor_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))

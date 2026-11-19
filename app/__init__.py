@@ -32,6 +32,9 @@ def create_app(config: Mapping[str, Any] | None = None) -> Flask:
     login_manager.login_message = None
     app.register_blueprint(bp)
     app.register_blueprint(auth_bp)
+    from app.blueprints.matching import bp as matching_bp
+
     app.register_blueprint(needs_bp)
+    app.register_blueprint(matching_bp)
     init_cli(app)
     return app

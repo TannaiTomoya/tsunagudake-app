@@ -55,3 +55,24 @@ def init_cli(app: Flask) -> None:
             db.session.rollback()
             raise click.ClickException("ユーザーを作成できませんでした。") from None
         click.echo("ユーザーを作成しました。")
+
+    @app.cli.command("verify-ledger")
+    def verify_ledger() -> None:
+        from app.models import Need
+        from app.services.ledger import records_for_need, verify_records
+
+        failures = []
+        needs = db.session.scalars(select(Need).order_by(Need.id)).all()
+        for need in needs:
+            rows = records_for_need(need)
+            if need.published_at is not None and (
+                not rows or rows[0].kind != "published"
+            ):
+                failures.append(f"困りごと {need.id} / 行 1")
+                continue
+            result = verify_records(rows)
+            if not result.valid:
+                failures.append(f"困りごと {need.id} / 行 {result.invalid_seq}")
+        if failures:
+            raise click.ClickException("台帳の不一致: " + "、".join(failures))
+        click.echo("台帳の検証が完了しました。")
