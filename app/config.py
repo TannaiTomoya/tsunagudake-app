@@ -94,6 +94,9 @@ def load_config(environ: Mapping[str, str]) -> dict[str, Any]:
         database = environ.get("DATABASE_URL") or "sqlite:///tsunagudake.sqlite"
     return {
         "APP_ENV": mode,
+        "PLEDGE_VALID_DAYS": positive_integer(
+            environ, "PLEDGE_VALID_DAYS", 365, maximum=365
+        ),
         "RATE_LIMIT_ENABLED": boolean(environ, "RATE_LIMIT_ENABLED", True),
         "RATE_LOGIN_FAIL_MAX": positive_integer(
             environ, "RATE_LOGIN_FAIL_MAX", 5, maximum=1000

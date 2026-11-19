@@ -327,6 +327,7 @@ class TrustItem(Created, Base):
     kind: Mapped[TrustKind] = mapped_column(stored_enum(TrustKind))
     valid_from: Mapped[date]
     expires_on: Mapped[date]
+    pledge_version: Mapped[str | None] = mapped_column(String(20))
     recorded_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
 
 

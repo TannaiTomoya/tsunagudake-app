@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}プロフィールの編集｜つなぐだけ{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('auth.talent_home') }}">信用台帳に戻る</a></p>
+<h1>プロフィールの編集</h1>
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+<form method="post">
+  {{ form.hidden_tag() }}
+  {{ form.municipality.label }} {{ form.municipality(required=true) }}
+  {{ form.grade.label }} {{ form.grade() }}
+  <small>級を変えると、運営の再確認が必要です。</small>
+  {% for field in [form.weekdays, form.tools, form.strengths] %}
+  <fieldset>
+    <legend>{{ field.label.text }}</legend>
+    {% for option in field %}
+    <label><input type="checkbox" name="{{ field.name }}" value="{{ option.data }}"{% if option.checked %} checked{% endif %}>{{ option.label.text }}</label>
+    {% endfor %}
+  </fieldset>
+  {% endfor %}
+  {{ form.affiliation.label }} {{ form.affiliation() }}
+  {{ form.capacity.label }} {{ form.capacity(min=1, max=5, required=true) }}
+  <label>{{ form.listed() }} {{ form.listed.label.text }}</label>
+  <button type="submit">保存する</button>
+</form>
+{% endblock %}

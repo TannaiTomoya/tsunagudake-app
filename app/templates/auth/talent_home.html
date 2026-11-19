@@ -1,6 +1,8 @@
 {% extends "auth/home.html" %}
 {% block content %}
 <h1>{{ heading }}</h1>
+<p><a href="{{ url_for('talent.profile') }}">プロフィールを編集する</a></p>
+{% if talent %}<p><a href="{{ url_for('talent.pledge') }}">守秘の誓約に署名する</a></p>{% endif %}
 {% if talent %}
 <h2>簿記の級</h2>
 {% if talent.bookkeeping_level != "none" %}<p>簿記{{ talent.bookkeeping_level }}級</p>{% endif %}
@@ -25,7 +27,7 @@
 </table>
 {% if not talent.is_listed %}<p>候補に出る設定が無効です。</p>{% endif %}
 {% else %}
-<p>つなぎ手のプロフィールがまだ登録されていません。運営にご確認ください。</p>
+<p>つなぎ手のプロフィールがまだ登録されていません。プロフィールを登録してください。</p>
 {% endif %}
 <h2>確かめられた訪問</h2>
 <p>{{ confirmed_visits }}回</p>

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<p><a href="{{ url_for('admin.index') }}">運営に戻る</a></p>
+<h1>境界線台帳の検証</h1>
+{% if failures %}
+<p role="alert">記録が一致しませんでした。</p>
+<ul>{% for need_id, seq in failures %}<li>困りごと {{ need_id }} / 行 {{ seq }}</li>{% endfor %}</ul>
+{% else %}<p>台帳の検証が完了しました。</p>{% endif %}
+{% endblock %}

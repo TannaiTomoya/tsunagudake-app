@@ -87,3 +87,16 @@ def verify_records(rows: Iterable[LedgerRecord]) -> VerifyResult:
         except KeyError, TypeError, ValueError, AttributeError:
             return VerifyResult(False, row.seq)
     return ledger.verify(entries)
+
+
+def ledger_failures() -> list[tuple[int, int | None]]:
+    failures: list[tuple[int, int | None]] = []
+    for need in db.session.scalars(select(Need).order_by(Need.id)):
+        rows = records_for_need(need)
+        if need.published_at is not None and (not rows or rows[0].kind != "published"):
+            failures.append((need.id, 1))
+            continue
+        result = verify_records(rows)
+        if not result.valid:
+            failures.append((need.id, result.invalid_seq))
+    return failures
