@@ -1,0 +1,44 @@
+name: 開発基盤の検査
+on: [push, pull_request]
+permissions:
+  contents: read
+
+jobs:
+  sqlite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6"
+      - run: uv sync --locked
+      - run: make check secrets
+      - run: uv run --frozen flask db upgrade
+        env:
+          APP_ENV: development
+
+  mysql:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: tsunagudake_test
+          MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+          MYSQL_ROOT_HOST: "%"
+        ports:
+          - 127.0.0.1:3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    env:
+      APP_ENV: test
+      TEST_DATABASE_URL: mysql+pymysql://root@127.0.0.1:3306/tsunagudake_test?charset=utf8mb4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.6"
+      - run: uv sync --locked
+      - run: uv run --frozen flask db upgrade
+      - run: uv run --frozen pytest

@@ -1,0 +1,55 @@
+:root[data-theme="light"] {
+  --paper: #f7f3e8;
+  --ink: #2b2a28;
+  --indigo: #2f4f7a;
+  --vermilion: #a8322c;
+  --pale-green: #dce5d3;
+  --gray: #5f5a50;
+  --pico-font-family: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+  --pico-font-size: 100%;
+  --pico-line-height: 1.8;
+  --pico-border-radius: 2px;
+  --pico-spacing: 1.5rem;
+  --pico-background-color: var(--paper);
+  --pico-color: var(--ink);
+  --pico-muted-color: var(--gray);
+  --pico-primary: var(--indigo);
+  --pico-primary-background: var(--indigo);
+  --pico-primary-border: var(--indigo);
+  --pico-primary-hover: var(--indigo);
+  --pico-primary-hover-background: var(--indigo);
+  --pico-primary-hover-border: var(--indigo);
+  --pico-primary-focus: var(--indigo);
+  --pico-primary-inverse: var(--paper);
+  --pico-form-element-background-color: var(--paper);
+  --pico-form-element-color: var(--ink);
+  --pico-form-element-border-color: var(--gray);
+  --pico-form-element-invalid-border-color: var(--vermilion);
+  --pico-form-element-valid-border-color: var(--gray);
+  --pico-form-element-focus-color: var(--indigo);
+  --pico-card-background-color: var(--paper);
+  --pico-card-box-shadow: none;
+  --pico-box-shadow: none;
+  --pico-text-selection-color: var(--pale-green);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--ink);
+  font-family: "BIZ UDPMincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+}
+
+body { overflow-wrap: anywhere; }
+main { padding-block: 2rem; }
+a:focus-visible, button:focus-visible, input:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 4px;
+  box-shadow: none;
+}
+.skip-link { position: absolute; top: -10rem; }
+.skip-link:focus { position: static; }
+table { width: 100%; }
+td[data-numeric], th[data-numeric] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+tfoot { border-top: 3px double var(--ink); }

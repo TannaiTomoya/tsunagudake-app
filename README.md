@@ -16,10 +16,18 @@
 |---|---|
 | 設計書（要件・技術・詳細・権限・公開の手順） | **済み**（`docs/`） |
 | 作る順番 | **済み**（[#25 作る順番と、今どこにいるか](https://github.com/TannaiTomoya/tsunagudake-app/issues/25)。Issue の #1〜#24 が、段階0〜23 の順） |
-| アプリのコード | **これから**（段階0から）。下の「開発の始め方」は、段階0が済むと動く |
+| アプリのコード | 段階0の開発基盤。トップページと DB 接続を確認する `/healthz` を利用できます |
 | 公開 | これから（段階1） |
 
-発表（2026-11-22）で見せるのは、P0（段階0〜9）。数字と名前は、すべて架空。
+実装は [Issue #25](https://github.com/TannaiTomoya/tsunagudake-app/issues/25) の各グループ内で番号順に進めます。実機・CI の検証項目は [#27](https://github.com/TannaiTomoya/tsunagudake-app/issues/27) で管理します。
+
+| 優先度 | Issue | 到達点 |
+|---|---|---|
+| P0・11月22日の発表 | #1〜#10 | 開発基盤 → 公開準備 → 規則とテスト → ログイン・権限 → 困りごと → 信用台帳 → 合意 → 明細 → 地域集計 → デモ通し稽古 |
+| P1・運用を続ける準備 | #11〜#16 | バックアップと復元、自動反映、回数制限、プロフィール編集、表示と権限の点検 |
+| P2・実利用に向けた拡張 | #17〜#24 | 招待・通知、2段階認証、比較・回収・連携、AI・開発ツール、台帳の外部控え、退会 |
+
+#2 の VPS・DNS は本人が準備します。外部の準備を待つ間も、#1 の開発基盤があれば #3 の規則とテストを進められます。発表で使う数字と名前はすべて架空です。
 
 ## 90秒でわかる流れ
 
@@ -70,18 +78,19 @@ docs/           設計書
 
 ## 開発の始め方
 
-段階0（[#1](https://github.com/TannaiTomoya/tsunagudake-app/issues/1)）が済むと、次のとおりに動く。
+Python 3.14 と uv で開発環境を起動します。
 
 ```bash
 git clone git@github.com:TannaiTomoya/tsunagudake-app.git
 cd tsunagudake-app
-uv sync                          # 必要なものを入れる（Python も uv が入れる）
-cp .env.example .env             # .env は Git に入れない
+uv sync --locked                 # 必要なものを入れる（Python も uv が入れる）
+cp -n .env.example .env          # .env は Git に入れない
 uv run flask db upgrade          # DB を作る（開発は SQLite。instance/ の下にできる）
-uv run flask seed-demo           # 架空のデータを入れる
 uv run flask run --debug         # http://127.0.0.1:5000
 make check                       # 整形 → 静的解析 → 型 → 全テスト（コミットの前に毎回）
 ```
+
+段階0の確認は `/healthz`（HTTP 200・本文 `ok`）と `make check` です。以下の業務コマンドは後続 Issue で追加します。
 
 | コマンド | すること |
 |---|---|

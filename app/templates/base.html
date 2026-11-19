@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ja" data-theme="light">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}つなぐだけ{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/pico.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+  </head>
+  <body>
+    <a class="skip-link" href="#main">本文へ移動します</a>
+    <header class="container"><a href="{{ url_for('public.index') }}">つなぐだけ</a></header>
+    {% if config.APP_ENV == 'demo' %}
+    <aside class="container">発表用のデモです。データはすべて架空です。本物の情報を入力しないでください。</aside>
+    {% endif %}
+    <main id="main" class="container">{% block content %}{% endblock %}</main>
+  </body>
+</html>
