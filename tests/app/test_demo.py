@@ -124,9 +124,9 @@ def test_demo_rehearsal_before_and_after_reset(monkeypatch: pytest.MonkeyPatch) 
         assert office.post(match_path, data={"csrf_token": csrf}).status_code == 302
         page = office.get(match_path).get_data(as_text=True)
         for excluded in (
-            "守秘の誓約 1人",
-            "移動時間 1人",
-            "曜日 1人",
+            "守秘の誓約が未有効 1人",
+            "移動時間が60分超または不明 1人",
+            "希望曜日が合わない 1人",
             "受け持ち上限 1人",
         ):
             assert excluded in page

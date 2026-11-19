@@ -16,13 +16,16 @@
 <h1>{{ heading }}の地域ダッシュボード</h1>
 {% if demo_region and dashboard.town.reduced_hours is not none %}
 <p class="region-summary">この町で今月、資料回収の時間が{{ "{:,}".format(dashboard.town.reduced_hours) }}時間減り、判断と相談に戻りました。つなぎ手{{ "{:,}".format(dashboard.town.talents) }}人のうち、地域おこし協力隊は{{ "{:,}".format(dashboard.town.corps_talents) }}人です。</p>
+{% elif dashboard.town.reduced_hours is not none %}
+<p class="region-summary">この町では、作業時間が合わせて{{ "{:,}".format(dashboard.town.reduced_hours) }}時間減りました。事務所が確かめた分を集計しています。</p>
 {% endif %}
+<p>事務所が特定されないよう、参加事務所が少ない町の数字は伏せます。合計から逆算できる場合は、合計も伏せます。</p>
 <div class="overflow-auto" role="region" aria-label="地域の集計" tabindex="0">
 <table>
   <thead><tr>
     <th scope="col">地域</th><th scope="col" data-numeric>参加事務所</th>
     <th scope="col" data-numeric>つなぎ手</th><th scope="col" data-numeric>うち地域おこし協力隊</th>
-    <th scope="col" data-numeric>確認済みの訪問</th><th scope="col" data-numeric>確かめた減った時間</th>
+    <th scope="col" data-numeric>確認済みの訪問</th><th scope="col" data-numeric>減った時間（確認済み）</th>
   </tr></thead>
   <tbody>{{ metrics_row(heading, dashboard.town) }}</tbody>
   <tfoot>
@@ -36,6 +39,6 @@
 </div>
 <form method="post" action="{{ url_for('auth.logout') }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <button type="submit" class="secondary outline">ログアウト</button>
+  <button type="submit" class="secondary outline">ログアウトする</button>
 </form>
 {% endblock %}

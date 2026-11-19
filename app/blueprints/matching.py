@@ -49,13 +49,13 @@ from app.services.matching import (
 
 bp = Blueprint("matching", __name__)
 EXCLUSIONS = {
-    "pledge": "守秘の誓約",
-    "training": "研修",
-    "distance": "移動時間",
-    "weekday": "曜日",
+    "pledge": "守秘の誓約が未有効",
+    "training": "研修が未有効",
+    "distance": "移動時間が60分超または不明",
+    "weekday": "希望曜日が合わない",
     "capacity": "受け持ち上限",
-    "unlisted": "候補の掲載設定",
-    "declined": "回答済みの辞退",
+    "unlisted": "候補への掲載がオフ",
+    "declined": "この困りごとを辞退済み",
 }
 AFFILIATIONS = {
     TalentAffiliation.KYORYOKUTAI: "地域おこし協力隊",
@@ -81,7 +81,7 @@ class OfferForm(FlaskForm):  # type: ignore[misc]
         validators=[InputRequired()],
     )
     share_bp = IntegerField(
-        "料金の割合（万分率。40%なら4000）",
+        "料金の割合（1%＝100、40%なら4000・50%未満）",
         default=4000,
         validators=[InputRequired(), NumberRange(min=1, max=4999)],
     )

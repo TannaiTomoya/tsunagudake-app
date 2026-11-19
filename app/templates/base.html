@@ -1,5 +1,5 @@
 {% from "icons.html" import icon %}
-{% set brand = "経理アプリ-Tsunagudake-" %}
+{% set brand = "つなぐだけ" %}
 {% set home = request.endpoint == 'public.index' %}
 {% set demo_available = config.APP_ENV in ('demo', 'development') %}
 {% set signed_in = session.get('_user_id') %}
@@ -9,7 +9,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% if not home %}{% block title %}ワークスペース{% endblock %}｜{% endif %}{{ brand }}</title>
+    <title>{% block title %}ホーム{% endblock %}｜{{ brand }}</title>
     <link rel="preload" as="style" href="{{ url_for('static', filename='vendor/pico.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
   </head>
@@ -18,8 +18,8 @@
     <div class="shell">
       <header class="rail">
         <a class="brand" href="{{ url_for('public.index') }}" aria-label="{{ brand }}">
-          <span class="brand-mark">{{ icon('layers') }}</span>
-          <span class="brand-type"><small>経理アプリ</small><b>-Tsunagudake-</b></span>
+          <span class="brand-mark">{{ icon('misreg') }}</span>
+          <span class="brand-type"><small>会計事務所に、人をつなぐ</small><b>{{ brand }}</b></span>
         </a>
         <nav aria-label="メインメニュー">
           {% for endpoint, label, glyph in navigation %}
@@ -36,11 +36,10 @@
       </header>
       <div class="workspace">
         <div class="topbar">
-          <span class="breadcrumb">{{ icon('home') }}<span>ワークスペース</span><i aria-hidden="true">/</i><b>{{ 'ホーム' if home else self.title() }}</b></span>
           <a class="account-link" href="{{ url_for('auth.account' if signed_in else 'auth.login') }}">{{ icon('user') }}{{ 'マイページ' if signed_in else 'ログイン' }}</a>
         </div>
         {% if config.APP_ENV == 'demo' %}
-        <aside class="demo-notice">発表用のデモです。データはすべて架空です。本物の情報を入力しないでください。 <a href="{{ url_for('demo.enter') }}">立場を切り替える</a></aside>
+        <aside class="demo-notice">発表用のデモです。数字と名前はすべて架空です。本物の情報を入力しないでください。 <a href="{{ url_for('demo.enter') }}">立場を切り替える</a></aside>
         {% endif %}
         <main id="main" tabindex="-1" class="{% block layout %}page{% endblock %}">{% block content %}{% endblock %}</main>
       </div>

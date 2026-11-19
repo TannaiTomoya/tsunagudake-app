@@ -5,7 +5,7 @@
 <h2>簿記の級</h2>
 {% if talent.bookkeeping_level != "none" %}<p>簿記{{ talent.bookkeeping_level }}級</p>{% endif %}
 {% if talent.bookkeeping_level == "none" or not talent.level_verified_at %}
-<p>運営の確認待ち</p>
+<p>運営の確認を待っています。</p>
 {% else %}<p>運営が確認済みです。</p>{% endif %}
 <h2>守秘の誓約と研修</h2>
 <div class="overflow-auto" role="region" aria-label="守秘の誓約と研修" tabindex="0"><table>
@@ -16,14 +16,14 @@
       <th scope="row">{{ "守秘の誓約" if item.kind == "pledge" else "研修" }}</th>
       <td>{% if item.expires_on %}{{ item.expires_on.year }}年{{ item.expires_on.month }}月{{ item.expires_on.day }}日{% else %}—{% endif %}</td>
       <td>{% if item.valid %}有効（あと{{ item.days_left }}日）
-          {% elif not item.expires_on %}記録がありません。候補に出ません。
+          {% elif not item.expires_on %}候補に出るための記録がありません。運営にご確認ください。
           {% elif item.valid_from > today %}有効期間の開始前です。候補に出ません。
-          {% else %}期限が切れています。候補に出ません。{% endif %}</td>
+          {% else %}期限が切れています。候補に出るには、運営に更新を依頼してください。{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>
 </table></div>
-{% if not talent.is_listed %}<p>候補に出る設定が無効です。</p>{% endif %}
+{% if not talent.is_listed %}<p>候補に出る設定が無効です。掲載を希望する場合は運営にご連絡ください。</p>{% endif %}
 {% else %}
 <p>つなぎ手のプロフィールがまだ登録されていません。運営にご確認ください。</p>
 {% endif %}
@@ -34,13 +34,13 @@
 {% for invitation, office_name, categories in invitations %}
 <article>
   <h3>{{ office_name }}</h3>
-  <p>{{ categories | join("・") }} / {{ weekday_names[invitation.offer_weekday] }} / 料金の割合 {{ "%g"|format(invitation.offer_fee_share_bp / 100) }}%</p>
-  <p>月の上限 {{ "{:,}円".format(invitation.offer_fee_cap_yen) if invitation.offer_fee_cap_yen is not none else "なし" }}</p>
+  <p>業務の型：{{ categories | join("・") }}／曜日：{{ weekday_names[invitation.offer_weekday] }}／料金の割合：{{ "%g"|format(invitation.offer_fee_share_bp / 100) }}%</p>
+  <p>月の上限：{{ "{:,}円".format(invitation.offer_fee_cap_yen) if invitation.offer_fee_cap_yen is not none else "なし" }}</p>
   <p>合意してもしないこと</p>
-  <ul>{% for item in boundaries %}<li>{{ item }}</li>{% endfor %}</ul>
+  <ul class="boundary-list">{% for item in boundaries %}<li>{{ item }}</li>{% endfor %}</ul>
   <form method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" formaction="{{ url_for('matching.answer_invitation', candidate_id=invitation.id, answer='accept') }}">受ける</button>
+    <button type="submit"{% if not loop.first %} class="secondary outline"{% endif %} formaction="{{ url_for('matching.answer_invitation', candidate_id=invitation.id, answer='accept') }}">受ける</button>
     <button type="submit" class="secondary outline" formaction="{{ url_for('matching.answer_invitation', candidate_id=invitation.id, answer='decline') }}">断る</button>
   </form>
 </article>
@@ -52,8 +52,11 @@
   <li><a href="{{ url_for('matching.talent_engagement', engagement_id=engagement.id) }}">{{ office_name }}</a></li>
 {% endfor %}</ul>
 {% endif %}
+{% if talent and not invitations and not engagements %}
+<p>まだ声かけはありません。守秘の誓約と研修が有効なら、条件に合う事務所の候補に出ます。</p>
+{% endif %}
 <form method="post" action="{{ url_for('auth.logout') }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <button type="submit" class="secondary outline">ログアウト</button>
+  <button type="submit" class="secondary outline">ログアウトする</button>
 </form>
 {% endblock %}

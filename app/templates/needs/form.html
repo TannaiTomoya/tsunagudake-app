@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}困りごとを書く{% endblock %}
+{% block title %}{{ "困りごとを直す" if need_id else "困りごとを書く" }}{% endblock %}
 {% block content %}
 <p><a href="{{ url_for('auth.office_home', office_id=office.id) }}">事務所のホーム</a></p>
 <h1>{{ "困りごとを直す" if need_id else "困りごとを書く" }}</h1>
@@ -7,11 +7,11 @@
 <form method="post">
   {{ form.hidden_tag() }}
   {{ form.body.label }}
-  <small id="body-note">顧問先の名前と金額を書かないでください。</small>
-  {{ form.body(maxlength=1000, required=true, **{"aria-describedby": "body-note"}) }}
+  <small id="body-note">顧問先の名前と金額は書かないでください。</small>
+  {{ form.body(placeholder="例：毎月、紙の帳簿を取りに行っています。写真で受け取れるようにしたいです。", maxlength=1000, required=true, **{"aria-describedby": "body-note"}) }}
   {% for message in form.body.errors %}<p role="alert">{{ message }}</p>{% endfor %}
   {{ form.monthly_hours.label }} {{ form.monthly_hours(min=1, max=400, required=true) }}
-  {% for message in form.monthly_hours.errors %}<p role="alert">{{ message }}</p>{% endfor %}
+  {% if form.monthly_hours.errors %}<p role="alert">月にかかる時間を1〜400の整数で入力してください。</p>{% endif %}
   <fieldset>
     <legend>{{ form.weekdays.label.text }}</legend>
     {% for day in form.weekdays %}

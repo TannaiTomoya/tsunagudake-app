@@ -53,7 +53,7 @@ class VisitForm(FlaskForm):  # type: ignore[misc]
         "訪問時間（分）", validators=[InputRequired(), NumberRange(15, 600)]
     )
     category = SelectField("業務の型", choices=_CHOICES, validators=[InputRequired()])
-    note = TextAreaField("メモ", validators=[Length(max=300)])
+    note = TextAreaField("事務所に伝えること（任意）", validators=[Length(max=300)])
 
 
 class ReductionForm(FlaskForm):  # type: ignore[misc]
@@ -194,7 +194,7 @@ def visit_form(engagement_id: int, visit_id: int | None = None) -> ResponseRetur
             error, status = str(exc), 409
     elif form.is_submitted():
         error, status = (
-            "日付、業務の型、15〜600分の訪問時間、300文字以内のメモをご確認ください。",
+            "日付、業務の型、15〜600分の訪問時間、300文字以内の伝える内容をご確認ください。",
             422,
         )
     return render_template(
