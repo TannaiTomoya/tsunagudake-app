@@ -96,6 +96,7 @@ make check                       # 整形 → 静的解析 → 型 → 全テス
 |---|---|
 | `uv run pytest tests/rules -q` | 規則だけを試す（1秒以内） |
 | `uv run flask create-user` | 人を作る（画面からは作れない） |
+| `uv run flask seed-demo` | 架空のデータを用意する（demo・development だけ） |
 | `uv run flask reset-demo --yes` | 架空のデータを消して入れ直す（demo・development だけ） |
 | `uv run flask verify-ledger` | 境界線台帳が書き換えられていないかを確かめる |
 | `TEST_DATABASE_URL=… uv run pytest` | MySQL で全テスト（公開の前に必ず） |
@@ -113,6 +114,7 @@ make check                       # 整形 → 静的解析 → 型 → 全テス
 - `APP_ENV` が未設定なら `production` として動く（設定を忘れたサーバーを、甘い設定で公開しないため）。
 - demo・production は、鍵が空・SQLite・http のどれかで、理由を出して止まる。
 - 「デモで入る」と `seed-demo`・`reset-demo` は、production では動かない。
+- デモを使うときは、DB のマイグレーション後に合言葉を `DEMO_PASSWORD` に設定して `flask seed-demo` を実行する。立場を選んで合言葉を入力するとデモに入れる。
 
 `.gitignore` は、秘密（`.env`・鍵・`.my.cnf`・`s3.env`）、データ（`instance/`・`*.sqlite`・`*.sql.gz`・`backup/`）、作業ファイルを除く。`uv.lock` と `.env.example` は入れる。コミットの前に `git status` で目で確かめ、`git add .` は使わない。
 

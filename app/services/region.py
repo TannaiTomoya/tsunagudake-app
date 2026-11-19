@@ -26,12 +26,14 @@ class Dashboard:
     total: RegionMetrics | None
 
 
-def dashboard_for(municipality: Municipality, threshold: int) -> Dashboard:
+def dashboard_for(
+    municipality: Municipality, threshold: int, *, demo: bool = False
+) -> Dashboard:
     # Aggregate each fact table before joining, so multiple visits and reductions
     # on the same engagement cannot multiply one another.
     offices = (
         select(Office.municipality_id, func.count().label("count"))
-        .where(Office.is_active.is_(True))
+        .where(Office.is_active.is_(True), Office.is_demo.is_(demo))
         .group_by(Office.municipality_id)
         .subquery()
     )
@@ -44,7 +46,11 @@ def dashboard_for(municipality: Municipality, threshold: int) -> Dashboard:
             ).label("corps"),
         )
         .join(User, User.id == Talent.user_id)
-        .where(User.is_active.is_(True), User.role == Role.TSUNAGITE)
+        .where(
+            User.is_active.is_(True),
+            User.is_demo.is_(demo),
+            User.role == Role.TSUNAGITE,
+        )
         .group_by(Talent.municipality_id)
         .subquery()
     )
@@ -52,7 +58,11 @@ def dashboard_for(municipality: Municipality, threshold: int) -> Dashboard:
         select(Office.municipality_id, func.count().label("count"))
         .join(Engagement, Engagement.office_id == Office.id)
         .join(Visit, Visit.engagement_id == Engagement.id)
-        .where(Office.is_active.is_(True), Visit.status == VisitStatus.CONFIRMED)
+        .where(
+            Office.is_active.is_(True),
+            Office.is_demo.is_(demo),
+            Visit.status == VisitStatus.CONFIRMED,
+        )
         .group_by(Office.municipality_id)
         .subquery()
     )
@@ -65,7 +75,9 @@ def dashboard_for(municipality: Municipality, threshold: int) -> Dashboard:
         .join(Engagement, Engagement.office_id == Office.id)
         .join(Reduction, Reduction.engagement_id == Engagement.id)
         .where(
-            Office.is_active.is_(True), Reduction.status == ReductionStatus.CONFIRMED
+            Office.is_active.is_(True),
+            Office.is_demo.is_(demo),
+            Reduction.status == ReductionStatus.CONFIRMED,
         )
         .group_by(Office.municipality_id)
         .subquery()

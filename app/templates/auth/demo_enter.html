@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}デモで入る｜つなぐだけ{% endblock %}
+{% block content %}
+<h1>デモで入る</h1>
+{% if failed %}<p role="alert">発表用の合言葉と立場をご確認ください。</p>{% endif %}
+<form method="post">
+  {{ form.hidden_tag() }}
+  {{ form.password.label }} {{ form.password(required=true, maxlength=1024, autocomplete="current-password") }}
+  {% for role, label in labels.items() %}
+  <button type="submit" name="role" value="{{ role }}"{% if not loop.first %} class="secondary outline"{% endif %}>{{ label }}</button>
+  {% endfor %}
+</form>
+{% endblock %}

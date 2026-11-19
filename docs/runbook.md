@@ -198,7 +198,7 @@ chmod 600 .env
 ## 7. DB を作る
 ```bash
 uv run --frozen --no-dev flask db upgrade     # 出力に MySQLImpl と出ること（SQLiteImpl なら DATABASE_URL が効いていない）
-# 段階9の実装後に実行: uv run --frozen --no-dev flask seed-demo
+uv run --frozen --no-dev flask seed-demo     # 発表用のデモ環境で架空のデータを入れる
 # 手で起動して確かめる
 uv run --frozen --no-dev --env-file .env gunicorn -c deploy/gunicorn.conf.py "app:create_app()"
 # 別のターミナルで

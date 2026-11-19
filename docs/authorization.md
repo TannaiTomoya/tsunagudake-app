@@ -108,7 +108,8 @@
 |---|---|---|
 | `/admin/…` | ○ | 404 |
 | `flask create-user`・`verify-ledger` | サーバーに入れる人だけ | — |
-| デモで入る（`/demo/enter`） | demo・development では誰でも。**production ではルートが無い（404）** | 同じ |
+| `GET /how` | 全員 | 全員 |
+| デモで入る（`GET /demo/enter`・`POST /demo/enter`） | demo・development では合言葉を知っている人。**production ではルートが無い（404）** | 同じ |
 | `seed-demo`・`reset-demo` | demo・development だけ。production では、動かずにエラー | — |
 
 ## 9. 確かめ方

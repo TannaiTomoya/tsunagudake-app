@@ -71,6 +71,13 @@ def _destination(user: User) -> str:
     return url_for("auth.account")
 
 
+def start_session(user: User) -> Response:
+    session.clear()
+    session.permanent = True
+    login_user(user)
+    return redirect(_destination(user))
+
+
 @bp.route("/login", methods=["GET", "POST"])
 def login() -> str | Response | tuple[str, int]:
     form = LoginForm()
@@ -82,10 +89,7 @@ def login() -> str | Response | tuple[str, int]:
         )
         if user is None:
             return render_template("auth/login.html", form=form, failed=True), 401
-        session.clear()
-        session.permanent = True
-        login_user(user)
-        return redirect(_destination(user))
+        return start_session(user)
     return render_template("auth/login.html", form=form)
 
 
@@ -152,5 +156,7 @@ def region_home(code: str) -> str:
         "auth/region_home.html",
         heading=municipality.name,
         region_group=municipality.region_group,
-        dashboard=dashboard_for(municipality, threshold),
+        dashboard=dashboard_for(
+            municipality, threshold, demo=cast(User, current_user).is_demo
+        ),
     )
