@@ -30,6 +30,6 @@
 <h2 id="fees">料金</h2>
 <p>事務所が確かめた「減った時間」に、合意した時給を掛けた額が月の価値です。その価値に、あらかじめ決めた料金の割合（50%未満）を掛けます。1円未満は切り捨てます。月の上限を決めた場合は、その額までです。減らなければ0円です。</p>
 <h2>合意してもしないこと</h2>
-<ul>{% for item in boundaries %}<li>{{ item }}</li>{% endfor %}</ul>
+<ul class="boundary-list">{% for item in boundaries %}<li>{{ item }}</li>{% endfor %}</ul>
 <p>合意の条件は境界線台帳に残ります。</p>
 {% endblock %}

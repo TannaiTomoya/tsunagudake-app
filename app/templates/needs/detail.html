@@ -27,10 +27,10 @@
 <h2>月の価値 {{ "{:,}".format(estimate.monthly_value_yen) }}円</h2>
 <p>下の表は減らせる時間と金額の見込みです。成果を約束するものではありません。</p>
 <div class="overflow-auto" role="region" aria-label="月の価値の見込み" tabindex="0"><table>
-  <thead><tr><th scope="col">見込み</th><th scope="col">時間</th><th scope="col">価値</th></tr></thead>
+  <thead><tr><th scope="col">見込み</th><th scope="col" data-numeric>時間</th><th scope="col" data-numeric>価値</th></tr></thead>
   <tbody>
     {% for label in ["少なめ", "真ん中", "多め"] %}
-    <tr><th scope="row">{{ label }}</th><td>{{ estimate.projected_hours[loop.index0] }}時間</td><td>{{ "{:,}".format(estimate.projected_value_yen[loop.index0]) }}円</td></tr>
+    <tr><th scope="row">{{ label }}</th><td data-numeric>{{ estimate.projected_hours[loop.index0] }}時間</td><td data-numeric>{{ "{:,}".format(estimate.projected_value_yen[loop.index0]) }}円</td></tr>
     {% endfor %}
   </tbody>
 </table></div>

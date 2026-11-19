@@ -19,8 +19,10 @@ def luminance(value: str) -> float:
         ("text", "surface"),
         ("muted", "surface"),
         ("muted", "rail"),
-        ("deep", "mint"),
-        ("mint", "surface"),
+        ("muted", "raised"),
+        ("on-action", "action"),
+        ("action", "surface"),
+        ("seal", "surface"),
         ("error", "surface"),
     ],
 )

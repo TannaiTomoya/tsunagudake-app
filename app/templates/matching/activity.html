@@ -7,7 +7,7 @@
   <tbody>{% for visit in activity.visits %}
   <tr>
     <td>{{ visit.visit_date }}</td><td>{{ categories[visit.category] }}</td><td data-numeric>{{ visit.minutes }}分</td><td>{{ visit.note or "—" }}</td>
-    <td>{{ {"recorded": "確認待ち", "confirmed": "確認済み", "disputed": "相違あり"}[visit.status] }}
+    <td><span class="state" data-status="{{ visit.status }}">{{ {"recorded": "確認待ち", "confirmed": "確認済み", "disputed": "相違あり"}[visit.status] }}</span>
     {% if visit.status == "recorded" %}
       {% if activity.office_writer %}
         <form method="post">
@@ -36,7 +36,7 @@
   <thead><tr><th scope="col">業務の型</th><th scope="col" data-numeric>改善前</th><th scope="col" data-numeric>現在</th><th scope="col">状態</th></tr></thead>
   <tbody>{% for row in activity.reductions %}
   <tr><td>{{ categories[row.category] }}</td><td data-numeric>{{ row.before_hours }}時間</td><td data-numeric>{{ row.after_hours }}時間</td>
-    <td>{{ "確認済み" if row.status == "confirmed" else "確認待ち" }}
+    <td><span class="state" data-status="{{ row.status }}">{{ "確認済み" if row.status == "confirmed" else "確認待ち" }}</span>
     {% if activity.owner and not activity.finalized and row.status == "draft" %}
     <form method="post" action="{{ url_for('statements.reduction_confirm', office_id=engagement.office_id, engagement_id=engagement.id, reduction_id=row.id) }}">
       {{ csrf() }}<button{% if row != pending_reductions | first %} class="secondary outline"{% endif %}>時間を確かめる</button>
@@ -60,7 +60,7 @@
 </details>
 {% endif %}
 {% set terms = activity.statement if activity.finalized else engagement %}
-<h3>{{ "確定済みの明細" if activity.finalized else "明細の下書き" }}</h3>
+<h3>{{ "確定済みの明細" if activity.finalized else "明細の下書き" }}{% if activity.finalized %} <span class="seal">確定</span>{% endif %}</h3>
 <div class="overflow-auto statement-table" role="region" aria-label="月次明細" tabindex="0"><table>
   <tbody>
     <tr><th scope="row">減った時間（事務所が確認）</th><td data-numeric>{{ activity.fee.reduced_hours }}時間</td></tr>
