@@ -271,7 +271,12 @@ def statement_finalize(
     if not valid_month(month):
         abort(400)
     try:
-        finalize(engagement, month, _actor().id)
+        finalize(
+            engagement,
+            month,
+            _actor().id,
+            returned_to=request.form.get("returned_to", ""),
+        )
     except StatementConflict as exc:
         return _conflict(exc)
     return _office_back(engagement, month)

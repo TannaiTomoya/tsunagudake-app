@@ -14,6 +14,9 @@
 {% endmacro %}
 {% block content %}
 <h1>{{ heading }}の地域ダッシュボード</h1>
+{% if demo_region and dashboard.town.reduced_hours is not none %}
+<p>この町で今月、資料回収の時間が{{ "{:,}".format(dashboard.town.reduced_hours) }}時間減りました。つなぎ手{{ "{:,}".format(dashboard.town.talents) }}人のうち、地域おこし協力隊は{{ "{:,}".format(dashboard.town.corps_talents) }}人です。</p>
+{% endif %}
 <div class="overflow-auto">
 <table>
   <thead><tr>

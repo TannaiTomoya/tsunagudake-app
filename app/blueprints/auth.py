@@ -152,11 +152,11 @@ def talent_home() -> str:
 def region_home(code: str) -> str:
     municipality = require_municipality(code)
     threshold = current_app.config["REGION_K_ANONYMITY"]
+    demo = cast(User, current_user).is_demo
     return render_template(
         "auth/region_home.html",
         heading=municipality.name,
         region_group=municipality.region_group,
-        dashboard=dashboard_for(
-            municipality, threshold, demo=cast(User, current_user).is_demo
-        ),
+        demo_region=demo,
+        dashboard=dashboard_for(municipality, threshold, demo=demo),
     )
