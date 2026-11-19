@@ -515,3 +515,21 @@ class Statement(Created, Base):
     status: Mapped[StatementStatus] = mapped_column(stored_enum(StatementStatus))
     finalized_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     finalized_at: Mapped[datetime | None]
+
+
+class RateLimitEvent(Created, Base):
+    __tablename__ = "rate_limit_events"
+    __table_args__ = (
+        Index("ix_rate_limit_events_lookup", "scope", "key_hash", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    scope: Mapped[str] = mapped_column(String(16))
+    key_hash: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(default=utc_now, index=True)
+
+
+class RateLimitLock(Base):
+    __tablename__ = "rate_limit_locks"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)

@@ -8,6 +8,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from app.audit import record_audit
 from app.extensions import db, login_manager
 from app.models import User, utc_now
+from app.ratelimit import check_login, finish_login, login_buckets
 
 _DUMMY_HASH = generate_password_hash("unused account")
 
@@ -30,17 +31,24 @@ def load_user(identity: str) -> User | None:
 
 
 def authenticate(email: str, password: str, *, demo_only: bool = False) -> User | None:
-    user = db.session.scalar(select(User).where(User.email == email.strip().lower()))
+    email = email.strip().lower()
+    buckets = login_buckets(email)
+    check_login(buckets)
+    user = db.session.scalar(select(User).where(User.email == email))
+    if user and user.email != email:
+        user = None
     if demo_only and user and not user.is_demo:
         user = None
     password_valid = check_password_hash(
         user.password_hash if user else _DUMMY_HASH, password
     )
     if user is None or not _can_sign_in(user) or not password_valid:
+        finish_login(buckets, successful=False)
         record_audit("login_failed")
         db.session.commit()
         return None
 
+    finish_login(buckets, successful=True)
     user.last_login_at = utc_now()
     record_audit("login", actor_id=user.id)
     db.session.commit()

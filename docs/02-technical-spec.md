@@ -190,7 +190,7 @@ tsunagudake-app/
 | CSRF | Flask-WTF の `CSRFProtect` を全体にかける。状態を変える操作は POST だけ |
 | Host | `TRUSTED_HOSTS` 以外の Host は 400 |
 | 応答ヘッダー | `Content-Security-Policy: default-src 'self'; frame-ancestors 'none'`、`X-Content-Type-Options: nosniff`、`Referrer-Policy: same-origin`、HTTPS では HSTS |
-| 回数制限 | ログインの失敗：同じメールアドレスで15分に5回。同じ IP から10分に20回。止めたら 429。相手はハッシュにして数える（03 §4.8）。nginx は、相手の IP を `X-Forwarded-For` に**上書きして**渡す（相手が付けてきた値を引き継がない） |
+| 回数制限 | ログインの失敗：同じメールアドレスで15分に5回。同じ IP から10分に20回。止めたら 429 と Retry-After を返す。成功したメールアドレスの失敗のみ取り消す。相手は鍵付き SHA-256 で数える（03 §4.8）。nginx は、相手の IP を `X-Forwarded-For` に**上書きして**渡す（相手が付けてきた値を引き継がない） |
 | 登録の有無 | ログインの失敗は、登録の有無で文言も時間も変えない |
 | 人を作るコマンド | `flask create-user` は、パスワードを引数で受け取らず、対話で聞く（コマンドの履歴に残さない） |
 | 権限 | [authorization.md](authorization.md) の拒否のマス1つにつき、テスト1本。守りを外すとテストが落ちることを確かめる |

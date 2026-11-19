@@ -30,6 +30,7 @@ from app.models import (
     Need,
     Office,
     OfficeMember,
+    RateLimitEvent,
     Reduction,
     ReductionStatus,
     Role,
@@ -879,3 +880,90 @@ def test_t16_t17_t24_region_dashboard(database_app: Flask) -> None:
     assert "架空広域の合計" in total
     assert ">11<" in total.strip().replace(" ", "").replace("\n", "")
     assert "架空町" not in page
+
+
+def test_t34_email_lock_expires_and_success_clears_its_failures(
+    database_app: Flask,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    now = datetime(2030, 1, 1)
+    monkeypatch.setattr("app.ratelimit.utc_now", lambda: now)
+    client = database_app.test_client()
+    email = "office@example.org"
+    assert sign_in(client, email, "wrong") == 401
+    assert sign_in(client, email) == 302
+    with database_app.app_context():
+        events = db.session.scalars(select(RateLimitEvent)).all()
+        assert len(events) == 1 and events[0].scope == "ip"
+        assert re.fullmatch(r"[0-9a-f]{64}", events[0].key_hash)
+    now += timedelta(days=2)
+    assert sign_in(client, email, "wrong") == 401
+    now += timedelta(minutes=4)
+    for _ in range(4):
+        assert sign_in(client, " OFFICE@example.org ", "wrong") == 401
+    assert sign_in(client, email) == 429
+    now += timedelta(minutes=14, seconds=59)
+    response = client.post(
+        "/login",
+        data={
+            "email": email,
+            "password": PASSWORD,
+            "csrf_token": token(client, "/login"),
+        },
+    )
+    assert response.status_code == 429
+    assert response.headers["Retry-After"] == "1"
+    now += timedelta(seconds=1)
+    assert sign_in(client, email) == 302
+    with database_app.app_context():
+        failures = db.session.scalars(select(RateLimitEvent)).all()
+        assert len(failures) == 5 and all(row.scope == "ip" for row in failures)
+
+
+def test_t34_proxy_ip_is_scoped(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "test")
+    app = create_app({"SQLALCHEMY_DATABASE_URI": "sqlite://", "PROXY_FIX": True})
+    _seed_identity(app)
+    client = app.test_client()
+    csrf = token(client, "/login")
+
+    def post(email: str, ip: str, password: str) -> int:
+        return client.post(
+            "/login",
+            headers={"X-Forwarded-For": ip},
+            data={"email": email, "password": password, "csrf_token": csrf},
+        ).status_code
+
+    for index in range(20):
+        assert post(f"unknown{index}@example.org", "192.0.2.1", "wrong") == 401
+    assert post("office@example.org", "192.0.2.1", PASSWORD) == 429
+    assert post("office@example.org", "192.0.2.2", PASSWORD) == 302
+
+
+@pytest.mark.parametrize("scope", ["email", "ip"])
+def test_t34_parallel_attempts_cannot_exceed_limit(
+    mysql_identity_app: Flask, scope: str
+) -> None:
+    mysql_identity_app.config["RATE_LOGIN_IP_MAX"] = 5
+    barrier = Barrier(6, timeout=10)
+
+    def attempt(index: int) -> int:
+        client = mysql_identity_app.test_client()
+        csrf = token(client, "/login")
+        barrier.wait()
+        return client.post(
+            "/login",
+            environ_overrides={
+                "REMOTE_ADDR": f"192.0.2.{index + 1 if scope == 'email' else 1}"
+            },
+            data={
+                "email": "office@example.org"
+                if scope == "email"
+                else f"unknown{index}@example.org",
+                "password": "wrong",
+                "csrf_token": csrf,
+            },
+        ).status_code
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        assert sorted(pool.map(attempt, range(6))) == [401] * 5 + [429]
