@@ -105,7 +105,7 @@ def save_visit(
     )
     if visit and visit.status != VisitStatus.RECORDED:
         raise StatementConflict(
-            "確認済み、または「違う」が付いた訪問は変更できません。"
+            "確認済み、または「相違あり」になった訪問は変更できません。"
         )
     if visit is None:
         visit = Visit(engagement_id=engagement.id)

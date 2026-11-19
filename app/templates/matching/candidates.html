@@ -3,7 +3,7 @@
 {% block content %}
 <p><a href="{{ url_for('needs.detail', office_id=office.id, need_id=need.id) }}">困りごとに戻る</a></p>
 <h1>候補と理由</h1>
-<p>声をかける人を選ぶのは代表です。</p>
+<p>声をかける人を選ぶのは代表です。合意した条件は境界線台帳に残ります。</p>
 {% if error %}<p role="alert">{{ error }}</p>{% endif %}
 {% if writable and not pending %}
 <form method="post" action="{{ url_for('matching.run_match', office_id=office.id, need_id=need.id) }}">
@@ -25,12 +25,12 @@
     </tr>
     {% endfor %}</tbody>
   </table></div>
-  {% else %}<p>条件に合う人が、今はいません。</p>{% endif %}
+  {% else %}<p>条件に合う人が、今はいません。来てほしい曜日を見直すか、時間をおいて候補を出し直してください。</p>{% endif %}
   {% if run.excluded_summary %}
   <h2>条件に合わなかった人</h2>
   <ul>{% for reason, count in run.excluded_summary.items() %}<li>{{ exclusions[reason] }} {{ count }}人</li>{% endfor %}</ul>
   {% endif %}
-{% else %}<p>まだ候補は出ていません。</p>{% endif %}
+{% else %}<p>まだ候補は出ていません。{% if writable and not pending %}「候補を出す」を押すと、条件に合う最大3人を理由つきで表示します。{% endif %}</p>{% endif %}
 {% if owner and writable %}
   {% for candidate, talent, name, town in candidates %}
     {% if candidate.status == "listed" and not pending %}

@@ -194,7 +194,7 @@ def visit_form(engagement_id: int, visit_id: int | None = None) -> ResponseRetur
             error, status = str(exc), 409
     elif form.is_submitted():
         error, status = (
-            "日付、業務の型、15〜600分の訪問時間、300文字以内のメモをご確認ください。",
+            "日付、業務の型、15〜600分の訪問時間、300文字以内の伝える内容をご確認ください。",
             422,
         )
     return render_template(

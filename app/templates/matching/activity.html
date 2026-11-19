@@ -3,7 +3,7 @@
 {% if activity.talent_writer %}<p><a href="{{ url_for('statements.visit_form', engagement_id=engagement.id) }}">訪問を記録する</a></p>{% endif %}
 {% if activity.visits %}
 <div class="overflow-auto"><table>
-  <thead><tr><th scope="col">日付</th><th scope="col">業務の型</th><th scope="col" data-numeric>時間</th><th scope="col">メモ</th><th scope="col">状態</th></tr></thead>
+  <thead><tr><th scope="col">日付</th><th scope="col">業務の型</th><th scope="col" data-numeric>時間</th><th scope="col">伝えること</th><th scope="col">状態</th></tr></thead>
   <tbody>{% for visit in activity.visits %}
   <tr>
     <td>{{ visit.visit_date }}</td><td>{{ categories[visit.category] }}</td><td data-numeric>{{ visit.minutes }}分</td><td>{{ visit.note or "—" }}</td>
@@ -22,7 +22,7 @@
   </tr>
   {% endfor %}</tbody>
 </table></div>
-{% else %}<p>訪問はまだありません。</p>{% endif %}
+{% else %}<p>訪問はまだありません。{% if activity.talent_writer %}訪問を終えたら「訪問を記録する」から入力してください。{% endif %}</p>{% endif %}
 
 <h2>減った時間と月の明細</h2>
 <form method="get">
@@ -84,7 +84,8 @@
 <form method="post" action="{{ url_for('statements.statement_finalize', office_id=engagement.office_id, engagement_id=engagement.id, month=activity.month) }}">
   {{ csrf() }}
   <label for="returned_to">この時間は、何に戻りましたか（任意）</label>
-  <input id="returned_to" name="returned_to" type="text" maxlength="100">
+  <input id="returned_to" name="returned_to" type="text" maxlength="100" placeholder="例：顧問先の相談に戻った">
+  <p>明細を確定すると、この内容が境界線台帳に残ります。</p>
   <button>明細を確定する</button>
 </form>
 {% endif %}

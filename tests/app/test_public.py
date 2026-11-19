@@ -73,3 +73,8 @@ def test_branded_pages(client: FlaskClient, path: str, title: str, status: int) 
     assert f"<title>{title}</title>" in html
     assert 'aria-label="メインメニュー"' in html
     assert "/demo/enter" not in html
+    if path == "/how":
+        assert "登録ID" not in html
+        assert "先に登録された人" in html
+    if path == "/missing":
+        assert "ホームから開き直してください" in html

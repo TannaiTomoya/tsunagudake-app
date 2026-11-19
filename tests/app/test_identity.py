@@ -358,7 +358,7 @@ def test_t23_trust_home_is_scoped_and_uses_inclusive_dates(identity_app: Flask) 
     page = client.get(f"/t/?talent_id={other_id}").get_data(as_text=True)
     for expected in (
         "簿記2級",
-        "運営の確認待ち",
+        "運営の確認を待っています。",
         "あと0日",
         "期限が切れています",
         "0回",
@@ -476,7 +476,11 @@ def test_matching_invite_agreement_and_ledger(identity_app: Flask) -> None:
     assert sign_in(office, "office@example.org") == 302
     path, match_path = _publish_and_generate(office)
     page = office.get(match_path).get_data(as_text=True)
-    for excluded in ("守秘の誓約 1人", "移動時間 1人", "曜日 1人"):
+    for excluded in (
+        "守秘の誓約が未有効 1人",
+        "移動時間が60分超または不明 1人",
+        "希望曜日が合わない 1人",
+    ):
         assert excluded in page
     for name in ("架空候補2", "架空候補3", "架空候補4"):
         assert name not in page

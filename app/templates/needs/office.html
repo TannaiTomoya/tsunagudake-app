@@ -9,7 +9,7 @@
   <li><a href="{{ url_for('needs.detail', office_id=office.id, need_id=item.id) }}">{{ item.body | truncate(65) }}</a><span class="state" data-status="{{ item.status }}">{{ statuses[item.status] }}</span></li>
   {% endfor %}
 </ul>
-{% else %}<p>まだ困りごとはありません。</p>{% endif %}
+{% else %}<p>{% if can_write %}まだ困りごとはありません。「困りごとを書く」から始めてください。{% else %}まだ困りごとはありません。{% endif %}</p>{% endif %}
 <form method="post" action="{{ url_for('auth.logout') }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <button type="submit" class="secondary outline">ログアウトする</button>

@@ -19,7 +19,7 @@
 {% elif dashboard.town.reduced_hours is not none %}
 <p class="region-summary">この町では、作業時間が合わせて{{ "{:,}".format(dashboard.town.reduced_hours) }}時間減りました。事務所が確かめた分を集計しています。</p>
 {% endif %}
-<p>参加事務所が少ない町の数字は伏せます。合計からその町の数字が分かる場合は、合計も伏せます。</p>
+<p>事務所が特定されないよう、参加事務所が少ない町の数字は伏せます。合計から逆算できる場合は、合計も伏せます。</p>
 <div class="overflow-auto" role="region" aria-label="地域の集計" tabindex="0">
 <table>
   <thead><tr>
