@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from enum import StrEnum
 from secrets import token_hex
 
@@ -228,3 +228,96 @@ class NeedTranslation(Created, Base):
     it_task: Mapped[ItTask] = mapped_column(stored_enum(ItTask))
     evidence: Mapped[str] = mapped_column(String(200))
     source: Mapped[TranslationSource] = mapped_column(stored_enum(TranslationSource))
+
+
+class BookkeepingLevel(StrEnum):
+    NONE = "none"
+    THIRD = "3"
+    SECOND = "2"
+    FIRST = "1"
+
+
+class TalentAffiliation(StrEnum):
+    GRADUATE = "graduate"
+    KYORYOKUTAI = "kyoryokutai"
+    OTHER = "other"
+    NONE = "none"
+
+
+class TalentSkillKind(StrEnum):
+    TOOL = "tool"
+    STRENGTH = "strength"
+
+
+class TrustKind(StrEnum):
+    PLEDGE = "pledge"
+    TRAINING = "training"
+
+
+class Talent(Created, Base):
+    __tablename__ = "talents"
+    __table_args__ = (
+        CheckConstraint("capacity BETWEEN 1 AND 5", name="talent_capacity_range"),
+        CheckConstraint(
+            "weekdays_mask BETWEEN 0 AND 127", name="talent_weekdays_mask_range"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True)
+    municipality_id: Mapped[int] = mapped_column(ForeignKey("municipalities.id"))
+    bookkeeping_level: Mapped[BookkeepingLevel] = mapped_column(
+        Enum(
+            BookkeepingLevel,
+            native_enum=False,
+            length=10,
+            values_callable=lambda levels: [level.value for level in levels],
+            create_constraint=True,
+        ),
+        default=BookkeepingLevel.NONE,
+    )
+    level_verified_at: Mapped[datetime | None]
+    level_verified_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    weekdays_mask: Mapped[int] = mapped_column(default=0)
+    capacity: Mapped[int] = mapped_column(default=2)
+    affiliation: Mapped[TalentAffiliation] = mapped_column(
+        stored_enum(TalentAffiliation), default=TalentAffiliation.NONE
+    )
+    is_listed: Mapped[bool] = mapped_column(default=False)
+    updated_at: Mapped[datetime] = mapped_column(default=utc_now, onupdate=utc_now)
+
+
+class TalentSkill(Created, Base):
+    __tablename__ = "talent_skills"
+    __table_args__ = (
+        UniqueConstraint("talent_id", "kind", "tag"),
+        CheckConstraint(
+            "(kind = 'tool' AND tag IN "
+            "('freee', 'mf', 'yayoi', 'excel', 'sheets', 'python', 'other')) "
+            "OR (kind = 'strength' AND tag IN "
+            "('collect', 'check', 'entry', 'report', 'tooling', 'teaching'))",
+            name="talent_skill_valid_tag",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    talent_id: Mapped[int] = mapped_column(ForeignKey("talents.id"))
+    kind: Mapped[TalentSkillKind] = mapped_column(stored_enum(TalentSkillKind))
+    tag: Mapped[str] = mapped_column(String(20))
+
+
+class TrustItem(Created, Base):
+    __tablename__ = "trust_items"
+    __table_args__ = (
+        CheckConstraint("expires_on >= valid_from", name="trust_period_order"),
+        Index("ix_trust_items_talent_kind", "talent_id", "kind"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    talent_id: Mapped[int] = mapped_column(ForeignKey("talents.id"))
+    kind: Mapped[TrustKind] = mapped_column(stored_enum(TrustKind))
+    valid_from: Mapped[date]
+    expires_on: Mapped[date]
+    recorded_by: Mapped[int] = mapped_column(ForeignKey("users.id"))

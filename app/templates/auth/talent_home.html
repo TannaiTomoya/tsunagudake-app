@@ -1,0 +1,36 @@
+{% extends "auth/home.html" %}
+{% block content %}
+<h1>{{ heading }}</h1>
+{% if talent %}
+<h2>簿記の級</h2>
+{% if talent.bookkeeping_level != "none" %}<p>簿記{{ talent.bookkeeping_level }}級</p>{% endif %}
+{% if talent.bookkeeping_level == "none" or not talent.level_verified_at %}
+<p>運営の確認待ち</p>
+{% else %}<p>運営が確認済みです。</p>{% endif %}
+<h2>守秘の誓約と研修</h2>
+<table>
+  <thead><tr><th scope="col">項目</th><th scope="col">期限</th><th scope="col">状態</th></tr></thead>
+  <tbody>
+  {% for item in statuses %}
+    <tr>
+      <th scope="row">{{ "守秘の誓約" if item.kind == "pledge" else "研修" }}</th>
+      <td>{% if item.expires_on %}{{ item.expires_on.year }}年{{ item.expires_on.month }}月{{ item.expires_on.day }}日{% else %}—{% endif %}</td>
+      <td>{% if item.valid %}有効（あと{{ item.days_left }}日）
+          {% elif not item.expires_on %}記録がありません。候補に出ません。
+          {% elif item.valid_from > today %}有効期間の開始前です。候補に出ません。
+          {% else %}期限が切れています。候補に出ません。{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% if not talent.is_listed %}<p>候補に出る設定が無効です。</p>{% endif %}
+{% else %}
+<p>つなぎ手のプロフィールがまだ登録されていません。運営にご確認ください。</p>
+{% endif %}
+<h2>確かめられた訪問</h2>
+<p>{{ confirmed_visits }}回</p>
+<form method="post" action="{{ url_for('auth.logout') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit" class="secondary outline">ログアウト</button>
+</form>
+{% endblock %}

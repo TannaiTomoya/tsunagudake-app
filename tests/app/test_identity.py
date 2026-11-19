@@ -1,4 +1,6 @@
 import re
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from flask import Flask
@@ -9,12 +11,16 @@ from app import create_app
 from app.extensions import db
 from app.models import (
     AuditLog,
+    BookkeepingLevel,
     MemberRole,
     Municipality,
     MunicipalityMember,
     Office,
     OfficeMember,
     Role,
+    Talent,
+    TrustItem,
+    TrustKind,
     User,
 )
 
@@ -96,7 +102,7 @@ def test_t20_anonymous_redirect(identity_app: Flask, path: str) -> None:
         (Role.OFFICE, "/o/1/", 200),
         (Role.OFFICE, "/o/2/", 404),
         (Role.OFFICE, "/o/999/", 404),
-        (Role.OFFICE, "/t/", 403),
+        (Role.OFFICE, "/t/", 404),
         (Role.OFFICE, "/r/90001/", 403),
         (Role.TSUNAGITE, "/o/1/", 404),
         (Role.TSUNAGITE, "/t/", 200),
@@ -271,3 +277,91 @@ def test_t21_t22_need_access(identity_app: Flask) -> None:
     assert sign_in(admin, "admin@example.org") == 302
     assert admin.get(path).status_code == 200
     assert admin.get(path + "/edit").status_code == 403
+
+
+def test_t23_trust_home_is_scoped_and_uses_inclusive_dates(identity_app: Flask) -> None:
+    today = datetime.now(ZoneInfo("Asia/Tokyo")).date()
+    with identity_app.app_context():
+        other = User(
+            email="other-talent@example.org",
+            display_name="架空つなぎ手",
+            role=Role.TSUNAGITE,
+        )
+        other.set_password(PASSWORD)
+        db.session.add(other)
+        db.session.flush()
+        own_talent = Talent(
+            user_id=2, municipality_id=1, bookkeeping_level=BookkeepingLevel.SECOND
+        )
+        other_talent = Talent(
+            user_id=other.id,
+            municipality_id=2,
+            bookkeeping_level=BookkeepingLevel.FIRST,
+        )
+        db.session.add_all([own_talent, other_talent])
+        db.session.flush()
+        other_id = other_talent.id
+        db.session.add_all(
+            [
+                TrustItem(
+                    talent_id=own_talent.id,
+                    kind=TrustKind.PLEDGE,
+                    valid_from=today - timedelta(days=365),
+                    expires_on=today,
+                    recorded_by=4,
+                ),
+                TrustItem(
+                    talent_id=own_talent.id,
+                    kind=TrustKind.PLEDGE,
+                    valid_from=today + timedelta(days=1),
+                    expires_on=today + timedelta(days=366),
+                    recorded_by=4,
+                ),
+                TrustItem(
+                    talent_id=own_talent.id,
+                    kind=TrustKind.TRAINING,
+                    valid_from=today - timedelta(days=366),
+                    expires_on=today - timedelta(days=1),
+                    recorded_by=4,
+                ),
+            ]
+        )
+        db.session.commit()
+    client = identity_app.test_client()
+    assert sign_in(client, "tsunagite@example.org") == 302
+    page = client.get(f"/t/?talent_id={other_id}").get_data(as_text=True)
+    for expected in (
+        "簿記2級",
+        "運営の確認待ち",
+        "あと0日",
+        "期限が切れています",
+        "0回",
+    ):
+        assert expected in page
+    assert "簿記1級" not in page
+    assert client.get(f"/t/{other_id}/").status_code == 404
+
+
+def test_create_talent_profile_with_registered_municipality(
+    identity_app: Flask,
+) -> None:
+    result = identity_app.test_cli_runner().invoke(
+        args=[
+            "create-user",
+            "--email",
+            "profile@example.org",
+            "--display-name",
+            "架空担当",
+            "--role",
+            "tsunagite",
+            "--municipality-code",
+            "90001",
+        ],
+        input=f"{PASSWORD}\n{PASSWORD}\n",
+    )
+    assert result.exit_code == 0, result.output
+    client = identity_app.test_client()
+    assert sign_in(client, "profile@example.org") == 302
+    page = client.get("/t/").get_data(as_text=True)
+    assert "記録がありません" in page
+    assert "候補に出る設定が無効です。" in page
