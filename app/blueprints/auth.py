@@ -1,4 +1,8 @@
-from flask import Blueprint, redirect, render_template, session, url_for
+from datetime import datetime
+from typing import cast
+from zoneinfo import ZoneInfo
+
+from flask import Blueprint, abort, redirect, render_template, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from flask_wtf import FlaskForm
 from sqlalchemy import select
@@ -6,7 +10,7 @@ from werkzeug.wrappers import Response
 from wtforms import EmailField, PasswordField  # type: ignore[import-untyped]
 from wtforms.validators import InputRequired, Length  # type: ignore[import-untyped]
 
-from app.authz import require_municipality, require_office, require_role
+from app.authz import require_municipality, require_office
 from app.blueprints.needs import STATUSES
 from app.extensions import db
 from app.models import (
@@ -16,9 +20,11 @@ from app.models import (
     Office,
     OfficeMember,
     Role,
+    Talent,
     User,
 )
 from app.services.auth import authenticate
+from app.services.trust import trust_statuses
 
 bp = Blueprint("auth", __name__)
 
@@ -106,8 +112,20 @@ def office_home(office_id: int) -> str:
 @bp.get("/t/")
 @login_required  # type: ignore[untyped-decorator]
 def talent_home() -> str:
-    require_role(Role.TSUNAGITE)
-    return render_template("auth/home.html", heading="つなぎ手")
+    user = cast(User, current_user)
+    if user.role != Role.TSUNAGITE:
+        abort(404)
+    talent = db.session.scalar(select(Talent).where(Talent.user_id == user.id))
+    today = datetime.now(ZoneInfo("Asia/Tokyo")).date()
+    return render_template(
+        "auth/talent_home.html",
+        heading="信用台帳",
+        talent=talent,
+        statuses=trust_statuses(talent, today) if talent is not None else (),
+        today=today,
+        # 訪問の記録は段階7で追加し、確認済みの行をここで集計します。
+        confirmed_visits=0,
+    )
 
 
 @bp.get("/r/<code>/")
