@@ -332,35 +332,67 @@ bash deploy/deploy.sh https://tsunagudake.example.jp
 `deploy/deploy.sh` がすること：①DB をバックアップ ②`git pull --ff-only` ③`uv sync --frozen --no-dev` ④`uv run --frozen --no-dev flask db upgrade` ⑤`sudo systemctl restart tsunagudake` ⑥`/healthz` が 200 を返すまで待つ（返らなければ、失敗として終わる）。
 **サーバーの上でファイルを直さない。** 直すのは自分の PC で、push して、ここで取り込む。
 
-## 13. バックアップ
-設計は 02 §11.5。スクリプトは `deploy/backup.sh`（段階10）。
-- 毎日 3:30（systemd timer）：`mysqldump` → サーバーの中（7日）→ 別の会社のオブジェクトストレージ（30日）
-- 鍵は `~/.config/tsunagudake-backup/s3.env`（`chmod 600`）。アプリの `.env` と分ける。MySQL のパスワードは `~/.config/tsunagudake-backup/my.cnf`（`chmod 600`）に書き、`--defaults-extra-file` で渡す（**最初のオプションに書く**。パスワードをコマンドに直接書かない）
+## 13. バックアップと復元の練習
+
+毎日 **03:30（日本時間）** に `deploy/backup.sh` を実行します。時刻と一意の文字列を含む gzip をサーバー内に7日、別の会社のオブジェクトストレージに30日保存します。デプロイ前の控えとは別のディレクトリです。
+
+### 13.1 鍵とバケットの準備
+
+`ubuntu` のホームに専用ディレクトリを作り、次の2ファイルを権限 `600` で用意します。ストレージの鍵はバックアップ専用とし、対象バケットへの書き込みだけを許可します。復元時の読み取りには人のアカウントを使います。アプリの `.env` には入れません。
 
 `~/.config/tsunagudake-backup/my.cnf`：
-```
+
+```ini
 [client]
+host=127.0.0.1
 user=tsunagudake
 password=ここにパスワード
 ```
-取る：
-```bash
-CNF=$HOME/.config/tsunagudake-backup/my.cnf
-STAMP=$(date +%Y%m%d-%H%M%S)        # 時刻まで入れる（同じ日に2回動かしても、上書きしない）
-umask 077; mkdir -p ~/backup
-mysqldump --defaults-extra-file=$CNF --single-transaction --no-tablespaces --default-character-set=utf8mb4 tsunagudake | gzip > ~/backup/tsunagudake-$STAMP.sql.gz
-gzip -t ~/backup/tsunagudake-$STAMP.sql.gz && echo ok
+
+`~/.config/tsunagudake-backup/s3.env`：
+
+```ini
+BACKUP_S3_ENDPOINT=https://storage.example.org
+BACKUP_S3_BUCKET=バックアップ用バケット名
+BACKUP_S3_REGION=提供元が指定するリージョン
+BACKUP_S3_ACCESS_KEY_ID=バックアップ専用アクセスキーID
+BACKUP_S3_SECRET_ACCESS_KEY=バックアップ専用シークレット
 ```
-**月1回、別の DB に戻して、件数を比べる：**
+
+バケットを非公開にし、`tsunagudake/daily/` のオブジェクトが30日で期限切れになるライフサイクルを設定します。誤削除から復元できる設定も有効にし、管理画面で両方の設定を確認します。Google Cloud Storage では「削除（復元可能）」に相当します。
+
+### 13.2 タイマー
+
 ```bash
-sudo mysql -e "CREATE DATABASE tsunagudake_restore CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci; GRANT ALL PRIVILEGES ON tsunagudake_restore.* TO 'tsunagudake'@'localhost';"
-gunzip < ~/backup/tsunagudake-日付.sql.gz | mysql --defaults-extra-file=$CNF tsunagudake_restore
-Q="SELECT (SELECT COUNT(*) FROM users), (SELECT COUNT(*) FROM needs), (SELECT COUNT(*) FROM ledger_entries), (SELECT version_num FROM alembic_version);"
-mysql --defaults-extra-file=$CNF tsunagudake -e "$Q"
-mysql --defaults-extra-file=$CNF tsunagudake_restore -e "$Q"
-sudo mysql -e "DROP DATABASE tsunagudake_restore;"
+sudo install -m 644 deploy/tsunagudake-backup.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl start tsunagudake-backup.service
+sudo systemctl enable --now tsunagudake-backup.timer
+systemctl list-timers tsunagudake-backup.timer
+sudo journalctl -u tsunagudake-backup.service -n 20 --no-pager
 ```
-- 事故に気づいたら、**バックアップのスクリプトを動かさない。** 先に `cp -a ~/backup ~/backup-keep`。本番への復元は、アプリを止め、戻す前の状態も取ってから、人がする。
+
+初回は uv がロック済みのアップロード用依存を取得します。サーバー側の `~/.local/state/tsunagudake/daily-backups/` とバケットの両方に同名のファイルがあることを確認します。送信が失敗した場合はサービスが失敗として記録され、その回の gzip はサーバー内に残ります。
+
+### 13.3 月1回の復元練習
+
+読み取り権限のある人のアカウントでバケットから gzip を手元の PC にダウンロードします。控えを取得した時点の件数と比べてください。初回は書き込みのない時間帯か架空の DB で、バックアップ前に参照用の件数を控えます。
+
+```bash
+# 手元の隔離した MySQL 8 上で実行。復元先を新規作成し、既存なら中止します。
+set -o pipefail
+ARCHIVE=./tsunagudake-日時-識別子.sql.gz
+gzip -t "$ARCHIVE" &&
+  mysql --login-path=restore-local -e "CREATE DATABASE tsunagudake_restore CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci" &&
+  gunzip -c "$ARCHIVE" | mysql --login-path=restore-local tsunagudake_restore
+
+Q="SELECT (SELECT COUNT(*) FROM users) AS users, (SELECT COUNT(*) FROM needs) AS needs, (SELECT COUNT(*) FROM ledger_entries) AS ledger, (SELECT version_num FROM alembic_version) AS revision;"
+mysql --login-path=restore-local tsunagudake_restore -e "$Q"
+```
+
+`restore-local` は手元の MySQL を指すログインパスです。件数とマイグレーションの版が一致したら確認日を控え、ダウンロードした gzip は手元のアクセス制限された場所に保存します。
+
+事故に気づいたら、先に既存の控えを別の場所へ退避します。本番への復元は、アプリを止め、復元直前の状態も保存したうえで、人が行います。
 
 ## 14. 発表の直前
 ```bash
