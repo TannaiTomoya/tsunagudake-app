@@ -1,6 +1,6 @@
 # 02｜技術仕様書 — つなぐだけ（Tsunagudake）
 
-版2.0・2026-11-19。
+版2.1・2026-11-19（依存と公開の構成を、実際に動かして確かめた。§3・§6・§7・§11・§14）。
 要件は [01 要件定義書](01-requirements.md)、テーブル・規則・画面・テスト・作る順番は [03 詳細設計書](03-detailed-design.md)、権限は [authorization.md](authorization.md)、公開の手順は [runbook.md](runbook.md)。
 
 ---
@@ -80,7 +80,8 @@ testpaths = ["tests"]
 ```
 
 版は `uv add` した時点の最新を入れ、**`uv.lock` を正とする**（設計書に版の数字を書き写さない。食い違いのもとになる）。
-Flask は 3.1 系、Flask-SQLAlchemy は 3.1 系であることだけを、段階0で確かめる。
+2026-11-19 に確かめたこと：この依存の組は、uv 0.11・Python 3.14.6 で入る（Flask 3.1.3・Flask-SQLAlchemy 3.1.1・SQLAlchemy 2.1.9・Werkzeug 3.1.9・gunicorn 27.0.1 に解決された）。拡張を全部載せた最小のアプリで `/healthz` が 200、パスワードのハッシュは scrypt。
+段階0で `uv.lock` を作ってコミットし、以後はそれを正とする。
 
 ## 4. フォルダ
 
@@ -177,6 +178,8 @@ tsunagudake-app/
 | 文言 | 画面は日本語・敬体。エラーは、どの欄の何が違うかを書く。英語の既定の文言を残さない |
 | ログ | 個人情報・困りごとの本文・パスワード・鍵を、ログに出さない |
 | 規則の版 | `tsunagu_rules.RULES_VERSION` を、翻訳・候補・明細・台帳の行に残す |
+| DB の接続 | `SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "pool_recycle": 1800}`。MySQL は、しばらく使わない接続を切る。入れないと、**朝いちばんの1回がエラーになる** |
+| 制約にぶつかったとき | 例外の種類は DB で違う。MySQL では、CHECK 制約は `OperationalError`、長すぎる文字は `DataError`、一意制約は `IntegrityError`（実際に確かめた）。`services` は3つとも受けて巻き戻し、決まった文言を返す（500 にしない） |
 
 ## 7. 安全
 
@@ -187,8 +190,9 @@ tsunagudake-app/
 | CSRF | Flask-WTF の `CSRFProtect` を全体にかける。状態を変える操作は POST だけ |
 | Host | `TRUSTED_HOSTS` 以外の Host は 400 |
 | 応答ヘッダー | `Content-Security-Policy: default-src 'self'; frame-ancestors 'none'`、`X-Content-Type-Options: nosniff`、`Referrer-Policy: same-origin`、HTTPS では HSTS |
-| 回数制限 | ログインの失敗：同じメールアドレスで15分に5回。同じ IP から10分に20回。止めたら 429。相手はハッシュにして数える（03 §4.8）。nginx は `X-Forwarded-For` を渡す |
+| 回数制限 | ログインの失敗：同じメールアドレスで15分に5回。同じ IP から10分に20回。止めたら 429。相手はハッシュにして数える（03 §4.8）。nginx は、相手の IP を `X-Forwarded-For` に**上書きして**渡す（相手が付けてきた値を引き継がない） |
 | 登録の有無 | ログインの失敗は、登録の有無で文言も時間も変えない |
+| 人を作るコマンド | `flask create-user` は、パスワードを引数で受け取らず、対話で聞く（コマンドの履歴に残さない） |
 | 権限 | [authorization.md](authorization.md) の拒否のマス1つにつき、テスト1本。守りを外すとテストが落ちることを確かめる |
 | 入力 | SQL は ORM だけ（文字列でつながない）。テンプレートは自動エスケープのまま（`|safe` を使わない） |
 | 秘密 | §5.3。本番の鍵は本番の `.env` にだけ置く（`chmod 600`）。DB のユーザーはアプリごとに分ける |
@@ -294,7 +298,7 @@ push と PR で動く。①`make check`（SQLite）②MySQL のサービスを�
 
 - Xserver VPS は 2026年9月に新規の受付が止まり、10月6日に再開した。**2GB のプランを今申し込めるかは、申し込みの画面で確かめる。** 無ければ 4GB。
 - 最初は1か月契約にする（合わなければやめられる）。続けると決めてから、長い契約に変える。
-- 契約の直後は、パケットフィルターがすべて閉じている。開けるのは SSH と Web（80・443）だけ。
+- パケットフィルターを ON にし、足すのは「SSH」と「Web」（80・443）だけ。サーバーの中の ufw と**両方が効く**ので、両方で開ける（メニューの名前は公式マニュアルで確かめた。runbook §2.1）。
 - HTTPS にはドメインが要る（今ある自分のドメインのサブドメインが早い）。無い間は、IP を含む名前（sslip.io）で証明書を取る。
 - 手順は [runbook.md](runbook.md)。**サーバーの操作は本人がする。AI エージェントは本番に SSH しない。**
 
@@ -303,10 +307,10 @@ push と PR で動く。①`make check`（SQLite）②MySQL のサービスを�
 |---|---|
 | 置き場所 | `/var/www/tsunagudake-app`（キャンプと同じ形） |
 | 動かすユーザー | 一般ユーザー（root で動かさない） |
-| 起動 | systemd `tsunagudake.service`：`uv run --frozen --no-dev gunicorn "app:create_app()" --bind 127.0.0.1:8000 --workers 2 --timeout 60` |
+| 起動 | systemd `tsunagudake.service`：`.venv/bin/gunicorn -c deploy/gunicorn.conf.py "app:create_app()"`（起動のたびに uv を通さない。127.0.0.1:8000・2プロセス）。守り（`NoNewPrivileges` など）は、動いてから1行ずつ足す（runbook §8.1） |
 | 設定 | `/var/www/tsunagudake-app/.env`（`chmod 600`） |
 | DB | MySQL（Ubuntu の apt）。DB とユーザーは `tsunagudake`。パスワードは `openssl rand -hex 24` |
-| nginx | `client_max_body_size 1m`（アップロードが無い）。`X-Forwarded-For`・`X-Forwarded-Proto` を渡す。`/static/` は nginx が返す |
+| nginx | `client_max_body_size 1m`（アップロードが無い）。`X-Forwarded-For`（上書き）・`X-Forwarded-Proto` を渡す。`/static/` は nginx が返す。隠しファイル（`.env`・`.git`）は 403。版を出さない |
 | 証明書 | certbot（自動で更新） |
 | 入口 | SSH は鍵だけ。root でのログインを止める。ufw とパケットフィルターの両方で、22・80・443 だけ |
 
@@ -380,3 +384,4 @@ VPS と バケットが別の会社なので、片方の契約が止まっても
 | U4 | 2段階認証のライブラリ | 段階17 |
 | U5 | 市町村の間の移動時間の出どころ（発表は架空の表。実際は手で入れるか、地図のサービスか） | 実際の事務所が使う前 |
 | U6 | プライバシーポリシー・利用規約の文面 | 実際の事務所が使う前 |
+| U7 | 「デモで入る」を、誰でも押せる状態で公開してよいか。落書きと連打への備え（合言葉を付ける・書ける量を絞る・発表の直前に `reset-demo`） | 段階9 |

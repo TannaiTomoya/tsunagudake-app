@@ -389,6 +389,7 @@ stateDiagram-v2
 - 最後の守りは一意制約：`engagements.need_id`（伴走は1つ）、`(engagement_id, month)`（明細は1つ）、`(need_id, seq)`（台帳の番号）、`(engagement_id, visit_date)`。ぶつかったら、やり直さずに「すでに処理されています」と返す。
 - 台帳の追記：`needs` の行をロック → 最後の `seq` と `entry_hash` を読む → 次の行を足す。
 - SQLite は行のロックが効かない（書けるのが1人だけ）。**同時の操作のテストは MySQL で動かす**（02 §10.3）。
+- 制約にぶつかったときの例外は、DB で種類が違う（MySQL の CHECK 制約は `OperationalError`）。`services` は `sqlalchemy.exc.DBAPIError` をまとめて受け、巻き戻して、決まった文言を返す（02 §6）。
 
 | 起こりうること | 結果 |
 |---|---|
@@ -424,7 +425,7 @@ stateDiagram-v2
 | GET | `/r/<municipality_code>/` | 地域のダッシュボード | `mask_region` | 8 |
 | GET | `/admin/` ほか | 人・級の確認・台帳の検証 | — | 13 |
 
-コマンド：`flask create-user`（3）・`flask verify-ledger`（6）・`flask seed-demo`・`flask reset-demo --yes`（9）。
+コマンド：`flask create-user`（3。パスワードは対話で聞く）・`flask verify-ledger`（6）・`flask seed-demo`・`flask reset-demo --yes`（9）。
 
 画面の決まり（02 §8）：候補・訪問・明細・台帳・地域は**表**。1画面に主のボタンは1つ。押せないボタンには、理由を1行。
 
