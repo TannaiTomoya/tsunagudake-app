@@ -239,7 +239,7 @@ def _write_need(client: FlaskClient, path: str, body: str, category: str = "") -
 def test_needs_demo_flow(identity_app: Flask) -> None:
     client = identity_app.test_client()
     assert sign_in(client, "office@example.org") == 302
-    assert "顧問先の名前と金額を書かないでください。" in client.get(
+    assert "顧問先の名前と金額は書かないでください。" in client.get(
         "/o/1/needs/new"
     ).get_data(as_text=True)
     path = _write_need(client, "/o/1/needs/new", "資料が集まらない。過去と見比べる。")
@@ -273,7 +273,7 @@ def test_t25_block_precedes_manual_choice(identity_app: Flask) -> None:
     assert sign_in(client, "office@example.org") == 302
     path = _write_need(client, "/o/1/needs/new", "申告書の作成")
     _write_need(client, path + "/edit", "申告書の作成", "collect")
-    assert "判断に使った言葉は「申告書の作成」" in client.get(path).get_data(
+    assert "「申告書の作成」の部分を確かめてください。" in client.get(path).get_data(
         as_text=True
     )
     csrf = token(client, path + "/edit")
@@ -649,7 +649,7 @@ def _agree(app: Flask) -> tuple[FlaskClient, FlaskClient, str, str]:
 def test_t28_confirmed_visit_is_immutable_and_counted(database_app: Flask) -> None:
     office, talent, office_path, talent_path = _agree(database_app)
     visit_path = talent_path + "/visits/new"
-    assert "顧問先の名前と金額を書かない" in talent.get(visit_path).get_data(
+    assert "顧問先の名前と金額は書かない" in talent.get(visit_path).get_data(
         as_text=True
     )
     today = today_in_japan()

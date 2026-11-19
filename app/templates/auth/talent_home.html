@@ -16,9 +16,9 @@
       <th scope="row">{{ "守秘の誓約" if item.kind == "pledge" else "研修" }}</th>
       <td>{% if item.expires_on %}{{ item.expires_on.year }}年{{ item.expires_on.month }}月{{ item.expires_on.day }}日{% else %}—{% endif %}</td>
       <td>{% if item.valid %}有効（あと{{ item.days_left }}日）
-          {% elif not item.expires_on %}記録がありません。候補に出ません。
+          {% elif not item.expires_on %}候補に出るための記録がありません。運営にご確認ください。
           {% elif item.valid_from > today %}有効期間の開始前です。候補に出ません。
-          {% else %}期限が切れています。候補に出ません。{% endif %}</td>
+          {% else %}期限が切れています。候補に出るには、運営に更新を依頼してください。{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>
@@ -40,7 +40,7 @@
   <ul>{% for item in boundaries %}<li>{{ item }}</li>{% endfor %}</ul>
   <form method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit" formaction="{{ url_for('matching.answer_invitation', candidate_id=invitation.id, answer='accept') }}">受ける</button>
+    <button type="submit"{% if not loop.first %} class="secondary outline"{% endif %} formaction="{{ url_for('matching.answer_invitation', candidate_id=invitation.id, answer='accept') }}">受ける</button>
     <button type="submit" class="secondary outline" formaction="{{ url_for('matching.answer_invitation', candidate_id=invitation.id, answer='decline') }}">断る</button>
   </form>
 </article>
@@ -54,6 +54,6 @@
 {% endif %}
 <form method="post" action="{{ url_for('auth.logout') }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <button type="submit" class="secondary outline">ログアウト</button>
+  <button type="submit" class="secondary outline">ログアウトする</button>
 </form>
 {% endblock %}

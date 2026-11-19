@@ -46,6 +46,12 @@ def test_home_uses_local_styles(client: FlaskClient) -> None:
     assert "税理士は、判断するだけ。" in response.get_data(as_text=True).replace(
         "<wbr>", ""
     )
+    for phrase in (
+        "資料回収の試算例（数字は架空）",
+        "顧問先の相談に",
+        "減らなければ0円",
+    ):
+        assert phrase in response.get_data(as_text=True)
     for path in ("/static/vendor/pico.min.css", "/static/css/theme.css"):
         assert path in response.get_data(as_text=True)
         assert client.get(path).status_code == 200
@@ -54,10 +60,10 @@ def test_home_uses_local_styles(client: FlaskClient) -> None:
 @pytest.mark.parametrize(
     ("path", "title", "status"),
     [
-        ("/", "経理アプリ-Tsunagudake-", 200),
-        ("/how", "しくみ｜経理アプリ-Tsunagudake-", 200),
-        ("/login", "ログイン｜経理アプリ-Tsunagudake-", 200),
-        ("/missing", "確認してください｜経理アプリ-Tsunagudake-", 404),
+        ("/", "ホーム｜つなぐだけ", 200),
+        ("/how", "しくみ｜つなぐだけ", 200),
+        ("/login", "ログイン｜つなぐだけ", 200),
+        ("/missing", "確認してください｜つなぐだけ", 404),
     ],
 )
 def test_branded_pages(client: FlaskClient, path: str, title: str, status: int) -> None:

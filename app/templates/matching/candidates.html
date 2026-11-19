@@ -3,6 +3,7 @@
 {% block content %}
 <p><a href="{{ url_for('needs.detail', office_id=office.id, need_id=need.id) }}">困りごとに戻る</a></p>
 <h1>候補と理由</h1>
+<p>声をかける人を選ぶのは代表です。</p>
 {% if error %}<p role="alert">{{ error }}</p>{% endif %}
 {% if writable and not pending %}
 <form method="post" action="{{ url_for('matching.run_match', office_id=office.id, need_id=need.id) }}">
@@ -26,10 +27,10 @@
   </table></div>
   {% else %}<p>条件に合う人が、今はいません。</p>{% endif %}
   {% if run.excluded_summary %}
-  <h2>候補から外れた理由</h2>
+  <h2>条件に合わなかった人</h2>
   <ul>{% for reason, count in run.excluded_summary.items() %}<li>{{ exclusions[reason] }} {{ count }}人</li>{% endfor %}</ul>
   {% endif %}
-{% else %}<p>候補はまだ計算されていません。</p>{% endif %}
+{% else %}<p>まだ候補は出ていません。</p>{% endif %}
 {% if owner and writable %}
   {% for candidate, talent, name, town in candidates %}
     {% if candidate.status == "listed" and not pending %}
@@ -40,7 +41,7 @@
         {{ offer_form.weekday.label }} {{ offer_form.weekday() }}
         {{ offer_form.share_bp.label }} {{ offer_form.share_bp(min=1, max=4999, required=true) }}
         {{ offer_form.cap_yen.label }} {{ offer_form.cap_yen(min=0) }}
-        <button type="submit">声をかける</button>
+        <button type="submit" class="secondary outline">声をかける</button>
       </form>
     </details>
     {% elif candidate.status == "invited" %}

@@ -11,7 +11,7 @@
 {% if engagement_id %}<p><a href="{{ url_for('matching.office_engagement', office_id=office.id, engagement_id=engagement_id) }}">伴走と境界線台帳を見る</a></p>{% endif %}
 <h2>翻訳の結果</h2>
 {% if need.block_reason %}
-<p role="alert">税理士業務にあたる可能性があるため公開できません。判断に使った言葉は「{{ need.block_reason }}」です。</p>
+<p role="alert">税理士業務にあたる可能性があるため公開できません。「{{ need.block_reason }}」の部分を確かめてください。資料の受け取りなど、つなぎ手に頼みたい作業を書いてください。</p>
 {% elif rows %}
 <div class="overflow-auto" role="region" aria-label="翻訳の結果" tabindex="0"><table>
   <thead><tr><th scope="col">業務の型</th><th scope="col">ITの作業</th><th scope="col">根拠</th></tr></thead>
@@ -25,7 +25,7 @@
 <p>規則では訳せませんでした。型を選んでください。</p>
 {% endif %}
 <h2>月の価値 {{ "{:,}".format(estimate.monthly_value_yen) }}円</h2>
-<p>減らせる見込みです。約束ではありません。</p>
+<p>下の表は減らせる時間と金額の見込みです。成果を約束するものではありません。</p>
 <div class="overflow-auto" role="region" aria-label="月の価値の見込み" tabindex="0"><table>
   <thead><tr><th scope="col">見込み</th><th scope="col">時間</th><th scope="col">価値</th></tr></thead>
   <tbody>

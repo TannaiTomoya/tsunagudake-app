@@ -53,7 +53,7 @@ class VisitForm(FlaskForm):  # type: ignore[misc]
         "訪問時間（分）", validators=[InputRequired(), NumberRange(15, 600)]
     )
     category = SelectField("業務の型", choices=_CHOICES, validators=[InputRequired()])
-    note = TextAreaField("メモ", validators=[Length(max=300)])
+    note = TextAreaField("事務所に伝えること（任意）", validators=[Length(max=300)])
 
 
 class ReductionForm(FlaskForm):  # type: ignore[misc]
