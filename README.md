@@ -15,7 +15,7 @@
 | もの | 状態 |
 |---|---|
 | 設計書（要件・技術・詳細・権限・公開の手順） | **済み**（`docs/`） |
-| 作る順番 | **済み**（[Issues](https://github.com/TannaiTomoya/tsunagudake-app/issues)。段階0から順に並んでいる） |
+| 作る順番 | **済み**（[#25 作る順番と、今どこにいるか](https://github.com/TannaiTomoya/tsunagudake-app/issues/25)。Issue の #1〜#24 が、段階0〜23 の順） |
 | アプリのコード | **これから**（段階0から）。下の「開発の始め方」は、段階0が済むと動く |
 | 公開 | これから（段階1） |
 
@@ -70,7 +70,7 @@ docs/           設計書
 
 ## 開発の始め方
 
-段階0（[Issues](https://github.com/TannaiTomoya/tsunagudake-app/issues) の最初の1つ）が済むと、次のとおりに動く。
+段階0（[#1](https://github.com/TannaiTomoya/tsunagudake-app/issues/1)）が済むと、次のとおりに動く。
 
 ```bash
 git clone git@github.com:TannaiTomoya/tsunagudake-app.git
