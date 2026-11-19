@@ -110,3 +110,13 @@ def init_cli(app: Flask) -> None:
         if not yes:
             raise click.ClickException("デモの初期化には --yes を指定してください。")
         run_demo(reset=True)
+
+    @app.cli.command("send-mail")
+    def send_mail() -> None:
+        from app.services.mail import MailError, send_pending
+
+        try:
+            sent = send_pending()
+        except MailError as exc:
+            raise click.ClickException(str(exc)) from None
+        click.echo(f"{sent}件のメールを送信しました。")

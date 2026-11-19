@@ -21,6 +21,7 @@ from app.models import (
     utc_now,
 )
 from app.services.ledger import append_record
+from app.services.mail import notify_office
 from tsunagu_rules import RULES_VERSION
 from tsunagu_rules.types import Fee, NeedKind
 from tsunagu_rules.types import Reduction as RuleReduction
@@ -121,6 +122,12 @@ def save_visit(
     visit.minutes = data.minutes
     visit.category = data.category
     visit.note = data.note
+    if visit_id is None:
+        notify_office(
+            engagement.office_id,
+            "訪問の確認をお願いします",
+            "伴走画面で訪問の記録を確認してください。",
+        )
     _commit()
 
 
@@ -193,6 +200,12 @@ def save_reduction(engagement: Engagement, data: ReductionInput) -> None:
     if row and row.status == ReductionStatus.CONFIRMED:
         raise StatementConflict("確認済みの時間は変更できません。")
     if row is None:
+        notify_office(
+            engagement.office_id,
+            "減った時間の確認をお願いします",
+            "伴走画面で減った時間を確認してください。",
+            owners_only=True,
+        )
         row = Reduction(
             engagement_id=engagement.id, month=data.month, category=data.category
         )

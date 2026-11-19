@@ -27,6 +27,7 @@ from app.models import (
     utc_now,
 )
 from app.services.ledger import append_record
+from app.services.mail import notify_office, notify_user
 from app.services.needs import translations
 from app.services.statement import confirmed_visits
 from app.services.trust import trust_statuses
@@ -266,6 +267,14 @@ def invite(
         target_type="need",
         target_id=need.id,
     )
+    with db.session.no_autoflush:
+        recipient = db.session.get(User, talent.user_id)
+    if recipient is not None:
+        notify_user(
+            recipient,
+            "伴走の声かけが届きました",
+            "つなぎ手のホームで声かけを確認してください。",
+        )
     _commit()
 
 
@@ -364,5 +373,18 @@ def respond(candidate_id: int, actor_id: int, *, accept: bool) -> int | None:
         target_type="need",
         target_id=need.id,
     )
+    notify_office(
+        office.id,
+        "伴走が決まりました",
+        "事務所のホームで合意の内容を確認してください。",
+    )
+    with db.session.no_autoflush:
+        recipient = db.session.get(User, actor_id)
+    if recipient is not None:
+        notify_user(
+            recipient,
+            "伴走が決まりました",
+            "つなぎ手のホームで合意の内容を確認してください。",
+        )
     _commit()
     return engagement.id

@@ -412,6 +412,19 @@ mysql --login-path=restore-local tsunagudake_restore -e "$Q"
 
 事故に気づいたら、先に既存の控えを別の場所へ退避します。本番への復元は、アプリを止め、復元直前の状態も保存したうえで、人が行います。
 
+### 通知メールの送信（段階16）
+
+本番では認証付き SMTP リレーを用意し、送信元ドメインの認証を配信元の手順で済ませます。VPS の `ubuntu` ユーザーで `~/.config/tsunagudake-mail/smtp.env` を権限600で用意し、`SMTP_HOST`、`SMTP_PORT`（省略時465）、`SMTP_FROM`、`SMTP_USERNAME`、`SMTP_PASSWORD` を設定します。
+
+```bash
+sudo install -m 644 deploy/tsunagudake-mail.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now tsunagudake-mail.timer
+sudo journalctl -u tsunagudake-mail.service -n 20 --no-pager
+```
+
+送信結果は運営画面の「メールの記録」で確認できます。送信に失敗した記録は次回処理で再試行します。SMTP が受理した直後にワーカーが止まった場合は再送されることがあります。初回は管理下のテストアドレスで受信とリンクを確認します。運営画面のデモ用本文は、実際のメールとして送信されません。
+
 ## 14. 発表の直前
 ```bash
 cd /var/www/tsunagudake-app

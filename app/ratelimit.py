@@ -29,7 +29,7 @@ def _digest(value: str) -> str:
     return hmac.digest(key, value.encode(), "sha256").hex()
 
 
-def login_buckets(email: str) -> tuple[Bucket, ...]:
+def login_buckets(email: str, *, namespace: str = "") -> tuple[Bucket, ...]:
     if not current_app.config["RATE_LIMIT_ENABLED"]:
         return ()
     try:
@@ -38,13 +38,13 @@ def login_buckets(email: str) -> tuple[Bucket, ...]:
         ip = "unknown"
     return (
         Bucket(
-            "email",
+            namespace + "_email" if namespace else "email",
             _digest(email),
             current_app.config["RATE_LOGIN_FAIL_MAX"],
             timedelta(seconds=current_app.config["RATE_LOGIN_FAIL_SECONDS"]),
         ),
         Bucket(
-            "ip",
+            namespace + "_ip" if namespace else "ip",
             _digest(ip),
             current_app.config["RATE_LOGIN_IP_MAX"],
             timedelta(minutes=10),

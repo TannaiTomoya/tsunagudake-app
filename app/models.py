@@ -534,3 +534,45 @@ class RateLimitLock(Base):
     __tablename__ = "rate_limit_locks"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)
+
+
+class Invitation(Created, Base):
+    __tablename__ = "invitations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str] = mapped_column(String(255))
+    role: Mapped[Role] = mapped_column(stored_enum(Role, name="invitation_role"))
+    office_id: Mapped[int | None] = mapped_column(ForeignKey("offices.id"))
+    municipality_id: Mapped[int | None] = mapped_column(ForeignKey("municipalities.id"))
+    member_role: Mapped[MemberRole | None] = mapped_column(
+        stored_enum(MemberRole, name="invitation_member_role")
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime]
+    used_at: Mapped[datetime | None]
+    is_demo: Mapped[bool] = mapped_column(default=False)
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+
+
+class PasswordResetToken(Created, Base):
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    session_nonce: Mapped[str] = mapped_column(String(32))
+    expires_at: Mapped[datetime]
+    used_at: Mapped[datetime | None]
+
+
+class OutboxMail(Created, Base):
+    __tablename__ = "outbox_mails"
+    __table_args__ = (Index("ix_outbox_mails_pending", "sent_at", "is_demo", "id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    recipient: Mapped[str] = mapped_column(String(255))
+    subject: Mapped[str] = mapped_column(String(150))
+    body_encrypted: Mapped[str | None] = mapped_column(Text)
+    is_demo: Mapped[bool]
+    expires_at: Mapped[datetime | None]
+    sent_at: Mapped[datetime | None]

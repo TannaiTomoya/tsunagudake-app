@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>パスワードを忘れたとき</h1>
+{% if completed %}
+<p>登録されているアドレスには、パスワードの再設定リンクをお送りします。</p>
+{% else %}
+<form method="post">
+  {{ form.hidden_tag() }}
+  {{ form.email.label }} {{ form.email(required=true, maxlength=255, autocomplete="email") }}
+  <button type="submit">再設定リンクを申し込む</button>
+</form>
+{% endif %}
+<p><a href="{{ url_for('auth.login') }}">ログインに戻る</a></p>
+{% endblock %}
