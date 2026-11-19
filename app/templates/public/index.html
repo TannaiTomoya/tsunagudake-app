@@ -1,8 +1,35 @@
 {% extends "base.html" %}
+{% block layout %}overview{% endblock %}
 {% block content %}
-<h1>税理士は、判断するだけ。</h1>
-<p><a href="{{ url_for('auth.login') }}">ログイン</a></p>
-{% if config.APP_ENV in ("demo", "development") %}<p><a href="{{ url_for('demo.enter') }}">デモで入る</a></p>{% endif %}
-<p><a href="{{ url_for('public.how') }}">しくみを見る</a></p>
-<p>会計とITの両方がわかる人が、毎週、会計事務所を支えます。</p>
+<section class="hero" aria-labelledby="hero-title">
+  <div class="hero-copy">
+    <p class="audience">会計事務所の業務支援</p>
+    <h1 id="hero-title">税理士は、<wbr>判断するだけ。</h1>
+    <p>会計とITの両方がわかる人が、毎週、会計事務所を支えます。</p>
+    <div class="actions">
+      <a class="action" href="{{ url_for('auth.account' if signed_in else 'auth.login') }}">{{ 'マイページへ' if signed_in else 'ログイン' }}{{ icon('arrow') }}</a>
+      {% if demo_available %}<a class="action quiet" href="{{ url_for('demo.enter') }}">{{ icon('play') }}デモで入る</a>{% else %}<a class="action quiet" href="{{ url_for('public.how') }}">しくみを見る</a>{% endif %}
+    </div>
+  </div>
+  <div class="ledger-art" aria-hidden="true">
+    <div class="drafting-grid"></div>
+    <div class="assembly"><div class="plate foundation"></div><div class="plate medium"></div><div class="plate cover"><div class="engraving"><i></i><i></i><i></i><i></i></div></div></div>
+  </div>
+</section>
+<section class="scenario" aria-labelledby="scenario-title">
+  <div class="section-head"><h2 id="scenario-title">資料回収の試算例</h2><a href="{{ url_for('public.how', _anchor='fees') }}">計算方法 {{ icon('arrow') }}</a></div>
+  <div class="metrics">
+    {% for label, value, unit, detail, glyph in [('改善前の作業時間','30','時間','1か月あたりの資料回収','clock'),('削減できた時間','20','時間','30時間から10時間に短縮','trend'),('この月の料金','32,000','円','時給4,000円 × 20時間 × 40%','wallet')] %}
+    <article class="metric"><div class="metric-label"><span class="tile-icon">{{ icon(glyph) }}</span>{{ label }}</div><p class="value">{{ value }}<small>{{ unit }}</small></p><p class="caption">{{ detail }}</p></article>
+    {% endfor %}
+  </div>
+</section>
+<section aria-labelledby="flow-title">
+  <div class="section-head"><h2 id="flow-title">業務の流れ</h2></div>
+  <div class="flow">
+    {% for label, detail, glyph, anchor in [('困りごとの翻訳','事務所の言葉を、具体的なITの作業にします。','layers','translation'),('候補との合意','毎週通えるつなぎ手を、理由を見て選びます。','match','matching'),('明細の確定','事務所が確かめた削減時間から料金を決めます。','receipt','fees')] %}
+    <a href="{{ url_for('public.how', _anchor=anchor) }}"><span class="tile-icon">{{ icon(glyph) }}</span><span><strong>{{ label }}</strong><small>{{ detail }}</small></span>{{ icon('arrow') }}</a>
+    {% endfor %}
+  </div>
+</section>
 {% endblock %}
