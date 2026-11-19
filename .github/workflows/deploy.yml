@@ -1,0 +1,62 @@
+name: VPS へ自動反映
+on:
+  workflow_run:
+    workflows: ["開発基盤の検査"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vps-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      vars.VPS_DEPLOY_ENABLED == 'true' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    steps:
+      - name: 検査済みのコミットを反映する
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHECKED_SHA: ${{ github.event.workflow_run.head_sha }}
+          VPS_DEPLOY_HOST: ${{ vars.VPS_DEPLOY_HOST }}
+          VPS_BASE_URL: ${{ vars.VPS_BASE_URL }}
+          VPS_DEPLOY_SSH_KEY: ${{ secrets.VPS_DEPLOY_SSH_KEY }}
+          VPS_DEPLOY_KNOWN_HOSTS: ${{ secrets.VPS_DEPLOY_KNOWN_HOSTS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          [[ "$CHECKED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          current_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')
+          if [[ "$CHECKED_SHA" != "$current_sha" ]]; then
+              echo "検査済みのコミットより新しい main があるため反映を見送ります。"
+              exit 0
+          fi
+
+          if [[ ! "$VPS_DEPLOY_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ||
+                ! "$VPS_BASE_URL" =~ ^https://[a-zA-Z0-9][a-zA-Z0-9.-]*$ ||
+                -z "$VPS_DEPLOY_SSH_KEY" || -z "$VPS_DEPLOY_KNOWN_HOSTS" ]]; then
+              echo "::error::VPS の反映先・SSH 鍵・ホスト鍵を設定してください。"
+              exit 1
+          fi
+          ssh_dir=$(mktemp -d "$RUNNER_TEMP/vps-ssh.XXXXXXXX")
+          trap 'rm -rf -- "$ssh_dir"' EXIT
+          printf '%s\n' "$VPS_DEPLOY_SSH_KEY" > "$ssh_dir/key"
+          printf '%s\n' "$VPS_DEPLOY_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
+          unset VPS_DEPLOY_SSH_KEY VPS_DEPLOY_KNOWN_HOSTS
+
+          ssh -i "$ssh_dir/key" -o IdentitiesOnly=yes -o BatchMode=yes \
+              -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$ssh_dir/known_hosts" \
+              -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+              "ubuntu@$VPS_DEPLOY_HOST" \
+              "cd /var/www/tsunagudake-app && PATH=/home/ubuntu/.local/bin:/usr/bin:/bin bash deploy/deploy.sh '$VPS_BASE_URL' '$CHECKED_SHA'"
