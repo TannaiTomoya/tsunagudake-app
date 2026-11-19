@@ -54,6 +54,21 @@ def boolean(environ: Mapping[str, str], name: str, default: bool) -> bool:
     return value == "1"
 
 
+def region_threshold(environ: Mapping[str, str]) -> int:
+    value = environ.get("REGION_K_ANONYMITY", "").strip()
+    if not value:
+        return 5
+    try:
+        threshold = int(value)
+    except ValueError:
+        raise ConfigError(
+            "REGION_K_ANONYMITY は 5 以上の整数を指定してください。"
+        ) from None
+    if threshold < 5:
+        raise ConfigError("REGION_K_ANONYMITY は 5 以上の整数を指定してください。")
+    return threshold
+
+
 def load_config(environ: Mapping[str, str]) -> dict[str, Any]:
     mode = environ.get("APP_ENV", "production")
     if mode not in CONFIGS:
@@ -66,6 +81,7 @@ def load_config(environ: Mapping[str, str]) -> dict[str, Any]:
         database = environ.get("DATABASE_URL") or "sqlite:///tsunagudake.sqlite"
     return {
         "APP_ENV": mode,
+        "REGION_K_ANONYMITY": region_threshold(environ),
         "DEBUG": defaults.DEBUG,
         "TESTING": defaults.TESTING,
         "SECRET_KEY": environ.get("SECRET_KEY") or (DEVELOPMENT_KEY if local else ""),
@@ -95,6 +111,9 @@ def load_config(environ: Mapping[str, str]) -> dict[str, Any]:
 
 
 def validate_config(config: Mapping[str, Any]) -> None:
+    threshold = config["REGION_K_ANONYMITY"]
+    if type(threshold) is not int or threshold < 5:
+        raise ConfigError("REGION_K_ANONYMITY は 5 以上の整数を指定してください。")
     mode = config["APP_ENV"]
     if mode not in CONFIGS:
         raise ConfigError("APP_ENV の指定が正しくありません。")

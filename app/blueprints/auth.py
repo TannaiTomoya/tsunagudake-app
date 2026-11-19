@@ -1,6 +1,14 @@
 from typing import cast
 
-from flask import Blueprint, abort, redirect, render_template, session, url_for
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    redirect,
+    render_template,
+    session,
+    url_for,
+)
 from flask_login import current_user, login_required, login_user, logout_user
 from flask_wtf import FlaskForm
 from sqlalchemy import select
@@ -24,6 +32,7 @@ from app.models import (
     today_in_japan,
 )
 from app.services.auth import authenticate
+from app.services.region import dashboard_for
 from app.services.statement import confirmed_visits
 from app.services.trust import trust_statuses
 from tsunagu_rules.ledger import REQUIRED_BOUNDARIES
@@ -138,4 +147,10 @@ def talent_home() -> str:
 @login_required  # type: ignore[untyped-decorator]
 def region_home(code: str) -> str:
     municipality = require_municipality(code)
-    return render_template("auth/home.html", heading=municipality.name)
+    threshold = current_app.config["REGION_K_ANONYMITY"]
+    return render_template(
+        "auth/region_home.html",
+        heading=municipality.name,
+        region_group=municipality.region_group,
+        dashboard=dashboard_for(municipality, threshold),
+    )
