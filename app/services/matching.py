@@ -1,6 +1,5 @@
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
-from zoneinfo import ZoneInfo
+from datetime import date, timedelta
 
 from flask import abort, current_app
 from sqlalchemy import Select, select
@@ -24,10 +23,12 @@ from app.models import (
     TravelTime,
     TrustKind,
     User,
+    today_in_japan,
     utc_now,
 )
 from app.services.ledger import append_record
 from app.services.needs import translations
+from app.services.statement import confirmed_visits
 from app.services.trust import trust_statuses
 from tsunagu_rules import RULES_VERSION
 from tsunagu_rules.matching import match
@@ -53,10 +54,6 @@ class Offer:
     weekday: int
     share_bp: int
     cap_yen: int | None
-
-
-def today_in_japan() -> date:
-    return datetime.now(ZoneInfo("Asia/Tokyo")).date()
 
 
 def _days(mask: int) -> frozenset[int]:
@@ -143,7 +140,7 @@ def _rank(
                 talent.is_listed,
                 not user.is_active,
                 int(grade) if talent.level_verified_at and grade != "none" else None,
-                0,
+                confirmed_visits(talent.id),
             )
         )
     return match(

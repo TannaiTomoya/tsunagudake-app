@@ -38,9 +38,11 @@ def append_record(
         .order_by(LedgerRecord.seq.desc())
         .limit(1)
         .with_for_update()
+        .execution_options(autoflush=False)
     )
     prev_hash = previous.entry_hash if previous else ledger.GENESIS_HASH
-    at = recorded_at or utc_now()
+    # MySQL rounds fractional seconds for DATETIME without fractional precision.
+    at = (recorded_at or utc_now()).replace(microsecond=0)
     entry = LedgerEntry(
         previous.seq + 1 if previous else 1,
         actor_id,

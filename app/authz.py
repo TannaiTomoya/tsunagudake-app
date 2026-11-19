@@ -7,6 +7,7 @@ from sqlalchemy import select
 from app.audit import record_audit
 from app.extensions import db
 from app.models import (
+    Engagement,
     MemberRole,
     Municipality,
     MunicipalityMember,
@@ -14,6 +15,7 @@ from app.models import (
     Office,
     OfficeMember,
     Role,
+    Talent,
     User,
 )
 
@@ -74,3 +76,37 @@ def require_need(office: Office, need_id: int, *, lock: bool = False) -> Need:
     if need is None:
         abort(404)
     return need
+
+
+def require_office_engagement(
+    office_id: int, engagement_id: int, *, write: bool = False, owner_only: bool = False
+) -> Engagement:
+    office = require_office(office_id, write=write, owner_only=owner_only)
+    engagement = db.session.scalar(
+        select(Engagement).where(
+            Engagement.office_id == office.id,
+            Engagement.id == engagement_id,
+        )
+    )
+    if engagement is None:
+        abort(404)
+    return engagement
+
+
+def require_talent_engagement(engagement_id: int, *, write: bool = False) -> Engagement:
+    user = cast(User, current_user)
+    if write and user.role == Role.ADMIN:
+        abort(403)
+    if user.role != Role.TSUNAGITE:
+        abort(404)
+    engagement = db.session.scalar(
+        select(Engagement)
+        .join(Talent)
+        .where(
+            Engagement.id == engagement_id,
+            Talent.user_id == user.id,
+        )
+    )
+    if engagement is None:
+        abort(404)
+    return engagement
