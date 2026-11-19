@@ -33,6 +33,7 @@ from app.models import (
     OfficeMember,
     Role,
     Talent,
+    TalentAffiliation,
     User,
 )
 from app.services.ledger import records_for_need
@@ -55,6 +56,12 @@ EXCLUSIONS = {
     "capacity": "受け持ち上限",
     "unlisted": "候補の掲載設定",
     "declined": "回答済みの辞退",
+}
+AFFILIATIONS = {
+    TalentAffiliation.KYORYOKUTAI: "地域おこし協力隊",
+    TalentAffiliation.GRADUATE: "修了生",
+    TalentAffiliation.OTHER: "その他",
+    TalentAffiliation.NONE: "—",
 }
 CANDIDATE_LABELS = {
     "listed": "候補",
@@ -120,6 +127,7 @@ def _candidate_page(office: Office, need_id: int, error: str | None = None) -> s
         offer_form=OfferForm(formdata=None),
         exclusions=EXCLUSIONS,
         labels=CANDIDATE_LABELS,
+        affiliations=AFFILIATIONS,
         pending=any(row[0].status == CandidateStatus.INVITED for row in candidates),
         error=error,
     )

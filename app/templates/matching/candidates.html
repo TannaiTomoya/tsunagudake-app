@@ -13,10 +13,11 @@
 {% if run %}
   {% if candidates %}
   <div class="overflow-auto"><table>
-    <thead><tr><th scope="col">順位</th><th scope="col">表示名</th><th scope="col">簿記</th><th scope="col">理由</th><th scope="col">点数</th><th scope="col">状態</th></tr></thead>
+    <thead><tr><th scope="col">順位</th><th scope="col">表示名・所属</th><th scope="col">簿記</th><th scope="col">理由</th><th scope="col">点数</th><th scope="col">状態</th></tr></thead>
     <tbody>{% for candidate, talent, name, town in candidates %}
     <tr>
-      <td>{{ candidate.rank }}</td><td>{{ name }}（{{ town }}）</td>
+      <td>{{ candidate.rank }}</td>
+      <td>{{ name }}（{{ town }}）<br><small>所属：{{ affiliations[talent.affiliation] }}</small></td>
       <td>{{ talent.bookkeeping_level ~ "級" if talent.level_verified_at and talent.bookkeeping_level != "none" else "—" }}</td>
       <td><ul>{% for reason in candidate.reasons %}<li>{{ reason }}</li>{% endfor %}</ul></td>
       <td>{{ candidate.score }}</td><td>{{ labels[candidate.status] }}</td>
