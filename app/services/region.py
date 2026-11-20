@@ -56,6 +56,9 @@ class Dashboard:
     total: RegionMetrics | None
     # 町そのものを伏せるときは None。
     charts: Charts | None
+    # 顧問先の数を入力した事務所の数と、その合計。伏せるときは None。
+    client_offices: int | None
+    clients: int | None
 
 
 def _charts(
@@ -244,7 +247,23 @@ def dashboard_for(
     town = next(
         row.metrics for row in view.rows if row.municipality == municipality.code
     )
-    charts = (
-        None if town.offices is None else _charts(municipality, threshold, today, demo)
+    if town.offices is None:
+        return Dashboard(town, view.total, None, None, None)
+    entered, clients = db.session.execute(
+        select(func.count(), func.coalesce(func.sum(Office.client_count), 0)).where(
+            Office.municipality_id == municipality.id,
+            Office.is_active.is_(True),
+            Office.is_demo.is_(demo),
+            Office.client_count.is_not(None),
+        )
+    ).one()
+    shown = mask_cells([RegionCell(int(entered), int(clients or 0))], threshold).values[
+        0
+    ]
+    return Dashboard(
+        town,
+        view.total,
+        _charts(municipality, threshold, today, demo),
+        None if shown is None else int(entered),
+        shown,
     )
-    return Dashboard(town, view.total, charts)

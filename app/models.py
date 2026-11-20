@@ -127,6 +127,9 @@ class Office(Created, Base):
         CheckConstraint(
             "hourly_rate_yen BETWEEN 1000 AND 20000", name="hourly_rate_range"
         ),
+        CheckConstraint(
+            "client_count BETWEEN 0 AND 100000", name="office_client_count_range"
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -134,6 +137,7 @@ class Office(Created, Base):
     municipality_id: Mapped[int] = mapped_column(ForeignKey("municipalities.id"))
     hourly_rate_yen: Mapped[int] = mapped_column(default=4000)
     software: Mapped[str | None] = mapped_column(String(20))
+    client_count: Mapped[int | None]
     is_active: Mapped[bool] = mapped_column(default=True)
     is_demo: Mapped[bool] = mapped_column(default=False)
     updated_at: Mapped[datetime] = mapped_column(default=utc_now, onupdate=utc_now)

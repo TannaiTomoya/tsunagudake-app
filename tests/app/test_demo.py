@@ -290,6 +290,8 @@ def test_demo_rehearsal_before_and_after_reset(monkeypatch: pytest.MonkeyPatch) 
         )
         assert "資料回収の時間が120時間減り、判断と相談に戻りました" in page
         assert "つなぎ手6人のうち、地域おこし協力隊は5人です" in page
+        # T50：顧問先の数は、町の6事務所の合計だけ。
+        assert "合わせて277社を支えています" in page and "6事務所" not in page
         # T49：グラフ4つと、その数字。もとになった事務所は、どのマスも5つ以上。
         assert page.count('<figure class="chart"') == 4
         charts = page[page.index("直近6か月のグラフ") : page.rindex("</figure>")]

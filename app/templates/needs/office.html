@@ -24,6 +24,7 @@
   {% endfor %}</tbody>
 </table></div>
 {% else %}<p>{% if can_write %}まだ困りごとはありません。「困りごとを書く」から始めてください。{% else %}まだ困りごとはありません。{% endif %}</p>{% endif %}
+<p><a href="{{ url_for('auth.office_profile', office_id=office.id) }}">事務所のプロフィール（顧問先の数）</a></p>
 <form method="post" action="{{ url_for('auth.logout') }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <button type="submit" class="secondary outline">ログアウトする</button>
