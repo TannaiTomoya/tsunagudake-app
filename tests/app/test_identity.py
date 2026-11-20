@@ -298,7 +298,12 @@ def test_t21_t22_need_access(identity_app: Flask) -> None:
         assert member is not None
         member.member_role = MemberRole.STAFF
         db.session.commit()
-    assert client.get(path).status_code == 200
+    response = client.get(path)
+    assert response.status_code == 200
+    assert 'disabled aria-describedby="publish-reason"' in response.get_data(
+        as_text=True
+    )
+    assert "事務所の代表だけが公開できます。" in response.get_data(as_text=True)
     assert client.post(path + "/publish", data={"csrf_token": csrf}).status_code == 403
     assert client.post(path + "/withdraw", data={"csrf_token": csrf}).status_code == 403
     admin = identity_app.test_client()

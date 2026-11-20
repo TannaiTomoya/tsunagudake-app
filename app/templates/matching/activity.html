@@ -39,7 +39,7 @@
 
 <h3>時間の記録</h3>
 {% if activity.reductions %}
-<div class="overflow-auto"><table>
+<div class="overflow-auto" role="region" aria-label="減った時間の記録" tabindex="0"><table>
   <thead><tr><th scope="col">業務の型</th><th scope="col" data-numeric>改善前</th><th scope="col" data-numeric>現在</th><th scope="col">状態</th></tr></thead>
   <tbody>{% for row in activity.reductions %}
   <tr><td>{{ categories[row.category] }}</td><td data-numeric>{{ row.before_hours }}時間</td><td data-numeric>{{ row.after_hours }}時間</td>
