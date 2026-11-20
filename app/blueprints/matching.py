@@ -38,7 +38,9 @@ from app.models import (
     TalentAffiliation,
     TalentSkill,
     User,
+    today_in_japan,
 )
+from app.services.checks import CheckConflict, CheckError, save_summary, totals_for
 from app.services.engagement import END_REASONS, EngagementConflict, end_engagement
 from app.services.ledger import records_for_need
 from app.services.matching import (
@@ -278,7 +280,9 @@ def answer_invitation(candidate_id: int, answer: str) -> ResponseReturnValue:
     return redirect(url_for("auth.talent_home"))
 
 
-def _engagement_page(engagement: Engagement, *, office_side: bool) -> str:
+def _engagement_page(
+    engagement: Engagement, *, office_side: bool, check_error: str | None = None
+) -> str:
     need = db.session.scalar(
         select(Need).where(
             Need.id == engagement.need_id,
@@ -302,6 +306,8 @@ def _engagement_page(engagement: Engagement, *, office_side: bool) -> str:
         categories=CATEGORIES,
         returned_kinds=RETURNED_KINDS,
         end_reasons=END_REASONS,
+        checks=totals_for(engagement.id),
+        check_error=check_error,
         ledger=[
             (row, json.loads(row.payload)["data"]) for row in records_for_need(need)
         ],
@@ -340,6 +346,32 @@ def skill_confirmation(
             office_id=office_id,
             engagement_id=engagement_id,
             _anchor="skills",
+        )
+    )
+
+
+@bp.post("/t/engagements/<int:engagement_id>/checks")
+@login_required  # type: ignore[untyped-decorator]
+def check_summary(engagement_id: int) -> ResponseReturnValue:
+    # 件数を記録できるのは、担当するつなぎ手だけ。受け取るのは3つの整数だけ。
+    engagement = require_talent_engagement(engagement_id, write=True)
+    try:
+        save_summary(
+            engagement,
+            _actor().id,
+            request.form.get("compared"),
+            request.form.get("flagged"),
+            request.form.get("uncomparable"),
+            today_in_japan(),
+        )
+    except CheckError as exc:
+        page = _engagement_page(engagement, office_side=False, check_error=str(exc))
+        return page, 422
+    except CheckConflict as exc:
+        return render_template("error.html", message=str(exc)), 409
+    return redirect(
+        url_for(
+            "matching.talent_engagement", engagement_id=engagement_id, _anchor="checks"
         )
     )
 

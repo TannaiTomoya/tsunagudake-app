@@ -508,6 +508,28 @@ class LedgerRecord(Created, Base):
     actor_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
 
 
+class CheckSummary(Created, Base):
+    """過去比較の件数だけ。科目・金額・顧問先を持つ列は無い。足すだけ。"""
+
+    __tablename__ = "check_summaries"
+    __table_args__ = (
+        CheckConstraint(
+            "compared BETWEEN 0 AND 9999 AND flagged BETWEEN 0 AND compared "
+            "AND uncomparable BETWEEN 0 AND 9999 AND compared + uncomparable >= 1",
+            name="check_summary_counts",
+        ),
+        Index("ix_check_summaries_engagement_month", "engagement_id", "month"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    engagement_id: Mapped[int] = mapped_column(ForeignKey("engagements.id"))
+    month: Mapped[str] = mapped_column(String(7))
+    compared: Mapped[int]
+    flagged: Mapped[int]
+    uncomparable: Mapped[int]
+    recorded_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+
+
 class LedgerAnchor(Created, Base):
     """毎日の、鎖の最後のハッシュの控え（同じ中身を DB の外のファイルにも置く）。"""
 

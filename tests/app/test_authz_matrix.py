@@ -292,6 +292,13 @@ ROUTES = (
         ("staff", "assigned", "admin"),
     ),
     Route("talent-end", "POST", "{talent_engagement}/end", TALENT_ACTORS, ("admin",)),
+    Route(
+        "check-summary",
+        "POST",
+        "{talent_engagement}/checks",
+        TALENT_ACTORS,
+        ("admin",),
+    ),
     Route("collection", "GET", "/o/1/collection", OFFICE_ACTORS),
     Route("collection-save", "POST", "/o/1/collection", OFFICE_ACTORS, ("admin",)),
     Route(
@@ -412,6 +419,9 @@ def test_denial_matrix(
                 "reason": "goal_met",
                 "action": "add",
                 "client_no": "5",
+                "compared": "4",
+                "flagged": "1",
+                "uncomparable": "0",
                 "password": PASSWORD,
                 "confirm": "yes",
             },

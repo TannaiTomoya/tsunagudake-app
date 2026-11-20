@@ -1,0 +1,30 @@
+<h2 id="checks">過去比較の件数</h2>
+<p>過去比較は、事務所のパソコンの中だけで動きます。ここに入るのは、件数だけです。印を見て決めるのは税理士です。</p>
+{% if checks %}
+<div class="overflow-auto statement-table" role="region" aria-label="過去比較の件数" tabindex="0"><table>
+  <thead><tr><th scope="col">月</th><th scope="col" data-numeric>回数</th><th scope="col" data-numeric>比べた科目</th><th scope="col" data-numeric>印</th><th scope="col" data-numeric>比べられなかった科目</th></tr></thead>
+  <tbody>{% for row in checks %}
+    <tr><th scope="row">{{ row.month[:4] | int }}年{{ row.month[5:] | int }}月</th><td data-numeric>{{ row.runs }}回</td><td data-numeric>{{ row.compared }}</td><td data-numeric>{{ row.flagged }}</td><td data-numeric>{{ row.uncomparable }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}
+<p>まだ記録はありません。</p>
+{% endif %}
+{% if activity.talent_writer and engagement.status != "ended" %}
+<details{% if check_error %} open{% endif %}>
+  <summary>件数を記録する</summary>
+  {% if check_error %}<p role="alert">{{ check_error }}</p>{% endif %}
+  <p>道具（<code>tools/kako_hikaku.py</code>）の最後の行に出た、3つの数だけを入れてください。科目の名前・金額・顧問先の名前は書かないでください。あとから直せません。</p>
+  <form method="post" action="{{ url_for('matching.check_summary', engagement_id=engagement.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="check-compared">比べた科目の数</label>
+    <input id="check-compared" name="compared" type="number" inputmode="numeric" min="0" max="9999" step="1" required>
+    <label for="check-flagged">印の数</label>
+    <input id="check-flagged" name="flagged" type="number" inputmode="numeric" min="0" max="9999" step="1" required>
+    <label for="check-uncomparable">比べられなかった科目の数</label>
+    <input id="check-uncomparable" name="uncomparable" type="number" inputmode="numeric" min="0" max="9999" step="1" required aria-describedby="check-note">
+    <small id="check-note">過去の期が無い科目は、0として扱わず、ここに数えます。</small>
+    <button class="secondary outline" type="submit">件数を記録する</button>
+  </form>
+</details>
+{% endif %}

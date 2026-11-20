@@ -30,6 +30,7 @@ Cursor・Claude Code など、どの AI エージェントもこのファイル�
 - #24 の退会（`/account/withdraw`。行は残し、名前とメールアドレスを消す）、伴走を終える（代表と担当つなぎ手。理由は選択肢だけで、台帳に `ended`）、規約とポリシーの**案**（`/terms`・`/privacy`）、`flask prune-audit` を実装。専門家への確認と、運営者の名前・連絡先の記載は未了。
 - #23 の台帳の毎日の検証と控え（`flask anchor-ledger`。鎖の最後のハッシュを `ledger_anchors` と DB の外のファイルに控え、前の日の控えと比べる。合わなければ運営にメール）を実装。本番のタイマー（`deploy/tsunagudake-daily.*`）は未設定。
 - #20 の資料回収ボード（`/o/<office_id>/collection`。顧問先は番号だけ）と、撮って送るだけ帳簿から件数だけを受け取る入口（`POST /api/offices/<office_id>/collection-counts`。代表が発行した合言葉。知らないキーは 422）を実装。撮って送るだけ帳簿の側の送信は未実装。
+- #19 の過去比較（規則 `tsunagu_rules/compare.py`、事務所の PC で動く道具 `tools/kako_hikaku.py`。アプリに入るのは、担当つなぎ手が入れる件数3つだけ：`POST /t/engagements/<id>/checks`）を実装。実際の試算表では未確認（テストは架空の数字だけ）。
 - 1段階ずつ進める。終えたら、この節を書き直す
 
 ## コードの決まり
@@ -74,6 +75,7 @@ Cursor・Claude Code など、どの AI エージェントもこのファイル�
 - 規則だけ：`uv run pytest tests/rules -q`
 - DB：`uv run flask db migrate -m "…"` → 中身を読む → `uv run flask db upgrade`
 - デモ：`uv run flask seed-demo`／`uv run flask reset-demo --yes`　台帳：`uv run flask verify-ledger`（毎日の検証と控えは `uv run flask anchor-ledger`）　監査記録：`uv run flask prune-audit`（180日たった接続元の印を消す）
+- 過去比較（事務所の PC で。何も送らない）：`python tools/kako_hikaku.py 試算表.csv`
 - 市町村：`uv run flask sync-municipalities`（無い行を足すだけ）。一覧の作り直しは `python scripts/build_municipalities.py 総務省の.xlsx`
 - パッケージを足す：`uv add 名前`（開発用は `uv add --dev 名前`）。足す前に 02 §2・§3 を直す
 
