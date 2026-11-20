@@ -19,6 +19,11 @@ ENGAGEMENT = (
     "減った時間が0なら、料金も0円です。",
     "すること・しないことと、確定した明細は台帳に残ります。",
 )
+THREAD = (
+    "ひな形を選ぶと、すぐに書き始められます。",
+    "送る前に、文を確かめる画面が出ます。",
+    "顧問先の名前と金額は書かないでください。",
+)
 SCRIPTS = {
     "public.index": (
         "資料回収の仕組みづくりを、毎週来るつなぎ手に頼めます。",
@@ -84,6 +89,12 @@ SCRIPTS = {
     "matching.candidates": CANDIDATES,
     "matching.office_engagement": ENGAGEMENT,
     "matching.talent_engagement": ENGAGEMENT,
+    "messages.inbox": (
+        "今の伴走の相手に、メッセージを送れます。",
+        "文は、ひな形から選べます。送る前に確かめられます。",
+    ),
+    "messages.office_thread": THREAD,
+    "messages.talent_thread": THREAD,
     "statements.visit_form": (
         "訪問した日と作業時間を記録すると、事務所が内容を確かめられます。",
     ),

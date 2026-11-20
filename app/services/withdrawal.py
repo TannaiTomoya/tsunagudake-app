@@ -35,6 +35,7 @@ from app.models import (
     Visit,
 )
 from app.ratelimit import Bucket, check_login, finish_login, login_buckets
+from app.services.messages import erase_for_office, erase_sent_by
 
 WITHDRAWN_NAME = "退会した人"
 REMOVED_TEXT = "（退会により消しました）"
@@ -298,6 +299,8 @@ def _withdraw(
         _erase_talent(user)
     if office is not None:
         _close_office(office.id)
+        erase_for_office(office.id)
+    erase_sent_by(user.id)
     for kind in (OfficeMember, MunicipalityMember, PasswordResetToken):
         for row in db.session.scalars(select(kind).where(kind.user_id == user.id)):
             db.session.delete(row)

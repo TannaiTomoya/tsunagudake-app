@@ -5,6 +5,7 @@
 {% if workspace_url and workspace_url != url_for('auth.account') %}
 <p><a class="action" href="{{ workspace_url }}">担当のホームを開く</a></p>
 {% endif %}
+<p><a href="{{ url_for('messages.inbox') }}">メッセージ</a></p>
 <form method="post" action="{{ url_for('auth.logout') }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <button class="secondary outline" type="submit">ログアウトする</button>

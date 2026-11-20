@@ -121,6 +121,8 @@
 
 訪問のメモ（気づいたこと。100文字まで）は、担当するつなぎ手が訪問の記録と一緒に書きます（訪問を確かめる前だけ直せます）。伴走を見られる人が、伴走の画面で読めます。「やってみる」の印を付けられるのは、事務所の代表と職員だけです。印は外せません。メモを書き直すと、印は消えます。受け取るのは印を付けることだけで、文は受け取りません。
 
+メッセージは、伴走ごとです。読めるのも送れるのも、その事務所の代表・職員と、担当するつなぎ手だけです。**運営は読めません**（403。ほかの画面のように「見るだけ」にしません）。送る人・どちら側か・伴走は、ログインと道から決めます（画面から受け取りません）。本文は1〜400文字。終わった伴走では、読むだけです。開くと、相手からの分に既読の印が付きます。届いたことは翌朝のまとめで知らせますが、メールに本文は入れません。`/account/messages` は、ログインした人に、自分の今の伴走の相手を3人まで出します（運営・自治体には、相手がいないので空です）。退会すると、その人が送った本文を消します。事務所を閉じると、その事務所の伴走の本文をすべて消します。
+
 | 操作 | 未 | 他 | 職 | 代 | つ外 | つ声 | 自 | 運 |
 |---|---|---|---|---|---|---|---|---|
 | 伴走を見る（訪問・台帳） | → | 404 | ○ | ○ | 404 | ○ | 404 | ○（記録） |
@@ -134,6 +136,9 @@
 | 伴走を終える | → | 404 | 403 | ○ | 404 | ○（自分から降りる） | 404 | 403 |
 | 過去比較の件数を記録する（`POST /t/engagements/<id>/checks`） | → | 404 | 404 | 404 | 404 | ○ | 404 | 403 |
 | 訪問のメモ（気づいたこと）に「やってみる」の印を付ける（`POST …/visits/<vid>/adopt-idea`） | → | 404 | ○ | ○ | 404 | 403 | 404 | 403 |
+| メッセージを読む・送る（事務所の側：`/o/<office_id>/engagements/<id>/messages`） | → | 404 | ○ | ○ | 404 | 403 | 404 | 403 |
+| メッセージを読む・送る（つなぎ手の側：`/t/engagements/<id>/messages`） | → | 404 | 404 | 404 | 404 | ○ | 404 | 403 |
+| メッセージを直す・消す | — | — | — | — | — | — | — | —（入口を作らない。消えるのは退会のときだけ） |
 | 台帳の行を直す・消す | — | — | — | — | — | — | — | —（**誰にもできない。処理を作らない**） |
 
 ## 6. つなぎ手の信用台帳
@@ -217,6 +222,7 @@
 | `/o/<int:office_id>/engagements/<int:engagement_id>/reductions` | POST | §5 |
 | `/o/<int:office_id>/engagements/<int:engagement_id>/reductions/<int:reduction_id>/confirm` | POST | §5 |
 | `/o/<int:office_id>/engagements/<int:engagement_id>/statements/<month>/finalize` | POST | §5 |
+| `/o/<int:office_id>/engagements/<int:engagement_id>/messages` | GET, POST | §5 |
 | `/o/<int:office_id>/engagements/<int:engagement_id>/visits/<int:visit_id>/<any(confirm,dispute):action>` | POST | §5 |
 | `/o/<int:office_id>/engagements/<int:engagement_id>/visits/<int:visit_id>/adopt-idea` | POST | §5 |
 | `/o/<int:office_id>/needs/<int:need_id>` | GET | §3 |
@@ -261,3 +267,5 @@
 | `/api/offices/<int:office_id>/collection-counts` | POST | §2 |
 | `/privacy` | GET | §2 |
 | `/terms` | GET | §2 |
+| `/t/engagements/<int:engagement_id>/messages` | GET, POST | §5 |
+| `/account/messages` | GET | §5 |

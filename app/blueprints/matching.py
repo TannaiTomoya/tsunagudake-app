@@ -52,6 +52,7 @@ from app.services.matching import (
     latest_run,
     respond,
 )
+from app.services.messages import unread_count
 from app.services.trust import TrustConflict, verify_skill
 
 bp = Blueprint("matching", __name__)
@@ -308,6 +309,8 @@ def _engagement_page(
         end_reasons=END_REASONS,
         checks=totals_for(engagement.id),
         check_error=check_error,
+        # 画面に出すのは、読める人（事務所の代表・職員、担当つなぎ手）にだけ。
+        unread_messages=unread_count(engagement.id, office_side=office_side),
         ledger=[
             (row, json.loads(row.payload)["data"]) for row in records_for_need(need)
         ],

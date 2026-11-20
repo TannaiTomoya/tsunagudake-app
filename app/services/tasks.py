@@ -27,6 +27,7 @@ from app.models import (
     VisitStatus,
     today_in_japan,
 )
+from app.services.messages import partners
 from app.services.trust import trust_statuses
 
 
@@ -73,6 +74,15 @@ def tasks_for(actor: User, today: date | None = None) -> list[Task]:
                     ),
                 )
             )
+        for partner in partners(actor, include_ended=True):
+            if partner.unread:
+                tasks.append(
+                    Task(
+                        "メッセージを読む",
+                        f"{partner.name}から、未読が{partner.unread}通あります。",
+                        partner.link,
+                    )
+                )
         if _month_end(today):
             # 月末に、今月のメモ（まだ決めていないもの）を見せる。
             for eid in db.session.scalars(
@@ -183,6 +193,15 @@ def tasks_for(actor: User, today: date | None = None) -> list[Task]:
             tasks.append(
                 Task("声かけに返事をする", "事務所から声かけが届いています。", home)
             )
+        for partner in partners(actor, include_ended=True):
+            if partner.unread:
+                tasks.append(
+                    Task(
+                        "メッセージを読む",
+                        f"{partner.name}から、未読が{partner.unread}通あります。",
+                        partner.link,
+                    )
+                )
         for eid, month in db.session.execute(
             select(Engagement.id, Statement.month)
             .join(Statement)

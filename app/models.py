@@ -508,6 +508,21 @@ class LedgerRecord(Created, Base):
     actor_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
 
 
+class Message(Created, Base):
+    """伴走ごとのメッセージ。事務所（代表・職員）と担当つなぎ手の間だけ。"""
+
+    __tablename__ = "messages"
+    __table_args__ = (Index("ix_messages_engagement_id_id", "engagement_id", "id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    engagement_id: Mapped[int] = mapped_column(ForeignKey("engagements.id"))
+    sender_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    from_office: Mapped[bool]
+    template: Mapped[str | None] = mapped_column(String(20))
+    body: Mapped[str] = mapped_column(String(400))
+    read_at: Mapped[datetime | None]
+
+
 class CheckSummary(Created, Base):
     """過去比較の件数だけ。科目・金額・顧問先を持つ列は無い。足すだけ。"""
 

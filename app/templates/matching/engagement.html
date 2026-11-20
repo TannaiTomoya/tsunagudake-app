@@ -4,6 +4,9 @@
 {% block title %}伴走{% endblock %}
 {% block content %}
 <h1>伴走</h1>
+{% if activity.office_writer or activity.talent_writer %}
+<p><a href="{{ url_for('messages.office_thread', office_id=engagement.office_id, engagement_id=engagement.id) if activity.office_writer else url_for('messages.talent_thread', engagement_id=engagement.id) }}">メッセージ{% if unread_messages %}（未読 {{ unread_messages }}通）{% endif %}</a></p>
+{% endif %}
 <div class="screen-columns">
 <section class="decision-pane">
 {% include "matching/activity.html" %}
