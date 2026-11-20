@@ -317,6 +317,13 @@ class TalentSkill(Created, Base):
     talent_id: Mapped[int] = mapped_column(ForeignKey("talents.id"))
     kind: Mapped[TalentSkillKind] = mapped_column(stored_enum(TalentSkillKind))
     tag: Mapped[str] = mapped_column(String(20))
+    verified_at: Mapped[datetime | None]
+    verified_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    verified_office_id: Mapped[int | None] = mapped_column(
+        ForeignKey("offices.id", ondelete="SET NULL")
+    )
 
 
 class TrustItem(Created, Base):

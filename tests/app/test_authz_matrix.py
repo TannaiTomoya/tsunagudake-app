@@ -126,6 +126,13 @@ ROUTES = (
         ("admin",),
     ),
     Route(
+        "skill-verify",
+        "POST",
+        "{engagement}/skills/1/verify",
+        ("other_office", "other_staff", "unrelated", "municipality"),
+        ("assigned", "admin"),
+    ),
+    Route(
         "visit-confirm",
         "POST",
         "{engagement}/visits/1/confirm",

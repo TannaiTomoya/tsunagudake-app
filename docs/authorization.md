@@ -127,6 +127,8 @@
 
 翻訳課題は運営だけが3項目を目視採点します。本人による合格操作は403、その他の利用者には404です。
 
+道具・得意分野の確認は、その伴走の事務所に所属する人だけが行えます。別のつなぎ手の項目は404です。本人のホームだけに自分の直近の候補点と内訳を表示します。
+
 ### 実装済みルート一覧
 
 | 入口 | メソッド | 権限表 |
@@ -178,3 +180,4 @@
 | `/o/<int:office_id>/engagements/<int:engagement_id>/statements/<month>/report-transfer` | POST | §5 |
 | `/t/engagements/<int:engagement_id>/statements/<month>/confirm-receipt` | POST | §5 |
 | `/admin/talents/<int:talent_id>/translation` | POST | §8 |
+| `/o/<int:office_id>/engagements/<int:engagement_id>/skills/<int:skill_id>/verify` | POST | §5 |

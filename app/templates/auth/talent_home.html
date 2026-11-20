@@ -37,6 +37,11 @@
 <p><a href="{{ url_for('talent.profile') }}">プロフィールを編集する</a></p>
 {% if talent %}<p><a href="{{ url_for('talent.pledge') }}">守秘の誓約に署名する</a></p>{% endif %}
 {% if talent %}
+<h2>直近の候補の点数</h2>
+{% if score %}<p>{{ score.score }}点</p><ul>{% for reason in score.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>
+{% else %}<p>現在の規則で候補に出た記録はまだありません。</p>{% endif %}
+<p>簿記の級は運営が確認します。得意な業務と道具は、伴走先が確認し、困りごとと合うと加点されます。</p>
+{% include "matching/skills.html" %}
 <h2>翻訳課題</h2>
 <p>{{ "合格（運営確認済み）" if talent.translation_verified_at else "未確認です。候補に出るには、運営の翻訳課題を受けてください。" }}</p>
 <h2>簿記の級</h2>

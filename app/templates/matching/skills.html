@@ -1,0 +1,8 @@
+<ul>{% for skill in skills %}
+  <li>{{ (tools if skill.kind == "tool" else categories)[skill.tag] }}（{{ "事務所が確認済み" if skill.verified_at else "自己申告" }}）
+  {% if activity is defined and activity.office_writer and not skill.verified_at %}
+  <form method="post" action="{{ url_for('matching.skill_confirmation', office_id=engagement.office_id, engagement_id=engagement.id, skill_id=skill.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="tag" value="{{ skill.tag }}">
+    <button class="secondary outline">伴走で確認しました</button>
+  </form>{% endif %}</li>
+{% else %}<li>登録されている項目はありません。</li>{% endfor %}</ul>

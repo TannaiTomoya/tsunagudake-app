@@ -109,7 +109,10 @@ def _rank(
     for talent, user in db.session.execute(query):
         skills = list(
             db.session.scalars(
-                select(TalentSkill).where(TalentSkill.talent_id == talent.id)
+                select(TalentSkill).where(
+                    TalentSkill.talent_id == talent.id,
+                    TalentSkill.verified_at.is_not(None),
+                )
             )
         )
         active_query = select(Engagement.id).where(

@@ -10,6 +10,7 @@ from app.audit import record_audit
 from app.extensions import db
 from app.models import (
     BookkeepingLevel,
+    Engagement,
     Role,
     Talent,
     TalentAffiliation,
@@ -223,6 +224,35 @@ def verify_translation(talent_id: int, actor_id: int, criteria: set[str]) -> Non
             actor_id=actor_id,
             target_type="talent",
             target_id=talent_id,
+        )
+        _commit()
+
+
+def verify_skill(
+    engagement: Engagement, skill_id: int, actor_id: int, expected_tag: str
+) -> None:
+    _locked_talent(engagement.talent_id)
+    skill = db.session.scalar(
+        select(TalentSkill)
+        .where(
+            TalentSkill.id == skill_id, TalentSkill.talent_id == engagement.talent_id
+        )
+        .with_for_update()
+    )
+    if skill is None:
+        abort(404)
+    if skill.tag != expected_tag:
+        raise TrustConflict("自己申告が変わりました。現在の内容を確認してください。")
+    if skill.verified_at is None:
+        skill.verified_at = utc_now()
+        skill.verified_by = actor_id
+        skill.verified_office_id = engagement.office_id
+        record_audit(
+            "skill_verified",
+            actor_id=actor_id,
+            office_id=engagement.office_id,
+            target_type="talent_skill",
+            target_id=skill.id,
         )
         _commit()
 

@@ -18,10 +18,13 @@ from wtforms.validators import InputRequired, Length  # type: ignore[import-unty
 
 from app.authz import require_municipality, require_office
 from app.blueprints.matching import talent_activity
-from app.blueprints.needs import STATUSES, WEEKDAYS, weekday_options
+from app.blueprints.needs import CATEGORIES, STATUSES, WEEKDAYS, weekday_options
+from app.blueprints.talent import TOOLS
 from app.extensions import db
 from app.models import (
     Engagement,
+    MatchCandidate,
+    MatchRun,
     Municipality,
     MunicipalityMember,
     Need,
@@ -32,6 +35,7 @@ from app.models import (
     ReductionStatus,
     Role,
     Talent,
+    TalentSkill,
     User,
     today_in_japan,
 )
@@ -39,6 +43,7 @@ from app.services.auth import authenticate
 from app.services.region import dashboard_for
 from app.services.statement import confirmed_visits, expected_income
 from app.services.trust import trust_statuses
+from tsunagu_rules import RULES_VERSION
 from tsunagu_rules.ledger import REQUIRED_BOUNDARIES
 
 bp = Blueprint("auth", __name__)
@@ -176,6 +181,27 @@ def talent_home() -> str:
         talent=talent,
         statuses=trust_statuses(talent, today) if talent is not None else (),
         today=today,
+        skills=db.session.scalars(
+            select(TalentSkill)
+            .where(TalentSkill.talent_id == talent.id)
+            .order_by(TalentSkill.kind, TalentSkill.tag)
+        ).all()
+        if talent
+        else (),
+        score=db.session.scalar(
+            select(MatchCandidate)
+            .join(MatchRun)
+            .where(
+                MatchCandidate.talent_id == talent.id,
+                MatchRun.rules_version == RULES_VERSION,
+            )
+            .order_by(MatchCandidate.id.desc())
+            .limit(1)
+        )
+        if talent
+        else None,
+        tools=TOOLS,
+        categories=CATEGORIES,
         expected_income=expected_income(talent.id, today.strftime("%Y-%m"))
         if talent
         else 0,

@@ -366,6 +366,9 @@ def seed_demo(password: str) -> bool:
                 talent_id=talent.id,
                 kind=TalentSkillKind.TOOL,
                 tag="excel" if index == 1 else "sheets",
+                verified_at=utc_now() if index == 1 else None,
+                verified_by=owner.id if index == 1 else None,
+                verified_office_id=offices[0].id if index == 1 else None,
             )
         )
         if index == 1:
@@ -374,6 +377,9 @@ def seed_demo(password: str) -> bool:
                     talent_id=talent.id,
                     kind=TalentSkillKind.STRENGTH,
                     tag=NeedKind.COLLECT,
+                    verified_at=utc_now(),
+                    verified_by=owner.id,
+                    verified_office_id=offices[0].id,
                 )
             )
         for kind in TrustKind:
@@ -441,8 +447,17 @@ def clear_demo() -> None:
             AuditLog.office_id.is_not(None),
             AuditLog.office_id.not_in(offices),
         ),
+        select(TalentSkill.id).where(
+            TalentSkill.talent_id.not_in(talents),
+            TalentSkill.verified_by.in_(users)
+            | TalentSkill.verified_office_id.in_(offices),
+        ),
         select(Talent.id).where(
-            Talent.user_id.not_in(users), Talent.level_verified_by.in_(users)
+            Talent.user_id.not_in(users),
+            (
+                Talent.level_verified_by.in_(users)
+                | Talent.translation_verified_by.in_(users)
+            ),
         ),
     )
     if any(db.session.scalar(query.limit(1)) is not None for query in cross_references):
