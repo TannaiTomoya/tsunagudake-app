@@ -31,6 +31,7 @@ Cursor・Claude Code など、どの AI エージェントもこのファイル�
 - #23 の台帳の毎日の検証と控え（`flask anchor-ledger`。鎖の最後のハッシュを `ledger_anchors` と DB の外のファイルに控え、前の日の控えと比べる。合わなければ運営にメール）を実装。本番のタイマー（`deploy/tsunagudake-daily.*`）は未設定。
 - #20 の資料回収ボード（`/o/<office_id>/collection`。顧問先は番号だけ）と、撮って送るだけ帳簿から件数だけを受け取る入口（`POST /api/offices/<office_id>/collection-counts`。代表が発行した合言葉。知らないキーは 422）を実装。撮って送るだけ帳簿の側の送信は未実装。
 - #19 の過去比較（規則 `tsunagu_rules/compare.py`、事務所の PC で動く道具 `tools/kako_hikaku.py`。アプリに入るのは、担当つなぎ手が入れる件数3つだけ：`POST /t/engagements/<id>/checks`）を実装。実際の試算表では未確認（テストは架空の数字だけ）。
+- #73 の業務改善メモ（`visits.idea`。伴走の画面の「今月のメモ」、事務所が「やってみる」の印、月の最後の7日間は「今日やること」に出る）を実装。まとめの文は作っていない。
 - 1段階ずつ進める。終えたら、この節を書き直す
 
 ## コードの決まり

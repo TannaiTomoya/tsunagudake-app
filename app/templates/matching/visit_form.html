@@ -14,6 +14,9 @@
   {{ form.note.label }}
   <small id="visit-note">顧問先の名前と金額は書かないでください。</small>
   {{ form.note(maxlength=300, **{"aria-describedby": "visit-note"}) }}
+  {{ form.idea.label }}
+  <small id="visit-idea">こうすると楽になりそう、をひと言で。事務所が「今月のメモ」で読みます。顧問先の名前と金額は書かないでください。</small>
+  {{ form.idea(maxlength=100, **{"aria-describedby": "visit-idea"}) }}
   <button type="submit">訪問を保存する</button>
 </form>
 {% endblock %}

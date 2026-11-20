@@ -119,6 +119,8 @@
 
 過去比較（`tools/kako_hikaku.py`）は事務所の PC の中だけで動き、このアプリには何も送りません。アプリに入るのは、担当するつなぎ手が画面で入れる3つの整数（比べた科目の数・印の数・比べられなかった数）だけです。科目の名前・金額・顧問先を受け取る入口はありません。記録は足すだけで、直す・消す入口はありません。件数は、伴走を見られる人（事務所の代表・職員・担当つなぎ手・運営）が伴走の画面で見られます。
 
+訪問のメモ（気づいたこと。100文字まで）は、担当するつなぎ手が訪問の記録と一緒に書きます（訪問を確かめる前だけ直せます）。伴走を見られる人が、伴走の画面で読めます。「やってみる」の印を付けられるのは、事務所の代表と職員だけです。印は外せません。メモを書き直すと、印は消えます。受け取るのは印を付けることだけで、文は受け取りません。
+
 | 操作 | 未 | 他 | 職 | 代 | つ外 | つ声 | 自 | 運 |
 |---|---|---|---|---|---|---|---|---|
 | 伴走を見る（訪問・台帳） | → | 404 | ○ | ○ | 404 | ○ | 404 | ○（記録） |
@@ -131,6 +133,7 @@
 | 台帳に指摘を足す | → | 404 | ○ | ○ | 404 | ○ | 404 | 403 |
 | 伴走を終える | → | 404 | 403 | ○ | 404 | ○（自分から降りる） | 404 | 403 |
 | 過去比較の件数を記録する（`POST /t/engagements/<id>/checks`） | → | 404 | 404 | 404 | 404 | ○ | 404 | 403 |
+| 訪問のメモ（気づいたこと）に「やってみる」の印を付ける（`POST …/visits/<vid>/adopt-idea`） | → | 404 | ○ | ○ | 404 | 403 | 404 | 403 |
 | 台帳の行を直す・消す | — | — | — | — | — | — | — | —（**誰にもできない。処理を作らない**） |
 
 ## 6. つなぎ手の信用台帳
@@ -215,6 +218,7 @@
 | `/o/<int:office_id>/engagements/<int:engagement_id>/reductions/<int:reduction_id>/confirm` | POST | §5 |
 | `/o/<int:office_id>/engagements/<int:engagement_id>/statements/<month>/finalize` | POST | §5 |
 | `/o/<int:office_id>/engagements/<int:engagement_id>/visits/<int:visit_id>/<any(confirm,dispute):action>` | POST | §5 |
+| `/o/<int:office_id>/engagements/<int:engagement_id>/visits/<int:visit_id>/adopt-idea` | POST | §5 |
 | `/o/<int:office_id>/needs/<int:need_id>` | GET | §3 |
 | `/o/<int:office_id>/needs/<int:need_id>/candidates` | GET | §4 |
 | `/o/<int:office_id>/needs/<int:need_id>/candidates` | POST | §4 |

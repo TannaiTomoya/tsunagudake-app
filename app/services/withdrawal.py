@@ -253,6 +253,7 @@ def _close_office(office_id: int) -> None:
     for visit in visits:
         visit.note = None
         visit.learned_term = None
+        visit.idea = None
 
 
 def withdraw(user_id: int, password: str, *, confirmed: bool) -> None:

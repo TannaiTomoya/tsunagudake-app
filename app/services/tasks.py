@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import date, timedelta
 
 from flask import url_for
 from sqlalchemy import select
@@ -36,7 +37,13 @@ class Task:
     link: str
 
 
-def tasks_for(actor: User) -> list[Task]:
+def _month_end(today: date) -> bool:
+    # 月の最後の7日間。
+    return (today + timedelta(days=7)).month != today.month
+
+
+def tasks_for(actor: User, today: date | None = None) -> list[Task]:
+    today = today or today_in_japan()
     tasks: list[Task] = []
     if actor.role == Role.OFFICE:
         membership = db.session.scalar(
@@ -66,6 +73,32 @@ def tasks_for(actor: User) -> list[Task]:
                     ),
                 )
             )
+        if _month_end(today):
+            # 月末に、今月のメモ（まだ決めていないもの）を見せる。
+            for eid in db.session.scalars(
+                base.join(Visit)
+                .where(
+                    Visit.idea.is_not(None),
+                    Visit.idea_adopted_at.is_(None),
+                    Visit.visit_date >= today.replace(day=1),
+                    Visit.visit_date <= today,
+                )
+                .distinct()
+                .order_by(Engagement.id)
+            ):
+                tasks.append(
+                    Task(
+                        "今月のメモを読む",
+                        f"伴走 {eid} に、つなぎ手が気づいたことが届いています。",
+                        url_for(
+                            "matching.office_engagement",
+                            office_id=office,
+                            engagement_id=eid,
+                            month=today.strftime("%Y-%m"),
+                            _anchor="ideas",
+                        ),
+                    )
+                )
         if membership.member_role == MemberRole.OWNER:
             for eid, month in db.session.execute(
                 base.add_columns(Reduction.month)
@@ -173,7 +206,7 @@ def tasks_for(actor: User) -> list[Task]:
                     ),
                 )
             )
-        for status in trust_statuses(talent, today_in_japan()):
+        for status in trust_statuses(talent, today):
             if status.days_left is None or status.days_left <= 30:
                 label = "守秘の誓約" if status.kind == TrustKind.PLEDGE else "研修"
                 reason = (

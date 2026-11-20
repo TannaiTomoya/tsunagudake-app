@@ -588,6 +588,11 @@ class Visit(Created, Base):
     )
     learned_term: Mapped[str | None] = mapped_column(String(100))
     note: Mapped[str | None] = mapped_column(String(300))
+    idea: Mapped[str | None] = mapped_column(String(100))
+    idea_adopted_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", name="fk_visits_idea_adopted_by_users")
+    )
+    idea_adopted_at: Mapped[datetime | None]
     status: Mapped[VisitStatus] = mapped_column(
         stored_enum(VisitStatus), default=VisitStatus.RECORDED
     )

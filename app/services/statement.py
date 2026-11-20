@@ -42,6 +42,7 @@ class VisitInput:
     category: NeedKind
     note: str | None
     learned_term: str | None = None
+    idea: str | None = None
 
 
 @dataclass(frozen=True)
@@ -132,6 +133,11 @@ def save_visit(
     visit.category = data.category
     visit.note = data.note
     visit.learned_term = data.learned_term
+    if visit.idea != data.idea:
+        # 印は、読んだ文に付いたもの。文が変わったら外す。
+        visit.idea = data.idea
+        visit.idea_adopted_by = None
+        visit.idea_adopted_at = None
     if visit_id is None:
         notify_office(
             engagement.office_id,
@@ -171,6 +177,42 @@ def review_visit(
         target_id=visit.id,
     )
     _commit()
+
+
+def adopt_idea(engagement: Engagement, visit_id: int, actor: int) -> None:
+    _lock(engagement)
+    visit = find_visit(engagement, visit_id, lock=True)
+    if not visit.idea:
+        raise StatementConflict("この訪問には、メモがありません。")
+    if visit.idea_adopted_at is not None:
+        return
+    visit.idea_adopted_by = actor
+    visit.idea_adopted_at = utc_now()
+    record_audit(
+        "idea_adopted",
+        actor_id=actor,
+        office_id=engagement.office_id,
+        target_type="visit",
+        target_id=visit.id,
+    )
+    _commit()
+
+
+def month_ideas(engagement_id: int, month: str) -> list[Visit]:
+    first = date(int(month[:4]), int(month[5:]), 1)
+    last = date(first.year + first.month // 12, first.month % 12 + 1, 1)
+    return list(
+        db.session.scalars(
+            select(Visit)
+            .where(
+                Visit.engagement_id == engagement_id,
+                Visit.idea.is_not(None),
+                Visit.visit_date >= first,
+                Visit.visit_date < last,
+            )
+            .order_by(Visit.visit_date)
+        )
+    )
 
 
 def month_reductions(

@@ -128,6 +128,7 @@ def test_t54_withdrawal_waits_for_open_work_and_keeps_shared_records(
                     category=NeedKind.COLLECT,
                     note="架空のメモ",
                     learned_term="月締め箱",
+                    idea="架空の気づき",
                 ),
             ]
         )
@@ -232,6 +233,7 @@ def test_t54_withdrawal_waits_for_open_work_and_keeps_shared_records(
         assert need is not None and "機密の本文" not in need.body
         visit = db.session.scalar(select(Visit))
         assert visit is not None and visit.note is None and visit.learned_term is None
+        assert visit.idea is None
         assert db.session.scalar(select(Statement.fee_yen)) == 32000
         assert db.session.scalar(select(func.count()).select_from(OfficeMember)) == 0
         assert ledger_failures() == []
