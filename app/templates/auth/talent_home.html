@@ -1,4 +1,5 @@
 {% extends "auth/home.html" %}
+{% set progress_step = 3 if invitations else 4 if engagements else 2 %}
 {% block content %}
 <h1>{{ heading }}</h1>
 <div class="screen-columns work-first">

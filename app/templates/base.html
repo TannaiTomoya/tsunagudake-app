@@ -54,7 +54,13 @@
         {% if config.APP_ENV == 'demo' %}
         <aside class="demo-notice">発表用のデモです。数字と名前はすべて架空です。本物の情報を入力しないでください。 <a href="{{ url_for('demo.enter') }}">立場を切り替える</a></aside>
         {% endif %}
-        <main id="main" tabindex="-1" class="{% block layout %}page{% endblock %}">{% block content %}{% endblock %}</main>
+        <main id="main" tabindex="-1" class="{% block layout %}page{% endblock %}">{% if progress_step is defined %}
+          <ol class="work-steps" aria-label="仕事の進行">
+            {% for label in ('困りごと', '候補', '合意', '訪問', '明細') %}
+            <li{% if loop.index == progress_step %} aria-current="step"{% endif %}><small>{{ loop.index }}</small>{{ label }}</li>
+            {% endfor %}
+          </ol>
+        {% endif %}{% block content %}{% endblock %}</main>
       </div>
     </div>
     {% if guide_lines %}{% include "guide/masu.html" %}{% endif %}

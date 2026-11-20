@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set progress_step = 1 %}
 {% set guide_endpoint = "needs.detail" %}
 {% set guide_mood = 'worried' if need.block_reason else 'happy' if need.status in ('published', 'engaged') else 'idle' %}
 {% block title %}困りごと{% endblock %}
