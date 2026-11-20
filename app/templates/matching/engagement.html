@@ -1,7 +1,17 @@
 {% extends "base.html" %}
+{% set guide_mood = "happy" %}
 {% block title %}伴走{% endblock %}
 {% block content %}
 <h1>伴走</h1>
+<div class="screen-columns">
+<section class="decision-pane">
+{% include "matching/activity.html" %}
+</section>
+<section class="reading-pane">
+{% include "matching/visits.html" %}
+<h2>境界線台帳</h2>
+{% include "matching/ledger.html" %}
+<h2>合意した条件</h2>
 <p>{{ need.body }}</p>
 <dl>
   <dt>曜日</dt><dd>{{ weekdays[engagement.weekday] }}</dd>
@@ -9,7 +19,6 @@
   <dt>月の上限</dt><dd>{{ "{:,}円".format(engagement.fee_cap_yen) if engagement.fee_cap_yen is not none else "なし" }}</dd>
   <dt>お試し期間の終了日</dt><dd>{{ engagement.trial_ends_on }}</dd>
 </dl>
-{% include "matching/activity.html" %}
-<h2>境界線台帳</h2>
-{% include "matching/ledger.html" %}
+</section>
+</div>
 {% endblock %}

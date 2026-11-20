@@ -1,6 +1,36 @@
 {% extends "auth/home.html" %}
 {% block content %}
 <h1>{{ heading }}</h1>
+<div class="screen-columns work-first">
+<section class="decision-pane">
+{% if invitations %}
+<h2>あなたへの声かけ</h2>
+{% for invitation, office_name, categories in invitations %}
+<article>
+  <h3>{{ office_name }}</h3>
+  <p>業務の型：{{ categories | join("・") }}／曜日：{{ weekday_names[invitation.offer_weekday] }}／料金の割合：{{ "%g"|format(invitation.offer_fee_share_bp / 100) }}%</p>
+  <p>月の上限：{{ "{:,}円".format(invitation.offer_fee_cap_yen) if invitation.offer_fee_cap_yen is not none else "なし" }}</p>
+  <p>合意してもしないこと</p>
+  <ul class="boundary-list">{% for item in boundaries %}<li>{{ item }}</li>{% endfor %}</ul>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" data-masu-success{% if not loop.first %} class="secondary outline"{% endif %} formaction="{{ url_for('matching.answer_invitation', candidate_id=invitation.id, answer='accept') }}">受ける</button>
+    <button type="submit" class="secondary outline" formaction="{{ url_for('matching.answer_invitation', candidate_id=invitation.id, answer='decline') }}">断る</button>
+  </form>
+</article>
+{% endfor %}
+{% endif %}
+{% if engagements %}
+<h2>あなたの伴走</h2>
+<ul>{% for engagement, office_name in engagements %}
+  <li><a href="{{ url_for('matching.talent_engagement', engagement_id=engagement.id) }}">{{ office_name }}</a></li>
+{% endfor %}</ul>
+{% endif %}
+{% if not invitations and not engagements %}
+<p>まだ声かけはありません。</p>
+{% endif %}
+</section>
+<section class="reading-pane">
 {% if talent %}
 <h2>簿記の級</h2>
 {% if talent.bookkeeping_level != "none" %}<p>簿記{{ talent.bookkeeping_level }}級</p>{% endif %}
@@ -29,32 +59,8 @@
 {% endif %}
 <h2>確かめられた訪問</h2>
 <p>{{ confirmed_visits }}回</p>
-{% if invitations %}
-<h2>あなたへの声かけ</h2>
-{% for invitation, office_name, categories in invitations %}
-<article>
-  <h3>{{ office_name }}</h3>
-  <p>業務の型：{{ categories | join("・") }}／曜日：{{ weekday_names[invitation.offer_weekday] }}／料金の割合：{{ "%g"|format(invitation.offer_fee_share_bp / 100) }}%</p>
-  <p>月の上限：{{ "{:,}円".format(invitation.offer_fee_cap_yen) if invitation.offer_fee_cap_yen is not none else "なし" }}</p>
-  <p>合意してもしないこと</p>
-  <ul class="boundary-list">{% for item in boundaries %}<li>{{ item }}</li>{% endfor %}</ul>
-  <form method="post">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit"{% if not loop.first %} class="secondary outline"{% endif %} formaction="{{ url_for('matching.answer_invitation', candidate_id=invitation.id, answer='accept') }}">受ける</button>
-    <button type="submit" class="secondary outline" formaction="{{ url_for('matching.answer_invitation', candidate_id=invitation.id, answer='decline') }}">断る</button>
-  </form>
-</article>
-{% endfor %}
-{% endif %}
-{% if engagements %}
-<h2>あなたの伴走</h2>
-<ul>{% for engagement, office_name in engagements %}
-  <li><a href="{{ url_for('matching.talent_engagement', engagement_id=engagement.id) }}">{{ office_name }}</a></li>
-{% endfor %}</ul>
-{% endif %}
-{% if talent and not invitations and not engagements %}
-<p>まだ声かけはありません。守秘の誓約と研修が有効なら、条件に合う事務所の候補に出ます。</p>
-{% endif %}
+</section>
+</div>
 <form method="post" action="{{ url_for('auth.logout') }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <button type="submit" class="secondary outline">ログアウトする</button>

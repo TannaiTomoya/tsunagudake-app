@@ -1,31 +1,17 @@
 {% extends "base.html" %}
+{% set guide_endpoint = "needs.detail" %}
+{% set guide_mood = 'worried' if need.block_reason else 'happy' if need.status in ('published', 'engaged') else 'idle' %}
 {% block title %}困りごと{% endblock %}
 {% block content %}
 <p><a href="{{ url_for('auth.office_home', office_id=office.id) }}">事務所のホーム</a></p>
 <h1>困りごと</h1>
 <p class="state" data-status="{{ need.status }}">{{ status }}</p>
 {% if error %}<p role="alert">{{ error }}</p>{% endif %}
-<p>{{ need.body }}</p>
-<p>来てほしい曜日 {% for label in weekdays %}{{ label }} {% endfor %}</p>
+<div class="screen-columns">
+<section class="decision-pane">
 {% if need.status == "published" or need.status == "engaged" %}<p><a href="{{ url_for('matching.candidates', office_id=office.id, need_id=need.id) }}">候補と理由を見る</a></p>{% endif %}
 {% if engagement_id %}<p><a href="{{ url_for('matching.office_engagement', office_id=office.id, engagement_id=engagement_id) }}">伴走と境界線台帳を見る</a></p>{% endif %}
-<h2>翻訳の結果</h2>
-{% if need.block_reason %}
-<p role="alert">税理士業務にあたる可能性があるため公開できません。「{{ need.block_reason }}」の部分を確かめてください。資料の受け取りなど、つなぎ手に頼みたい作業を書いてください。</p>
-{% elif rows %}
-<div class="overflow-auto" role="region" aria-label="翻訳の結果" tabindex="0"><table>
-  <thead><tr><th scope="col">業務の型</th><th scope="col">ITの作業</th><th scope="col">根拠</th></tr></thead>
-  <tbody>
-    {% for row in rows %}
-    <tr><td>{{ categories[row.category] }}</td><td>{{ tasks[row.it_task] }}</td><td>{{ row.evidence }}</td></tr>
-    {% endfor %}
-  </tbody>
-</table></div>
-{% else %}
-<p>規則では訳せませんでした。下の「型を選ぶ・書き直す」から選んでください。</p>
-{% endif %}
 <h2>月の価値の見込み {{ "{:,}".format(estimate.monthly_value_yen) }}円</h2>
-<p>下の表は減らせる時間と金額の見込みです。成果を約束するものではありません。</p>
 <div class="overflow-auto" role="region" aria-label="月の価値の見込み" tabindex="0"><table>
   <thead><tr><th scope="col">見込み</th><th scope="col" data-numeric>時間</th><th scope="col" data-numeric>価値</th></tr></thead>
   <tbody>
@@ -39,11 +25,32 @@
 {% endif %}
 {% if owner and ((need.status == "draft" and rows) or need.status == "published") %}
 {% set action = "needs.withdraw" if need.status == "published" else "needs.publish" %}
-{% if need.status == "draft" %}<p>代表が公開すると、条件に合う候補が出ます。公開した内容は境界線台帳に残ります。</p>{% endif %}
 <form method="post" action="{{ url_for(action, office_id=office.id, need_id=need.id) }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <button type="submit">{{ "取り下げる" if need.status == "published" else "公開する" }}</button>
+  <button type="submit"{% if need.status == "draft" %} data-masu-success{% endif %}>{{ "取り下げる" if need.status == "published" else "公開する" }}</button>
 </form>
 {% endif %}
+</section>
+<section class="reading-pane">
+<h2>頼みたい作業</h2>
+<p>{{ need.body }}</p>
+<p>来てほしい曜日 {% for label in weekdays %}{{ label }} {% endfor %}</p>
+<h2>翻訳の結果</h2>
+{% if need.block_reason %}
+<p role="alert">税理士業務にあたる可能性があるため公開できません。「{{ need.block_reason }}」の部分を確かめてください。資料の受け取りなど、つなぎ手に頼みたい作業を書いてください。</p>
+{% elif rows %}
+<div class="overflow-auto" role="region" aria-label="翻訳の結果" tabindex="0"><table>
+  <thead><tr><th scope="col">業務の型</th><th scope="col">ITの作業</th><th scope="col">根拠</th></tr></thead>
+  <tbody>
+    {% for row in rows %}
+    <tr><td>{{ categories[row.category] }}</td><td>{{ tasks[row.it_task] }}</td><td>{{ row.evidence }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<p>規則では訳せませんでした。「型を選ぶ・書き直す」から選んでください。</p>
+{% endif %}
 {% if ledger %}<h2>境界線台帳</h2>{% include "matching/ledger.html" %}{% endif %}
+</section>
+</div>
 {% endblock %}

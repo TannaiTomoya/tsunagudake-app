@@ -1,36 +1,43 @@
 {% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
-<h2>訪問</h2>
-{% if activity.talent_writer %}<p><a href="{{ url_for('statements.visit_form', engagement_id=engagement.id) }}">訪問を記録する</a></p>{% endif %}
-{% if activity.visits %}
-<div class="overflow-auto"><table>
-  <thead><tr><th scope="col">日付</th><th scope="col">業務の型</th><th scope="col" data-numeric>時間</th><th scope="col">伝えること</th><th scope="col">状態</th></tr></thead>
-  <tbody>{% for visit in activity.visits %}
-  <tr>
-    <td>{{ visit.visit_date }}</td><td>{{ categories[visit.category] }}</td><td data-numeric>{{ visit.minutes }}分</td><td>{{ visit.note or "—" }}</td>
-    <td><span class="state" data-status="{{ visit.status }}">{{ {"recorded": "確認待ち", "confirmed": "確認済み", "disputed": "相違あり"}[visit.status] }}</span>
-    {% if visit.status == "recorded" %}
-      {% if activity.office_writer %}
-        <form method="post">
-          {{ csrf() }}
-          <button class="secondary outline" formaction="{{ url_for('statements.visit_review', office_id=engagement.office_id, engagement_id=engagement.id, visit_id=visit.id, action='confirm') }}">確かめる</button>
-          <button class="secondary outline" formaction="{{ url_for('statements.visit_review', office_id=engagement.office_id, engagement_id=engagement.id, visit_id=visit.id, action='dispute') }}">相違を記録する</button>
-        </form>
-      {% elif activity.talent_writer %}
-        <a href="{{ url_for('statements.visit_form', engagement_id=engagement.id, visit_id=visit.id) }}">修正する</a>
-      {% endif %}
-    {% endif %}</td>
-  </tr>
-  {% endfor %}</tbody>
-</table></div>
-{% else %}<p>訪問はまだありません。{% if activity.talent_writer %}訪問を終えたら「訪問を記録する」から入力してください。{% endif %}</p>{% endif %}
-
 <h2>減った時間と月の明細</h2>
-<form method="get">
+<form class="month-picker" method="get">
   <label for="view-month">対象月</label>
   <input id="view-month" type="month" name="month" value="{{ activity.month }}" required>
   <button class="secondary outline">表示する</button>
 </form>
 {% set pending_reductions = activity.reductions | selectattr("status", "equalto", "draft") | list %}
+{% set terms = activity.statement if activity.finalized else engagement %}
+<h3>{{ "確定済みの明細" if activity.finalized else "明細の下書き" }}{% if activity.finalized %} <span class="seal">確定</span>{% endif %}</h3>
+<div class="overflow-auto statement-table" role="region" aria-label="月次明細" tabindex="0"><table>
+  <tbody>
+    <tr><th scope="row">減った時間（事務所が確認）</th><td data-numeric>{{ activity.fee.reduced_hours }}時間</td></tr>
+    {% if activity.statement and activity.statement.returned_to %}
+    <tr><th scope="row">戻った先</th><td>{{ activity.statement.returned_to }}</td></tr>
+    {% endif %}
+    <tr><th scope="row">価値</th><td data-numeric>{{ activity.fee.reduced_hours }}時間 × {{ "{:,}".format(terms.hourly_rate_yen) }}円 ＝ {{ "{:,}".format(activity.fee.value_yen) }}円</td></tr>
+    <tr><th scope="row">料金の式</th><td data-numeric>{{ "{:,}".format(activity.fee.value_yen) }}円 × {{ "%g"|format(terms.fee_share_bp / 100) }}%（1円未満切り捨て{% if terms.fee_cap_yen is not none %}、上限 {{ "{:,}".format(terms.fee_cap_yen) }}円{% endif %}）</td></tr>
+  </tbody>
+  <tfoot><tr><th scope="row">料金</th><td data-numeric><strong>{{ "{:,}".format(activity.fee.fee_yen) }}円</strong></td></tr></tfoot>
+</table></div>
+{% if activity.fee.waived and (activity.finalized or (activity.reductions and not pending_reductions)) %}
+<p>減らなかったので0円です。</p>
+{% endif %}
+{% if activity.owner and not activity.finalized %}
+{% if not activity.reductions %}
+<p>時間の記録を入力し、確かめてから明細を確定できます。</p>
+{% elif pending_reductions %}
+<p>確認待ちの時間をすべて確かめると明細を確定できます。</p>
+{% else %}
+<form method="post" action="{{ url_for('statements.statement_finalize', office_id=engagement.office_id, engagement_id=engagement.id, month=activity.month) }}">
+  {{ csrf() }}
+  <label for="returned_to">この時間は、何に戻りましたか（任意）</label>
+  <input id="returned_to" name="returned_to" type="text" maxlength="100" placeholder="例：顧問先の相談に戻った">
+  <button data-masu-success>明細を確定する</button>
+</form>
+{% endif %}
+{% endif %}
+
+<h3>時間の記録</h3>
 {% if activity.reductions %}
 <div class="overflow-auto"><table>
   <thead><tr><th scope="col">業務の型</th><th scope="col" data-numeric>改善前</th><th scope="col" data-numeric>現在</th><th scope="col">状態</th></tr></thead>
@@ -58,35 +65,4 @@
     <button class="secondary outline">下書きを保存する</button>
   </form>
 </details>
-{% endif %}
-{% set terms = activity.statement if activity.finalized else engagement %}
-<h3>{{ "確定済みの明細" if activity.finalized else "明細の下書き" }}{% if activity.finalized %} <span class="seal">確定</span>{% endif %}</h3>
-<div class="overflow-auto statement-table" role="region" aria-label="月次明細" tabindex="0"><table>
-  <tbody>
-    <tr><th scope="row">減った時間（事務所が確認）</th><td data-numeric>{{ activity.fee.reduced_hours }}時間</td></tr>
-    {% if activity.statement and activity.statement.returned_to %}
-    <tr><th scope="row">戻った先</th><td>{{ activity.statement.returned_to }}</td></tr>
-    {% endif %}
-    <tr><th scope="row">価値</th><td data-numeric>{{ activity.fee.reduced_hours }}時間 × {{ "{:,}".format(terms.hourly_rate_yen) }}円 ＝ {{ "{:,}".format(activity.fee.value_yen) }}円</td></tr>
-    <tr><th scope="row">料金の式</th><td data-numeric>{{ "{:,}".format(activity.fee.value_yen) }}円 × {{ "%g"|format(terms.fee_share_bp / 100) }}%（1円未満切り捨て{% if terms.fee_cap_yen is not none %}、上限 {{ "{:,}".format(terms.fee_cap_yen) }}円{% endif %}）</td></tr>
-  </tbody>
-  <tfoot><tr><th scope="row">料金</th><td data-numeric><strong>{{ "{:,}".format(activity.fee.fee_yen) }}円</strong></td></tr></tfoot>
-</table></div>
-{% if activity.fee.waived and (activity.finalized or (activity.reductions and not pending_reductions)) %}
-<p>減らなかったので0円です。</p>
-{% endif %}
-{% if activity.owner and not activity.finalized %}
-{% if not activity.reductions %}
-<p>時間の記録を入力し、確かめてから明細を確定できます。</p>
-{% elif pending_reductions %}
-<p>確認待ちの時間をすべて確かめると明細を確定できます。</p>
-{% else %}
-<form method="post" action="{{ url_for('statements.statement_finalize', office_id=engagement.office_id, engagement_id=engagement.id, month=activity.month) }}">
-  {{ csrf() }}
-  <label for="returned_to">この時間は、何に戻りましたか（任意）</label>
-  <input id="returned_to" name="returned_to" type="text" maxlength="100" placeholder="例：顧問先の相談に戻った">
-  <p>明細を確定すると、この内容が境界線台帳に残ります。</p>
-  <button>明細を確定する</button>
-</form>
-{% endif %}
 {% endif %}
