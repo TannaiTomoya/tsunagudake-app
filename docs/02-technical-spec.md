@@ -332,7 +332,7 @@ make check        # ruff format --check → ruff check → mypy → pytest
 テスト番号（T…）は 03 §10。機能を足したら、同じコミットでテストを足す。
 
 ### 10.3 CI（`.github/workflows/ci.yml`）
-push と PR で動く。①`make check`（SQLite）②MySQL のサービスを立てて全テスト（`TEST_DATABASE_URL`）③空の MySQL に `flask db upgrade` が通る ④秘密の形をした文字列・`.env` が入っていないかの確認。
+push と PR で動く。①`make check`（SQLite）②MySQL 8.0 と 8.4 のサービスを立てて全テスト（`TEST_DATABASE_URL`）③空の MySQL に `flask db upgrade` が通る ④秘密の形をした文字列・`.env` が入っていないかの確認。
 
 **公開の前に、MySQL で全テストを通す。** SQLite で通っても、MySQL で落ちることがある（文字の長さ・ロック・日時）。
 
