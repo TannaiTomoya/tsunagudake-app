@@ -1,6 +1,7 @@
 {% extends "base.html" %}
-{% block title %}確認してください | つなぐだけ{% endblock %}
+{% set guide_endpoint = "error" %}
+{% block title %}確認してください{% endblock %}
 {% block content %}
 <h1>{{ message }}</h1>
-<p><a href="{{ url_for('public.index') }}">トップへ戻る</a></p>
+<p><a href="{{ url_for('public.index') }}">ホームに戻る</a></p>
 {% endblock %}

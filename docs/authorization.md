@@ -19,7 +19,7 @@
 
 ## 2. 主体
 
-公開の入口（段階0）：`GET /`、`GET /healthz`、`GET /static/<path:filename>` は未ログインを含む全員が利用できます。状態は変更しません。`/healthz` は DB に接続できる場合に `ok` だけを返し、接続情報や例外の詳細を表示しません。
+公開の入口：`GET /`、`GET /healthz`、`GET /favicon.ico`、`GET /static/<path:filename>` は未ログインを含む全員が利用できます。状態は変更しません。`/healthz` は DB に接続できる場合に `ok` だけを返し、接続情報や例外の詳細を表示しません。
 
 | 記号 | 誰 |
 |---|---|

@@ -1,9 +1,9 @@
 {% set kinds = {"published": "公開", "invited": "声かけ", "agreed": "合意", "changed": "変更", "visit_confirmed": "訪問を確認", "reduction_confirmed": "減った時間を確認", "statement_finalized": "明細を確定", "objection": "指摘"} %}
-<div class="overflow-auto" role="region" aria-label="境界線台帳" tabindex="0"><table>
-  <thead><tr><th scope="col">順番</th><th scope="col">記録</th><th scope="col">しないこと</th></tr></thead>
+<div class="overflow-auto ledger-sheet" role="region" aria-label="境界線台帳" tabindex="0"><table>
+  <thead><tr><th scope="col" data-numeric>順番</th><th scope="col">記録</th><th scope="col">しないこと</th></tr></thead>
   <tbody>{% for row, data in ledger %}
-    <tr><td>{{ row.seq }}</td><td>{{ kinds.get(row.kind, "その他の記録") }}</td><td>
-      {% if data.get("not_do") %}<ul data-boundaries>{% for item in data["not_do"] %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}—{% endif %}
+    <tr><td data-numeric>{{ row.seq }}</td><td><span class="{{ 'seal' if row.kind in ('agreed', 'statement_finalized') else 'state' }}" data-status="{{ row.kind }}">{{ kinds.get(row.kind, "その他の記録") }}</span></td><td>
+      {% if data.get("not_do") %}<ul class="not-do-seal">{% for item in data["not_do"] %}<li>{{ item }}</li>{% endfor %}</ul>{% else %}—{% endif %}
     </td></tr>
   {% endfor %}</tbody>
 </table></div>

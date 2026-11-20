@@ -1,34 +1,20 @@
 {% extends "base.html" %}
-{% block title %}候補と理由｜つなぐだけ{% endblock %}
+{% set guide_endpoint = "matching.candidates" %}
+{% block title %}候補と理由{% endblock %}
 {% block content %}
 <p><a href="{{ url_for('needs.detail', office_id=office.id, need_id=need.id) }}">困りごとに戻る</a></p>
 <h1>候補と理由</h1>
+<p>声をかける人を選ぶのは代表です。</p>
 {% if error %}<p role="alert">{{ error }}</p>{% endif %}
+<div class="screen-columns">
+<section class="decision-pane">
+<h2>声かけ</h2>
 {% if writable and not pending %}
 <form method="post" action="{{ url_for('matching.run_match', office_id=office.id, need_id=need.id) }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <button type="submit">{{ "候補を出し直す" if run else "候補を出す" }}</button>
 </form>
 {% endif %}
-{% if run %}
-  {% if candidates %}
-  <div class="overflow-auto" role="region" aria-label="候補と理由の表" tabindex="0"><table>
-    <thead><tr><th scope="col">順位</th><th scope="col">表示名</th><th scope="col">簿記</th><th scope="col">理由</th><th scope="col">点数</th><th scope="col">状態</th></tr></thead>
-    <tbody>{% for candidate, talent, name, town in candidates %}
-    <tr>
-      <td>{{ candidate.rank }}</td><td>{{ name }}（{{ town }}）</td>
-      <td>{{ talent.bookkeeping_level ~ "級" if talent.level_verified_at and talent.bookkeeping_level != "none" else "—" }}</td>
-      <td><ul>{% for reason in candidate.reasons %}<li>{{ reason }}</li>{% endfor %}</ul></td>
-      <td>{{ candidate.score }}</td><td>{{ labels[candidate.status] }}</td>
-    </tr>
-    {% endfor %}</tbody>
-  </table></div>
-  {% else %}<p>条件に合う人が、今はいません。</p>{% endif %}
-  {% if run.excluded_summary %}
-  <h2>候補から外れた理由</h2>
-  <ul>{% for reason, count in run.excluded_summary.items() %}<li>{{ exclusions[reason] }} {{ count }}人</li>{% endfor %}</ul>
-  {% endif %}
-{% else %}<p>候補はまだ計算されていません。</p>{% endif %}
 {% if owner and writable %}
   {% for candidate, talent, name, town in candidates %}
     {% if candidate.status == "listed" and not pending %}
@@ -50,4 +36,29 @@
     {% endif %}
   {% endfor %}
 {% endif %}
+{% if run and run.excluded_summary %}
+  <h2>条件に合わなかった人</h2>
+  <ul>{% for reason, count in run.excluded_summary.items() %}<li>{{ exclusions[reason] }} {{ count }}人</li>{% endfor %}</ul>
+  {% endif %}
+</section>
+<section class="reading-pane">
+<h2>候補の一覧</h2>
+{% if run %}
+  {% if candidates %}
+  <div class="overflow-auto" role="region" aria-label="候補の一覧" tabindex="0"><table>
+    <thead><tr><th scope="col" data-numeric>順位</th><th scope="col">表示名・所属</th><th scope="col">簿記</th><th scope="col">理由</th><th scope="col" data-numeric>点数</th><th scope="col">状態</th></tr></thead>
+    <tbody>{% for candidate, talent, name, town in candidates %}
+    <tr>
+      <td data-numeric>{{ candidate.rank }}</td>
+      <td>{{ name }}（{{ town }}）<br><small>所属：{{ affiliations[talent.affiliation] }}</small></td>
+      <td>{{ talent.bookkeeping_level ~ "級" if talent.level_verified_at and talent.bookkeeping_level != "none" else "—" }}</td>
+      <td><ul>{% for reason in candidate.reasons %}<li>{{ reason }}</li>{% endfor %}</ul></td>
+      <td data-numeric>{{ candidate.score }}</td><td><span class="{{ 'seal' if candidate.status == 'accepted' else 'state' }}" data-status="{{ candidate.status }}">{{ labels[candidate.status] }}</span></td>
+    </tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}<p>条件に合う人が、今はいません。来てほしい曜日を見直すか、時間をおいて候補を出し直してください。</p>{% endif %}
+{% else %}<p>まだ候補は出ていません。{% if writable and not pending %}「候補を出す」を押してください。{% endif %}</p>{% endif %}
+</section>
+</div>
 {% endblock %}
