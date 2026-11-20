@@ -709,7 +709,7 @@ def test_t22_t27_finalize_confirmed_hours_once(
     monkeypatch.setattr(
         "app.services.ledger.utc_now", lambda: datetime(2030, 1, 1, 0, 0, 0, 900000)
     )
-    office, talent, office_path, _ = _agree(database_app)
+    office, talent, office_path, talent_path = _agree(database_app)
     month = today_in_japan().strftime("%Y-%m")
     csrf = token(office, office_path)
     reduction = {
@@ -766,6 +766,30 @@ def test_t22_t27_finalize_confirmed_hours_once(
         assert len(entries) == 1
     result = database_app.test_cli_runner().invoke(args=["verify-ledger"])
     assert result.exit_code == 0, result.output
+
+    transfer = office_path + f"/statements/{month}/report-transfer"
+    receipt = talent_path + f"/statements/{month}/confirm-receipt"
+    talent_csrf = token(talent, talent_path)
+    assert talent.post(receipt, data={"csrf_token": talent_csrf}).status_code == 409
+    for _ in range(2):
+        assert office.post(transfer, data={"csrf_token": csrf}).status_code == 302
+        assert talent.post(receipt, data={"csrf_token": talent_csrf}).status_code == 302
+    assert "入金確認済み" in office.get(office_path + f"?month={month}").get_data(
+        as_text=True
+    )
+    with database_app.app_context():
+        assert (
+            len(
+                db.session.scalars(
+                    select(LedgerRecord).where(
+                        LedgerRecord.kind.in_(
+                            ("transfer_reported", "receipt_confirmed")
+                        )
+                    )
+                ).all()
+            )
+            == 2
+        )
 
     zero_month = (today_in_japan().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
     assert (

@@ -4,6 +4,8 @@
 <h1>{{ heading }}</h1>
 <div class="screen-columns work-first">
 <section class="decision-pane">
+<h2>今月の入金予定</h2>
+<p>確定明細のうち、入金確認前の合計は {{ "{:,}円".format(expected_income) }} です。</p>
 {% if invitations %}
 <h2>あなたへの声かけ</h2>
 {% for invitation, office_name, categories in invitations %}

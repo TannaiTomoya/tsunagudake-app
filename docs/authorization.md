@@ -123,6 +123,8 @@
 
 招待の発行とメール記録の閲覧は運営のみ。招待の受け取りとパスワード再設定は公開の入口で、本人宛ての期限内リンクが必要です。
 
+振込報告は担当事務所の代表だけ、入金確認は伴走を担当するつなぎ手本人だけが行えます。金額は確定明細から読みます。
+
 ### 実装済みルート一覧
 
 | 入口 | メソッド | 権限表 |
@@ -171,3 +173,5 @@
 | `/reset-password` | GET, POST | §8 |
 | `/admin/invitations/new` | GET, POST | §8 |
 | `/admin/mail` | GET | §8 |
+| `/o/<int:office_id>/engagements/<int:engagement_id>/statements/<month>/report-transfer` | POST | §5 |
+| `/t/engagements/<int:engagement_id>/statements/<month>/confirm-receipt` | POST | §5 |

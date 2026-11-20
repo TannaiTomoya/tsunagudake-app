@@ -517,6 +517,8 @@ class Statement(Created, Base):
     finalized_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     finalized_at: Mapped[datetime | None]
     returned_to: Mapped[str | None] = mapped_column(String(100))
+    transfer_reported_at: Mapped[datetime | None]
+    receipt_confirmed_at: Mapped[datetime | None]
 
 
 class RateLimitEvent(Created, Base):

@@ -161,6 +161,20 @@ ROUTES = (
         ("staff", "assigned", "admin"),
     ),
     Route(
+        "transfer",
+        "POST",
+        "{engagement}/statements/{month}/report-transfer",
+        ("other_office", "other_staff", "unrelated", "municipality"),
+        ("staff", "assigned", "admin"),
+    ),
+    Route(
+        "receipt",
+        "POST",
+        "{talent_engagement}/statements/{month}/confirm-receipt",
+        TALENT_ACTORS,
+        ("admin",),
+    ),
+    Route(
         "profile",
         "GET",
         "/t/profile",

@@ -37,7 +37,7 @@ from app.models import (
 )
 from app.services.auth import authenticate
 from app.services.region import dashboard_for
-from app.services.statement import confirmed_visits
+from app.services.statement import confirmed_visits, expected_income
 from app.services.trust import trust_statuses
 from tsunagu_rules.ledger import REQUIRED_BOUNDARIES
 
@@ -176,6 +176,9 @@ def talent_home() -> str:
         talent=talent,
         statuses=trust_statuses(talent, today) if talent is not None else (),
         today=today,
+        expected_income=expected_income(talent.id, today.strftime("%Y-%m"))
+        if talent
+        else 0,
         confirmed_visits=confirmed_visits(talent.id) if talent is not None else 0,
         invitations=invitations,
         weekday_names=dict(WEEKDAYS),

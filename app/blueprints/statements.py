@@ -36,6 +36,7 @@ from app.services.statement import (
     find_statement,
     find_visit,
     month_reductions,
+    record_payment,
     review_visit,
     save_reduction,
     save_visit,
@@ -280,3 +281,35 @@ def statement_finalize(
     except StatementConflict as exc:
         return _conflict(exc)
     return _office_back(engagement, month)
+
+
+@bp.post(
+    "/o/<int:office_id>/engagements/<int:engagement_id>/statements/<month>/report-transfer"
+)
+@login_required  # type: ignore[untyped-decorator]
+def report_transfer(
+    office_id: int, engagement_id: int, month: str
+) -> ResponseReturnValue:
+    engagement = require_office_engagement(office_id, engagement_id, owner_only=True)
+    if not valid_month(month):
+        abort(400)
+    try:
+        record_payment(engagement, month, _actor().id, receipt=False)
+    except StatementConflict as exc:
+        return _conflict(exc)
+    return _office_back(engagement, month)
+
+
+@bp.post("/t/engagements/<int:engagement_id>/statements/<month>/confirm-receipt")
+@login_required  # type: ignore[untyped-decorator]
+def confirm_receipt(engagement_id: int, month: str) -> ResponseReturnValue:
+    engagement = require_talent_engagement(engagement_id, write=True)
+    if not valid_month(month):
+        abort(400)
+    try:
+        record_payment(engagement, month, _actor().id, receipt=True)
+    except StatementConflict as exc:
+        return _conflict(exc)
+    return redirect(
+        url_for("matching.talent_engagement", engagement_id=engagement_id, month=month)
+    )
