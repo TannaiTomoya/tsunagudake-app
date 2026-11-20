@@ -33,6 +33,7 @@ from app.models import (
     RateLimitEvent,
     Reduction,
     ReductionStatus,
+    ReturnedKind,
     Role,
     Statement,
     Talent,
@@ -765,6 +766,7 @@ def test_t22_t27_finalize_confirmed_hours_once(
     with database_app.app_context():
         statements = db.session.scalars(select(Statement)).all()
         assert len(statements) == 1 and statements[0].fee_yen == 32000
+        assert statements[0].returned_kind is None
         entries = db.session.scalars(
             select(LedgerRecord).where(LedgerRecord.kind == "statement_finalized")
         ).all()
@@ -831,6 +833,63 @@ def test_t22_t27_finalize_confirmed_hours_once(
     )
 
 
+def test_t47_returned_kind_is_one_of_the_fixed_choices(database_app: Flask) -> None:
+    office, _talent, office_path, _talent_path = _agree(database_app)
+    month = today_in_japan().strftime("%Y-%m")
+    csrf = token(office, office_path)
+    reduction = {
+        "csrf_token": csrf,
+        "month": month,
+        "category": "collect",
+        "before": "30",
+        "after": "10",
+    }
+    assert office.post(office_path + "/reductions", data=reduction).status_code == 302
+    with database_app.app_context():
+        row = db.session.scalar(select(Reduction))
+        assert row is not None
+        confirm = f"{office_path}/reductions/{row.id}/confirm"
+        db.session.add_all(
+            Office(name=f"非公開架空事務所{number}", municipality_id=1)
+            for number in range(5)
+        )
+        db.session.commit()
+    assert office.post(confirm, data={"csrf_token": csrf}).status_code == 302
+    form = office.get(office_path + f"?month={month}").get_data(as_text=True)
+    assert 'name="returned_kind"' in form
+    assert "町の集計には選択肢だけを使います" in form
+
+    endpoint = f"{office_path}/statements/{month}/finalize"
+    unknown = {"csrf_token": csrf, "returned_kind": "confidential"}
+    assert office.post(endpoint, data=unknown).status_code == 409
+    with database_app.app_context():
+        assert db.session.scalar(select(Statement)) is None
+    chosen = {
+        "csrf_token": csrf,
+        "returned_kind": "new_client",
+        "returned_to": "非公開のひとこと",
+    }
+    assert office.post(endpoint, data=chosen).status_code == 302
+    # 確定した後は、選び直しても変わらない。
+    again = {**chosen, "returned_kind": "other", "returned_to": "書き換え"}
+    assert office.post(endpoint, data=again).status_code == 302
+    with database_app.app_context():
+        statement = db.session.scalar(select(Statement))
+        assert statement is not None
+        assert statement.returned_kind == ReturnedKind.NEW_CLIENT
+        assert statement.returned_to == "非公開のひとこと"
+    page = office.get(office_path + f"?month={month}").get_data(as_text=True)
+    assert "新しい顧問先の対応" in page and "非公開のひとこと" in page
+
+    # 町の画面には、代表が書いた1行は出ない。
+    town = database_app.test_client()
+    assert sign_in(town, "municipality@example.org") == 302
+    region = town.get("/r/90001/").get_data(as_text=True)
+    assert region.count('<figure class="chart"') == 4
+    assert "新しい顧問先の対応" in region
+    assert "非公開のひとこと" not in region and "書き換え" not in region
+
+
 def test_t16_t17_t24_region_dashboard(database_app: Flask) -> None:
     _agree(database_app)
     with database_app.app_context():
@@ -893,6 +952,13 @@ def test_t16_t17_t24_region_dashboard(database_app: Flask) -> None:
     cells = re.findall(r"<td data-numeric>(.*?)</td>", own_row, flags=re.S)
     assert [cell.strip() for cell in cells] == ["6", "5", "5", "5", "27時間"]
     assert "少ないため表示しません" in page.split("<tfoot>")[1]
+    # T49：グラフは4つ。もとになった事務所が1つの月は伏せる。
+    assert page.count('<figure class="chart"') == 4
+    charts = page[page.index("直近6か月のグラフ") : page.rindex("</figure>")]
+    assert "点線の月は、数字を伏せています" in charts
+    assert "27時間" not in charts and "108,000円" not in charts
+    assert 'style="' not in charts and "http" not in charts
+    assert 'fill="url(#chart-hatch)"' in charts and "地域おこし協力隊" in charts
     for private in (
         "架空町",
         "架空事務所",
@@ -916,6 +982,8 @@ def test_t16_t17_t24_region_dashboard(database_app: Flask) -> None:
         page.split("<tbody>")[1].split("</tbody>")[0].count("少ないため表示しません")
         == 5
     )
+    assert "参加事務所が少ないため、グラフは表示しません" in page
+    assert "<figure" not in page
     assert "少ないため表示しません" in page.split("<tfoot>")[1]
 
     with database_app.app_context():

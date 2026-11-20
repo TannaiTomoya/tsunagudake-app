@@ -21,7 +21,9 @@ from wtforms.validators import InputRequired, Length  # type: ignore[import-unty
 from app.authz import require_municipality, require_office
 from app.blueprints.matching import talent_activity
 from app.blueprints.needs import CATEGORIES, STATUSES, WEEKDAYS, weekday_options
+from app.blueprints.statements import RETURNED_KINDS
 from app.blueprints.talent import TOOLS
+from app.charts import region_figures
 from app.extensions import db
 from app.models import (
     Engagement,
@@ -272,10 +274,14 @@ def region_home(code: str) -> str:
     municipality = require_municipality(code)
     threshold = current_app.config["REGION_K_ANONYMITY"]
     demo = cast(User, current_user).is_demo
+    dashboard = dashboard_for(municipality, threshold, today_in_japan(), demo=demo)
     return render_template(
         "auth/region_home.html",
         heading=municipality.name,
         region_group=municipality.region_group,
         demo_region=demo,
-        dashboard=dashboard_for(municipality, threshold, demo=demo),
+        dashboard=dashboard,
+        figures=None
+        if dashboard.charts is None
+        else region_figures(dashboard.charts, list(RETURNED_KINDS.values())),
     )

@@ -5,15 +5,22 @@ import pytest
 
 from tsunagu_rules import RULES_VERSION, ledger
 from tsunagu_rules.matching import match
-from tsunagu_rules.region import mask_region
+from tsunagu_rules.region import (
+    mask_breakdown,
+    mask_cells,
+    mask_region,
+    recent_months,
+)
 from tsunagu_rules.translation import load_dictionary, translate
 from tsunagu_rules.types import (
     Exclusion,
     LedgerEntry,
+    MaskedCells,
     MatchLimits,
     Need,
     NeedKind,
     Reduction,
+    RegionCell,
     RegionMetrics,
     RegionRow,
     StoredEntry,
@@ -209,6 +216,42 @@ def test_t16_t17_region_threshold_and_total() -> None:
 def test_region_total_cannot_reveal_one_suppressed_cell() -> None:
     rows = [RegionRow("架空町", 6, 3, 0, 9, 12), RegionRow("架空市", 5, 8, 0, 8, 10)]
     assert mask_region(rows, 5).total == RegionMetrics(11, None, 0, 17, 22)
+
+
+def test_t48_chart_cells_hide_small_offices_and_what_subtraction_reveals() -> None:
+    cell = RegionCell
+    assert mask_cells([cell(5, 20), cell(0, 0)], 5) == MaskedCells((20, 0), 20)
+    # 4つの事務所のマスは伏せる。0でないいちばん小さいマスも伏せる。
+    assert mask_cells(
+        [cell(4, 12), cell(5, 30), cell(6, 9), cell(0, 0)], 5
+    ) == MaskedCells((None, 30, None, 0), 51)
+    # ほかに伏せるマスが無ければ、合計を出さない。
+    assert mask_cells([cell(4, 12), cell(0, 0)], 5) == MaskedCells((None, 0), None)
+    # 2つ伏せたなら、合計は出す。
+    assert mask_cells([cell(1, 3), cell(2, 4), cell(5, 30)], 5) == MaskedCells(
+        (None, None, 30), 37
+    )
+    for broken in ([cell(0, 3)], [cell(5, -1)], [cell(-1, 0)]):
+        with pytest.raises(ValueError):
+            mask_cells(broken, 5)
+    with pytest.raises(ValueError):
+        mask_cells([cell(5, 20)], 0)
+
+
+def test_t48_breakdown_is_all_or_nothing_and_months_follow_today() -> None:
+    assert mask_breakdown([5, 0, 7], 5) == (5, 0, 7)
+    assert mask_breakdown([5, 4, 0], 5) is None
+    with pytest.raises(ValueError):
+        mask_breakdown([5, -1, 0], 5)
+    assert recent_months(date(2030, 2, 10), 6) == (
+        "2029-09",
+        "2029-10",
+        "2029-11",
+        "2029-12",
+        "2030-01",
+        "2030-02",
+    )
+    assert recent_months(date(2030, 12, 31), 1) == ("2030-12",)
 
 
 def test_t41_translation_is_required_even_with_otherwise_full_score() -> None:

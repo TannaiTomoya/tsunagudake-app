@@ -26,6 +26,7 @@ from app.models import (
     OutboxMail,
     Reduction,
     ReductionStatus,
+    ReturnedKind,
     Role,
     Statement,
     StatementStatus,
@@ -46,6 +47,7 @@ from app.models import (
 from app.services.ledger import append_record
 from app.services.needs import DICTIONARY
 from tsunagu_rules import RULES_VERSION
+from tsunagu_rules.region import recent_months
 from tsunagu_rules.translation import translate
 from tsunagu_rules.types import JsonValue, NeedKind
 from tsunagu_rules.types import Reduction as RuleReduction
@@ -59,6 +61,12 @@ ACCOUNTS = {
 SCRIPT_BODY = (
     "顧問先の紙の帳簿を、毎月こちらから取りに行っている。持ち帰ってパソコンに打ち直す。"
     "写真で受け取りたいが、仕組みがない。資料回収に毎月30時間かかる"
+)
+# 確定済みの例が、月ごとに順に選ぶ戻った先（選択肢と、代表が書いた1行）。
+RETURNED = (
+    (ReturnedKind.CLIENT_CONSULT, "顧問先の相談に戻った"),
+    (ReturnedKind.NEW_CLIENT, "新しい顧問先の対応に使った"),
+    (ReturnedKind.LEFT_EARLY, "早く帰れるようになった"),
 )
 
 
@@ -128,7 +136,13 @@ def _need(office: Office, owner: User, body: str) -> Need:
 
 
 def _example(
-    office: Office, owner: User, talent: Talent, today: date, *, finished: bool
+    office: Office,
+    owner: User,
+    talent: Talent,
+    today: date,
+    *,
+    finished: bool,
+    order: int = 0,
 ) -> None:
     need = _need(office, owner, SCRIPT_BODY)
     need.status = NeedStatus.ENGAGED
@@ -209,33 +223,38 @@ def _example(
             },
         )
         db.session.flush()
-    month = today.strftime("%Y-%m")
-    db.session.add(
-        Reduction(
-            engagement_id=engagement.id,
-            month=month,
-            category=NeedKind.COLLECT,
-            before_hours=30,
-            after_hours=10,
-            status=ReductionStatus.CONFIRMED,
-            confirmed_by=owner.id,
-            confirmed_at=utc_now(),
+    # 確定済みの例は、今月と過去2か月。古い月ほど、減った時間が少ない。
+    months = recent_months(today, 3 if finished else 1)
+    for back, month in zip(reversed(range(len(months))), months, strict=True):
+        after = 10 + (6 * back + order % 3 if back else 0)
+        db.session.add(
+            Reduction(
+                engagement_id=engagement.id,
+                month=month,
+                category=NeedKind.COLLECT,
+                before_hours=30,
+                after_hours=after,
+                status=ReductionStatus.CONFIRMED,
+                confirmed_by=owner.id,
+                confirmed_at=utc_now(),
+            )
         )
-    )
-    append_record(
-        need,
-        "reduction_confirmed",
-        owner.id,
-        {
-            "month": month,
-            "category": "collect",
-            "before_hours": 30,
-            "after_hours": 10,
-        },
-    )
-    db.session.flush()
-    if finished:
-        fee = calc_fee([RuleReduction(30, 10, True)], 4000, 4000, None)
+        append_record(
+            need,
+            "reduction_confirmed",
+            owner.id,
+            {
+                "month": month,
+                "category": "collect",
+                "before_hours": 30,
+                "after_hours": after,
+            },
+        )
+        db.session.flush()
+        if not finished:
+            continue
+        fee = calc_fee([RuleReduction(30, after, True)], 4000, 4000, None)
+        kind, note = RETURNED[(order + back) % len(RETURNED)]
         db.session.add(
             Statement(
                 engagement_id=engagement.id,
@@ -248,7 +267,8 @@ def _example(
                 waived=fee.waived,
                 rules_version=RULES_VERSION,
                 status=StatementStatus.FINALIZED,
-                returned_to="顧問先の相談に戻った",
+                returned_to=note,
+                returned_kind=kind,
                 finalized_by=owner.id,
                 finalized_at=utc_now(),
             )
@@ -353,7 +373,8 @@ def seed_demo(password: str) -> bool:
                 level_verified_at=utc_now() if index < 5 else None,
                 level_verified_by=recorder.id if index < 5 else None,
                 weekdays_mask=weekdays_mask,
-                capacity=2,
+                # 確定済みの例5件を受け持つ人は、上限いっぱい。
+                capacity=5 if index == 8 else 2,
                 affiliation=TalentAffiliation.KYORYOKUTAI
                 if index <= 5
                 else TalentAffiliation.GRADUATE,
@@ -400,7 +421,7 @@ def seed_demo(password: str) -> bool:
     _need(offices[0], owner, SCRIPT_BODY)
     _need(offices[0], owner, "申告書の作成も頼みたい")
     _example(offices[0], owner, talents[0], today, finished=False)
-    for index in (1, 2):
+    for index in range(1, 6):
         example_owner = _user(
             f"example{index}@tsunagu.example",
             f"デモ事務所の代表 {index + 1}",
@@ -414,7 +435,14 @@ def seed_demo(password: str) -> bool:
                 member_role=MemberRole.OWNER,
             )
         )
-        _example(offices[index], example_owner, talents[7], today, finished=True)
+        _example(
+            offices[index],
+            example_owner,
+            talents[7],
+            today,
+            finished=True,
+            order=index - 1,
+        )
     return True
 
 

@@ -13,6 +13,7 @@ from app.models import (
     Need,
     Reduction,
     ReductionStatus,
+    ReturnedKind,
     Statement,
     StatementStatus,
     Talent,
@@ -274,6 +275,7 @@ def finalize(
     actor: int,
     *,
     returned_to: str = "",
+    returned_kind: str = "",
     due_date: str = "",
 ) -> None:
     need = _lock(engagement)
@@ -283,6 +285,10 @@ def finalize(
     returned_to = returned_to.strip()
     if len(returned_to) > 100:
         raise StatementConflict("時間の戻った先は100文字以内で入力してください。")
+    try:
+        kind = ReturnedKind(returned_kind) if returned_kind else None
+    except ValueError:
+        raise StatementConflict("戻った先は、選択肢から選んでください。") from None
     rows = month_reductions(engagement, month, lock=True)
     if not rows:
         raise StatementConflict("確かめる時間の記録を入力してから確定してください。")
@@ -310,6 +316,7 @@ def finalize(
         statement.payout_cipher = talent.payout_cipher
         statement.invoice_registration = talent.invoice_registration
     statement.returned_to = returned_to or None
+    statement.returned_kind = kind
     statement.finalized_by = actor
     statement.finalized_at = utc_now()
     append_record(

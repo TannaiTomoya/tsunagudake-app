@@ -19,6 +19,7 @@ from app.models import (
     Office,
     OfficeMember,
     Reduction,
+    ReturnedKind,
     Role,
     Statement,
     StatementStatus,
@@ -49,6 +50,12 @@ from tsunagu_rules.types import Fee, NeedKind
 
 bp = Blueprint("statements", __name__)
 _CHOICES = [SelectChoice(kind.value, label) for kind, label in CATEGORIES.items()]
+RETURNED_KINDS = {
+    ReturnedKind.CLIENT_CONSULT: "顧問先の相談",
+    ReturnedKind.NEW_CLIENT: "新しい顧問先の対応",
+    ReturnedKind.LEFT_EARLY: "早く帰れた",
+    ReturnedKind.OTHER: "その他",
+}
 
 
 class VisitForm(FlaskForm):  # type: ignore[misc]
@@ -283,6 +290,7 @@ def statement_finalize(
             month,
             _actor().id,
             returned_to=request.form.get("returned_to", ""),
+            returned_kind=request.form.get("returned_kind", ""),
             due_date=request.form.get("due_on", ""),
         )
     except StatementConflict as exc:

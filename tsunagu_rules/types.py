@@ -174,3 +174,15 @@ class MaskedRegionRow:
 class RegionView:
     rows: tuple[MaskedRegionRow, ...]
     total: RegionMetrics | None
+
+
+@dataclass(frozen=True)
+class RegionCell:
+    offices: int
+    value: int
+
+
+@dataclass(frozen=True)
+class MaskedCells:
+    values: tuple[int | None, ...]
+    total: int | None

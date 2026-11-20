@@ -263,6 +263,7 @@ def test_demo_rehearsal_before_and_after_reset(monkeypatch: pytest.MonkeyPatch) 
                 f"{example}/statements/{month}/finalize",
                 data={
                     "csrf_token": token(office, example),
+                    "returned_kind": "client_consult",
                     "returned_to": "顧問先の相談に戻った",
                 },
             ).status_code
@@ -283,10 +284,34 @@ def test_demo_rehearsal_before_and_after_reset(monkeypatch: pytest.MonkeyPatch) 
         assert response.status_code == 302
         page = town.get(response.headers["Location"]).get_data(as_text=True)
         assert (
-            "みなみ市" in page and "60時間" in page and "少ないため表示しません" in page
+            "みなみ市" in page
+            and "120時間" in page
+            and "少ないため表示しません" in page
         )
-        assert "資料回収の時間が60時間減り、判断と相談に戻りました" in page
+        assert "資料回収の時間が120時間減り、判断と相談に戻りました" in page
         assert "つなぎ手6人のうち、地域おこし協力隊は5人です" in page
+        # T49：グラフ4つと、その数字。もとになった事務所は、どのマスも5つ以上。
+        assert page.count('<figure class="chart"') == 4
+        charts = page[page.index("直近6か月のグラフ") : page.rindex("</figure>")]
+        numbers = [
+            cell.strip()
+            for cell in re.findall(r"<td data-numeric>(.*?)</td>", charts, flags=re.S)
+        ]
+        hours = ["0時間", "0時間", "0時間", "36時間", "66時間", "120時間", "222時間"]
+        returned = ["86時間", "74時間", "62時間", "0時間", "222時間"]
+        yen = ["0円", "0円", "0円", "144,000円", "264,000円", "480,000円", "888,000円"]
+        assert numbers == hours + returned + yen
+        assert "選んでいない" not in charts
+        assert "内訳は表示しません。つなぎ手は合わせて6人です" in charts
+        assert 'style="' not in charts and "http" not in charts
+        for private in (
+            "相談に戻った",
+            "対応に使った",
+            "早く帰れるようになった",
+            "架空会計事務所",
+            "架空つなぎ手",
+        ):
+            assert private not in page
         assert runner.invoke(args=["verify-ledger"]).exit_code == 0
 
     rehearse(1)

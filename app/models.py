@@ -472,6 +472,13 @@ class StatementStatus(StrEnum):
     FINALIZED = "finalized"
 
 
+class ReturnedKind(StrEnum):
+    CLIENT_CONSULT = "client_consult"
+    NEW_CLIENT = "new_client"
+    LEFT_EARLY = "left_early"
+    OTHER = "other"
+
+
 class Visit(Created, Base):
     __tablename__ = "visits"
     __table_args__ = (
@@ -546,6 +553,9 @@ class Statement(Created, Base):
     finalized_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     finalized_at: Mapped[datetime | None]
     returned_to: Mapped[str | None] = mapped_column(String(100))
+    returned_kind: Mapped[ReturnedKind | None] = mapped_column(
+        stored_enum(ReturnedKind)
+    )
     due_on: Mapped[date | None]
     payout_cipher: Mapped[str | None] = mapped_column(Text)
     invoice_registration: Mapped[str | None] = mapped_column(String(14))

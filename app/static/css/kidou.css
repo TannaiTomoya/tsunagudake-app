@@ -244,6 +244,23 @@ body {
   .candidate-comparison td ul, .candidate-comparison td p { margin-bottom: 0; }
 }
 
+/* ---- 地域のグラフ：色ではなく、模様と文字で区別する。動かさない ---- */
+.chart { margin: 1.5rem 0; padding: 1rem; border: 1px solid var(--line); background: var(--surface); }
+.chart figcaption { margin: 0 0 .5rem; padding: 0; font-size: 1.05rem; font-weight: 800; color: var(--text); }
+.chart-defs { position: absolute; }
+.chart-line { display: block; width: 100%; height: auto; max-height: 14rem; }
+.chart-axis { stroke: var(--line); stroke-width: 1; }
+.chart-gap { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 4; }
+.chart-path { fill: none; stroke: var(--text); stroke-width: 2; }
+.chart-point, .chart-solid, .chart-mark { fill: var(--text); }
+.chart-track { fill: var(--raised); }
+.chart-outline { fill: none; stroke: var(--muted); stroke-width: 1; }
+.chart-bar, .chart-stack, .chart-key { display: block; }
+.chart-stack { margin-bottom: .75rem; }
+/* 棒は名前の下に置く。表の幅を広げない（中身の幅を0として数え、マスいっぱいに伸ばす）。 */
+.chart-bar { width: 0; min-width: 100%; margin-top: .4rem; }
+.page .chart-cell { width: 55%; }
+
 .print-copy { display: none; }
 @media print {
   body:has(> .print-copy) > :not(.print-copy) { display: none; }

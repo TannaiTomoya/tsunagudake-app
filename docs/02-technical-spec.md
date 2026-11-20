@@ -100,6 +100,7 @@ tsunagudake-app/
 │  ├─ audit.py             # 監査記録
 │  ├─ ratelimit.py         # 回数制限
 │  ├─ security.py          # Host の確認・応答ヘッダー（CSP など）
+│  ├─ charts.py            # 地域のグラフの座標（SVG はテンプレートで描く。色は kidou.css、数字は表）
 │  ├─ cli.py               # flask create-user / seed-demo / reset-demo / verify-ledger
 │  ├─ blueprints/
 │  │  ├─ public.py         # / ・ /how ・ /healthz

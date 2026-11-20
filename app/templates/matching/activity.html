@@ -11,8 +11,11 @@
 <div class="overflow-auto statement-table" role="region" aria-label="月次明細" tabindex="0"><table>
   <tbody>
     <tr><th scope="row">減った時間（事務所が確認）</th><td data-numeric>{{ activity.fee.reduced_hours }}時間</td></tr>
+    {% if activity.statement and activity.statement.returned_kind %}
+    <tr><th scope="row">戻った先</th><td>{{ returned_kinds[activity.statement.returned_kind] }}</td></tr>
+    {% endif %}
     {% if activity.statement and activity.statement.returned_to %}
-    <tr><th scope="row">戻った先</th><td>{{ activity.statement.returned_to }}</td></tr>
+    <tr><th scope="row">{{ "戻った先（ひとこと）" if activity.statement.returned_kind else "戻った先" }}</th><td>{{ activity.statement.returned_to }}</td></tr>
     {% endif %}
     <tr><th scope="row">価値</th><td data-numeric>{{ activity.fee.reduced_hours }}時間 × {{ "{:,}".format(terms.hourly_rate_yen) }}円 ＝ {{ "{:,}".format(activity.fee.value_yen) }}円</td></tr>
     <tr><th scope="row">料金の式</th><td data-numeric>{{ "{:,}".format(activity.fee.value_yen) }}円 × {{ "%g"|format(terms.fee_share_bp / 100) }}%（1円未満切り捨て{% if terms.fee_cap_yen is not none %}、上限 {{ "{:,}".format(terms.fee_cap_yen) }}円{% endif %}）</td></tr>
@@ -49,8 +52,14 @@
 <form method="post" action="{{ url_for('statements.statement_finalize', office_id=engagement.office_id, engagement_id=engagement.id, month=activity.month) }}">
   {{ csrf() }}
   <label for="due_on">合意した振込期日（任意）</label><input type="date" id="due_on" name="due_on">
-  <label for="returned_to">この時間は、何に戻りましたか（任意）</label>
-  <input id="returned_to" name="returned_to" type="text" maxlength="100" placeholder="例：顧問先の相談に戻った">
+  <label for="returned_kind">この時間は、何に戻りましたか（任意）</label>
+  <select id="returned_kind" name="returned_kind">
+    <option value="">選ばない</option>
+    {% for kind, label in returned_kinds.items() %}<option value="{{ kind.value }}">{{ label }}</option>{% endfor %}
+  </select>
+  <label for="returned_to">ひとこと（任意）</label>
+  <input id="returned_to" name="returned_to" type="text" maxlength="100" placeholder="例：顧問先の相談に戻った" aria-describedby="returned-to-note">
+  <small id="returned-to-note">事務所とつなぎ手だけが読めます。町の集計には選択肢だけを使います。顧問先の名前と金額は書かないでください。</small>
   <button data-masu-success>明細を確定する</button>
 </form>
 {% endif %}

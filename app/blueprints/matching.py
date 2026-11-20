@@ -18,7 +18,7 @@ from app.authz import (
     require_talent_engagement,
 )
 from app.blueprints.needs import CATEGORIES, WEEKDAYS, weekday_options
-from app.blueprints.statements import activity_for
+from app.blueprints.statements import RETURNED_KINDS, activity_for
 from app.blueprints.talent import TOOLS
 from app.extensions import db
 from app.models import (
@@ -299,6 +299,7 @@ def _engagement_page(engagement: Engagement, *, office_side: bool) -> str:
         tools=TOOLS,
         activity=activity_for(engagement, office_side=office_side),
         categories=CATEGORIES,
+        returned_kinds=RETURNED_KINDS,
         ledger=[
             (row, json.loads(row.payload)["data"]) for row in records_for_need(need)
         ],
