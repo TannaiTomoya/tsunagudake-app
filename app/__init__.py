@@ -52,6 +52,9 @@ def create_app(config: Mapping[str, Any] | None = None) -> Flask:
     app.register_blueprint(accounts_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(talent_bp)
+    from app.blueprints.collection import bp as collection_bp
+
+    app.register_blueprint(collection_bp)
     from app.blueprints.guide import bp as guide_bp
     from app.blueprints.guide import suggestions
 

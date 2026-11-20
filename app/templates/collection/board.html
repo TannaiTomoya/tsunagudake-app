@@ -1,0 +1,73 @@
+{% extends "auth/home.html" %}
+{% block title %}資料回収ボード{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('auth.office_home', office_id=office.id) }}">事務所のホームに戻る</a></p>
+<h1>資料回収ボード</h1>
+<p>{{ heading }}・{{ month_label }}分。{% if items %}そろった {{ ready }}／{{ items | length }}。届いた資料 {{ received }}件。{% else %}この月の番号は、まだありません。{% endif %}</p>
+<p class="actions">
+  <a href="{{ url_for('collection.office_board', office_id=office.id, month=previous) }}">前の月</a>
+  {% if following %}<a href="{{ url_for('collection.office_board', office_id=office.id, month=following) }}">次の月</a>{% endif %}
+</p>
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+{% if token %}
+<section aria-labelledby="token-heading">
+  <h2 id="token-heading">受け取り用の合言葉</h2>
+  <p>この合言葉は、今だけ表示します。撮って送るだけ帳簿の設定に入れてください。前の合言葉は使えなくなりました。</p>
+  <p><code class="token-once">{{ token }}</code></p>
+</section>
+{% endif %}
+{% if items %}
+<div class="overflow-auto statement-table" role="region" aria-label="{{ month_label }}の資料回収" tabindex="0"><table>
+  <thead><tr><th scope="col">顧問先の番号</th><th scope="col">状態</th><th scope="col" data-numeric>届いた資料</th>{% if can_write %}<th scope="col">変える</th>{% endif %}</tr></thead>
+  <tbody>{% for item in items %}
+    <tr>
+      <th scope="row">{{ item.client_no }}</th>
+      <td><span class="state" data-status="{{ 'confirmed' if item.is_ready else 'recorded' }}">{{ "そろった" if item.is_ready else "まだ" }}</span></td>
+      <td data-numeric>{{ item.received_count }}件</td>
+      {% if can_write %}<td>
+        <form method="post" action="{{ url_for('collection.office_board', office_id=office.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="month" value="{{ month }}">
+          <input type="hidden" name="client_no" value="{{ item.client_no }}">
+          <button class="secondary outline" type="submit" name="action" value="{{ 'pending' if item.is_ready else 'ready' }}" aria-label="番号{{ item.client_no }}を「{{ 'まだ' if item.is_ready else 'そろった' }}」にする">{{ "まだに戻す" if item.is_ready else "そろった" }}</button>
+        </form>
+      </td>{% endif %}
+    </tr>
+  {% endfor %}</tbody>
+</table></div>
+{% endif %}
+{% if can_write %}
+<h2>番号を足す</h2>
+<form method="post" action="{{ url_for('collection.office_board', office_id=office.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="month" value="{{ month }}">
+  <label for="client-no">顧問先の番号</label>
+  <input id="client-no" name="client_no" type="number" inputmode="numeric" min="1" max="9999" step="1" required aria-describedby="client-no-note">
+  <small id="client-no-note">事務所の中で決めた番号（1〜9999）だけを入れます。顧問先の名前と金額は書かないでください。</small>
+  <button type="submit" name="action" value="add">番号を足す</button>
+</form>
+{% if can_carry %}
+<form method="post" action="{{ url_for('collection.office_board', office_id=office.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="month" value="{{ month }}">
+  <button class="secondary outline" type="submit" name="action" value="carry">先月の番号を引き継ぐ</button>
+</form>
+{% endif %}
+{% else %}
+<p>運営は見るだけです。番号を足す・状態を変えるのは、事務所の人です。</p>
+{% endif %}
+<h2>撮って送るだけ帳簿から、件数を受け取る</h2>
+<p>受け取るのは、顧問先の番号と、届いた資料の件数だけです。名前・金額・画像は受け取りません。「そろった」は、人がこの画面で決めます。</p>
+{% if owner %}
+<details>
+  <summary>{{ "合言葉を発行し直す" if has_token else "合言葉を発行する" }}</summary>
+  <p>{% if has_token %}発行し直すと、前の合言葉は使えなくなります。{% else %}合言葉は、発行のときに1回だけ表示します。{% endif %}</p>
+  <form method="post" action="{{ url_for('collection.token', office_id=office.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="secondary outline" type="submit">{{ "発行し直す" if has_token else "発行する" }}</button>
+  </form>
+</details>
+{% else %}
+<p>合言葉を発行できるのは、事務所の代表だけです。{{ "発行済みです。" if has_token else "まだ発行していません。" }}</p>
+{% endif %}
+{% endblock %}

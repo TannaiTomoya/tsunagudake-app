@@ -29,6 +29,7 @@ Cursor・Claude Code など、どの AI エージェントもこのファイル�
 - #72 の市町村の一覧（総務省のコード1,741件。`flask sync-municipalities` が無い行だけを足す）、都道府県 → 市町村の2段の選び方、確かめた経路（`office_routes`、`/o/<office_id>/routes`。登録は代表だけ）を実装。通常の事務所の候補は `office_routes` だけ、デモは `travel_times` のまま。デモの人は架空の町だけ、通常の人は実在の町だけを選べる。本番での取り込みは未確認。
 - #24 の退会（`/account/withdraw`。行は残し、名前とメールアドレスを消す）、伴走を終える（代表と担当つなぎ手。理由は選択肢だけで、台帳に `ended`）、規約とポリシーの**案**（`/terms`・`/privacy`）、`flask prune-audit` を実装。専門家への確認と、運営者の名前・連絡先の記載は未了。
 - #23 の台帳の毎日の検証と控え（`flask anchor-ledger`。鎖の最後のハッシュを `ledger_anchors` と DB の外のファイルに控え、前の日の控えと比べる。合わなければ運営にメール）を実装。本番のタイマー（`deploy/tsunagudake-daily.*`）は未設定。
+- #20 の資料回収ボード（`/o/<office_id>/collection`。顧問先は番号だけ）と、撮って送るだけ帳簿から件数だけを受け取る入口（`POST /api/offices/<office_id>/collection-counts`。代表が発行した合言葉。知らないキーは 422）を実装。撮って送るだけ帳簿の側の送信は未実装。
 - 1段階ずつ進める。終えたら、この節を書き直す
 
 ## コードの決まり

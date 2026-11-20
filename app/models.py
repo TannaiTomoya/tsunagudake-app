@@ -130,6 +130,9 @@ class Office(Created, Base):
         CheckConstraint(
             "client_count BETWEEN 0 AND 100000", name="office_client_count_range"
         ),
+        UniqueConstraint(
+            "collection_token_hash", name="uq_offices_collection_token_hash"
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -138,8 +141,36 @@ class Office(Created, Base):
     hourly_rate_yen: Mapped[int] = mapped_column(default=4000)
     software: Mapped[str | None] = mapped_column(String(20))
     client_count: Mapped[int | None]
+    # 撮って送るだけ帳簿から件数を受け取るための合言葉。ハッシュだけを持つ。
+    collection_token_hash: Mapped[str | None] = mapped_column(String(64))
     is_active: Mapped[bool] = mapped_column(default=True)
     is_demo: Mapped[bool] = mapped_column(default=False)
+    updated_at: Mapped[datetime] = mapped_column(default=utc_now, onupdate=utc_now)
+
+
+class CollectionItem(Created, Base):
+    """資料回収ボードの1マス。顧問先は番号だけで持つ（名前・金額を持たない）。"""
+
+    __tablename__ = "collection_items"
+    __table_args__ = (
+        UniqueConstraint("office_id", "month", "client_no"),
+        CheckConstraint(
+            "client_no BETWEEN 1 AND 9999", name="collection_client_no_range"
+        ),
+        CheckConstraint(
+            "received_count BETWEEN 0 AND 9999", name="collection_received_range"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    office_id: Mapped[int] = mapped_column(ForeignKey("offices.id"))
+    month: Mapped[str] = mapped_column(String(7))
+    client_no: Mapped[int]
+    is_ready: Mapped[bool] = mapped_column(default=False)
+    received_count: Mapped[int] = mapped_column(default=0)
+    updated_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
     updated_at: Mapped[datetime] = mapped_column(default=utc_now, onupdate=utc_now)
 
 
