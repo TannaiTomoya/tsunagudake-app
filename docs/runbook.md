@@ -1,35 +1,38 @@
 # 公開の手順（Xserver VPS） — つなぐだけ（Tsunagudake）
 
-版1.2・2026-11-20。構成と理由は [02 技術仕様書 §11](02-technical-spec.md)。
+版1.3・2026-11-20。構成と理由は [02 技術仕様書 §11](02-technical-spec.md)。
 
 **この手順は、本人が自分で打つ。** AI エージェントは本番に SSH しない。分からない所は、候補を出させて、読んでから自分で打つ。
-前提：XServer VPS、Ubuntu 26.04、DB は VPS の中の MySQL、HTTPS、ドメインあり。Ubuntu 24.04 でも、同じ手順で進められる（版1.1 で確かめた）。
+前提：XServer VPS クラウド（XServer VPS は新規受付を止めていた）、Ubuntu 26.04、DB は VPS の中の MySQL、HTTPS、ドメインあり。Ubuntu 24.04 でも、同じ手順で進められる（版1.1 で確かめた）。
 `example.jp`・`203.0.113.10` は、自分のものに読み替える。
 
 ---
 
-## 確かめた記録（版1.2）
+## 確かめた記録（版1.3）
 
 版1.0 は、1行も実行せずに書いていた。版1.1 で、Ubuntu 24.04 の上で実際に動かして確かめ、見つかった不具合を直した。
 版1.2 で、**Ubuntu 26.04 の上で、同じ手順をこのアプリで動かして**確かめ直した。下の表で「確認済み」の所は、手順のコマンドを変えずに通った。
 確かめた場所は、手元の `ubuntu:26.04` のコンテナ（arm64。systemd は動いていない）。VPS は x86_64 で、最初から入っているものも違う。
-「実機」と書いた所は、VPS の上でしか確かめられない。段階1（Issue #2）で、1行ずつ確かめて、違っていたらこの文書を直す。
+版1.3 で、**XServer VPS クラウドの実機（Ubuntu 26.04・x86_64）で §1〜§10 を上から順に打ち**、発表用のデモを https で公開した（2026-11-20）。表の「実機で確認」が、そのときの結果。
+残りの「実機」と書いた所は、まだ VPS の上で確かめていない。
 
 | 節 | 何を | どう確かめたか（Ubuntu 26.04） | 結果 |
 |---|---|---|---|
-| 1 | 管理画面のメニューとボタンの名前 | XServer VPS の公式マニュアル | 文書で確認 |
-| 1 | 2GB のプランを申し込めるか。OS に Ubuntu 26.04 を選べるか | — | **実機**（申し込み・OS再インストールの画面） |
+| 1 | 申し込み・OS・SSH Key | XServer VPS は新規受付を止めていたので、VPS クラウドで申し込んだ。Ubuntu 26.04 を選べた。SSH Key は「キーを作成する」→「インポート」で自分の公開鍵を登録できた | **実機で確認**（注意10） |
 | 2 | SSH の設定ファイルの効き方 | OpenSSH 10.2 で `sshd -T`。`99-` では止まらず、`00-` で止まる | 確認済み（24.04 と同じ。注意1） |
-| 2 | `adduser`・`ufw`・鍵でのログイン・`systemctl restart ssh` | — | **実機** |
+| 2 | パケットフィルター | 作っただけでは効かず、SSH が時間切れになった。VPS の「ネットワーク」タブで適用して通った | **実機で確認**（注意11） |
+| 2 | `adduser`・`ufw`・鍵でのログイン・`systemctl restart ssh` | §2.2〜§2.4 のとおりに通った。`sshd -T` は2行とも `no` | **実機で確認** |
 | 3 | パッケージ | §3 の1行をそのまま実行。nginx 1.28.3・MySQL 8.4.13・certbot 4.0.0 が入った | 確認済み（注意7） |
 | 3 | uv のインストーラー | 実行して、`uv --version` が通った。`uv sync --frozen --no-dev` で Python 3.14 が入った | 確認済み |
 | 4 | DB とユーザーを作る SQL・待ち受けるアドレス・文字コード | MySQL 8.4.13 で実行 | 確認済み |
 | 4 | アプリからの接続（行のロック・CHECK 制約・同時実行） | MySQL 8.4.13 で `flask db upgrade` と全テスト（417件） | 確認済み |
 | 7 | `flask db upgrade`・`flask seed-demo`・`flask verify-ledger` | MySQL 8.4.13 で実行。`MySQLImpl` と出た | 確認済み |
 | 7 | gunicorn の起動と設定ファイル | gunicorn 27.0 でこのアプリを起動。`/healthz` が `ok` | 確認済み |
-| 8 | systemd の設定の書き方 | systemd 259 の `systemd-analyze verify`（`deploy/` の5つ） | 書き方は確認済み。**起動は実機** |
+| 8 | systemd の設定と起動 | `enable --now` で `active`、`/healthz` が `ok` | **実機で確認** |
 | 9 | nginx の設定 | nginx 1.28.3 で `nginx -t`。nginx 越しに `/healthz` が 200、偽の IP が通らない、知らない Host が 400、隠しファイルが 403、`/static/` が 200 | 確認済み（注意2・3） |
-| 10 | 証明書（certbot）・ドメイン | — | **実機** |
+| 5 | `git clone` の権限 | `umask 077` のまま取ってきたら、nginx が `/static/` を読めず 403 になった | **実機で確認**（注意12） |
+| 9・10 | nginx と証明書 | 初期の `default` が残ったまま certbot を打つと、証明書が初期ページにつき、トップが「Welcome to nginx!」になった。名前を後から足すと、証明書が置き換わった | **実機で確認**（注意13・14） |
+| 10 | 証明書（certbot）・ドメイン | Let's Encrypt で取れた。`certbot.timer` も入った | **実機で確認** |
 | 11 | 再起動の後も動くか | — | **実機** |
 | 12 | `deploy.sh` | 控え → 早送り → `uv sync` → `flask db upgrade` まで通った | **再起動と `/healthz` の確認は実機** |
 | 12 | 再起動だけを許す sudoers の1行 | sudo-rs 0.2.13 で `visudo -c`・`sudo -l -U ubuntu`。許した再起動だけが sudo を通り、ほかは断られた | 確認済み（注意8） |
@@ -50,6 +53,14 @@ Ubuntu 26.04 で変わっていたこと（版1.2。手順は変えていない�
 8. `sudo` は sudo-rs、`stat`・`date`・`mktemp` は Rust で書き直された版（uutils）に替わった。`deploy.sh`（再起動の手前まで）・`backup.sh`（送る手前まで）・sudoers の1行は、そのまま動いた。
 9. MySQL 8.4 は、古い認証（`mysql_native_password`）が最初から無効。§4 で作るユーザーは新しい認証（`caching_sha2_password`）になり、アプリからつながった。
 
+実機で公開したときに分かったこと（版1.3）：
+
+10. **XServer VPS は新規の申し込みを止めていた。** 申し込めたのは「XServer VPS クラウド」。メモリは 4GB から。SSH Key は申し込みの画面で「キーを作成する」→「インポート」を選び、自分の PC で作った公開鍵（`.pub`）を貼る。
+11. **パケットフィルターは、作っただけでは効かない。** 「パケットフィルター」でルールを作ったあと、「VPS」→ 対象のサーバーの「詳細」→「**ネットワーク**」タブで適用する。適用するまでは、22 番も含めて外からの通信がすべて止まり、`ssh` が時間切れになる。
+12. **`umask 077` のまま `git clone` すると、nginx が見た目のファイルを読めない。** フォルダが `drwx------` になり、`/static/` が 403 になる。§6 で `.env` を作るときだけ `umask 077` にし、すぐ `umask 022` に戻す。なってしまったら §9 の直し方。
+13. **初期の `sites-enabled/default` を外してから certbot を打つ。** 残っていると、証明書が初期ページにつき、https のトップが「Welcome to nginx!」になる。
+14. **1つの設定に名前を後から足して certbot を打つと、証明書が新しい名前だけのものに置き換わり、古い名前が証明書のエラーになる。** 2つ以上の名前で開けるようにするときは、`--cert-name` で1枚にまとめる（§10）。
+
 ---
 
 ## 0. 全体の流れ
@@ -58,17 +69,23 @@ Ubuntu 26.04 で変わっていたこと（版1.2。手順は変えていない�
 待ち時間があるのは、1（申し込み）と10（ドメインの向き先が広まるまで）。**ここを先にやる。**
 
 ## 1. VPS を申し込む
-- 申し込むのは **「XServer VPS」**。名前の似ている「エックスサーバー（レンタルサーバー）」では、この構成は動かない。
-- プラン：メモリ 2GB（申し込めなければ 4GB）。契約は**1か月**から。
+- 申し込むのは **「XServer VPS」**。名前の似ている「エックスサーバー（レンタルサーバー）」では、この構成は動かない。**XServer VPS が新規受付を止めていたら「XServer VPS クラウド」**（注意10）。申し込みの最初の画面では「VPS（Linux系サーバー）」を選ぶ（「おまとめ自動セットアップ」やオプションは選ばない）。
+- プラン：メモリ 2GB（申し込めなければ 4GB）。契約は**1か月**から。確定の前に、支払いの内訳で期間とディスクを確かめる（選び間違えると12か月分になっていることがある）。
 - OS：Ubuntu 26.04（選べなければ 24.04。手順は同じ）。アプリのテンプレートは選ばない。
 - root のパスワードは長いランダムなものにし、パスワード管理の道具に入れる。
-- **SSH Key は、申し込みのときに登録する。** 公式マニュアルでは、設定できるのは「お申し込み時、またはOS再インストール時」。登録しなかった場合は、root のパスワードで入ってから、2の手順で鍵を置く。
+- **SSH Key は、申し込みのときに登録する。** 自分の PC で `ssh-keygen -t ed25519 -f ~/.ssh/tsunagudake_vps -C apps-01 -N ""` で作り、`~/.ssh/tsunagudake_vps.pub` の1行を「インポート」に貼る（秘密鍵はどこにも貼らない）。公式マニュアルでは、設定できるのは「お申し込み時、またはOS再インストール時」。登録しなかった場合は、root のパスワードで入ってから、2の手順で鍵を置く。
 - 控えるもの：IP アドレス（VPS パネルのトップページ）。
 - ドメインの A レコードを、この IP に向ける（例：`tsunagudake.example.jp`）。
 
 ## 2. 最初の守り
 
 ### 2.1 パケットフィルター（VPS パネル）
+**VPS クラウドの場合**（実機で確認）：
+1. 「パケットフィルター」→「パケットフィルターを作成する」（名前の例：`apps-01-filter`）。
+2. その「詳細」→「ルールを追加する」で、TCP・IPv4・ポート 22〜22・接続元 `0.0.0.0/0` を足す。80 と 443 も同じように足す。
+3. **「VPS」→ 対象のサーバーの「詳細」→「ネットワーク」タブで、作ったフィルターを適用する**（注意11）。
+
+**XServer VPS の場合**（公式マニュアルから）：
 1. 左のメニューの「パケットフィルター設定」を開く。
 2. 「ONにする（推奨）」を選び、「変更する」→「OK」。
 3. 「パケットフィルター設定を追加する」→ フィルターで「SSH」を選び、「追加する」。
@@ -88,12 +105,14 @@ timedatectl set-timezone Asia/Tokyo
 id ubuntu || adduser ubuntu          # すでにあれば、作らない
 usermod -aG sudo ubuntu
 mkdir -p /home/ubuntu/.ssh && chmod 700 /home/ubuntu/.ssh
-nano /home/ubuntu/.ssh/authorized_keys     # 自分の PC の公開鍵（.pub）を1行貼る
+# 申し込みのときに鍵を登録したなら、root の鍵を写すのが早い（貼り間違いがない）
+cp /root/.ssh/authorized_keys /home/ubuntu/.ssh/   # 登録しなかったときは nano で .pub を1行貼る
 chmod 600 /home/ubuntu/.ssh/authorized_keys
 chown -R ubuntu:ubuntu /home/ubuntu/.ssh
 ```
 
-**別のターミナルを開き、`ssh ubuntu@203.0.113.10` で入れることと、`sudo -v` が通ることを確かめてから**、次に進む（確かめる前に閉じると、入れなくなる）。
+**自分の PC で別のターミナルを開き、`ssh ubuntu@203.0.113.10` で入れることと、`sudo -v` が通ることを確かめてから**、次に進む（確かめる前に閉じると、入れなくなる）。サーバーの中（`root@…#` のタブ）で `ssh` を打たない。
+`apt -y upgrade` で新しいカーネルが入ったら、§2.4 のあとに `sudo reboot` し、`uname -r` で切り替わったことを見る。
 
 ### 2.3 root とパスワードでのログインを止める
 ```bash
@@ -154,8 +173,9 @@ mysql -u tsunagudake -p tsunagudake -e "SELECT CURRENT_USER(), @@bind_address;"
 `tsunagudake@localhost` と `127.0.0.1` が出ればよい。MySQL は外に開けない（3306 番は、ufw でもパケットフィルターでも開けない）。
 
 ## 5. アプリを置く
+**`umask` が `022` のときに取ってくる**（注意12）。リポジトリが公開なら、Deploy key を作らずに https で取ってこられる（`git clone https://github.com/TannaiTomoya/tsunagudake-app.git`）。非公開にするときだけ、下の鍵を使う。
 ```bash
-# GitHub から読み取るための鍵（このサーバー専用）
+# GitHub から読み取るための鍵（このサーバー専用。リポジトリを非公開にするとき）
 ssh-keygen -t ed25519 -f ~/.ssh/github_deploy_tsunagudake -C "tsunagu-vps" -N ""
 cat ~/.ssh/github_deploy_tsunagudake.pub
 ```
@@ -181,6 +201,23 @@ uv sync --frozen --no-dev        # .venv ができる（Python 3.14 も uv が�
 ```
 
 ## 6. 設定（`.env`）
+秘密の値を**画面に出さずに**書く形（実機で確認）。DB のパスワードは §4 で `~/.tsunagudake-db-password` に保存しておく（`umask 077 && openssl rand -hex 24 > ~/.tsunagudake-db-password`）。
+```bash
+cd /var/www/tsunagudake-app && umask 077 && cat > .env <<EOF
+APP_ENV=demo
+SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+DATABASE_URL=mysql+pymysql://tsunagudake:$(cat ~/.tsunagudake-db-password)@127.0.0.1:3306/tsunagudake?charset=utf8mb4
+BASE_URL=https://tsunagudake.example.jp
+TRUSTED_HOSTS=tsunagudake.example.jp
+PROXY_FIX=1
+SESSION_COOKIE_SECURE=1
+EOF
+# デモの合言葉（12文字以上）。画面に出ない。入力を「英数」にしてから打つ
+read -rs -p "合言葉: " P && echo && printf 'DEMO_PASSWORD=%s\n' "$P" >> .env && echo "（${#P}文字）" && unset P
+umask 022                                              # 必ず戻す（注意12）
+awk -F= '{print $1, "（" length($2) "文字）"}' .env   # 値は出さずに、長さだけ見る
+```
+手で書くときは、下のとおり。
 ```bash
 cp .env.example .env
 python3 -c "import secrets; print(secrets.token_hex(32))"     # SECRET_KEY
@@ -275,8 +312,15 @@ RestrictSUIDSGID=true
 sudo cp deploy/nginx-tsunagudake.conf /etc/nginx/sites-available/tsunagudake
 sudo nano /etc/nginx/sites-available/tsunagudake     # server_name を自分のドメインに
 sudo ln -s /etc/nginx/sites-available/tsunagudake /etc/nginx/sites-enabled/tsunagudake
-sudo rm -f /etc/nginx/sites-enabled/default
+sudo rm -f /etc/nginx/sites-enabled/default          # §10 の前に必ず外す（注意13）
 sudo nginx -t && sudo systemctl reload nginx
+ls /etc/nginx/sites-enabled/                         # tsunagudake だけになっていること
+```
+`/static/` が 403 になったら（注意12）、見た目のファイルだけを読めるようにする。`.env` には触らない。
+```bash
+cd /var/www/tsunagudake-app && sudo chmod 755 /var/www /var/www/tsunagudake-app app
+find app/static -type d -exec chmod 755 {} + && find app/static -type f -exec chmod 644 {} +
+namei -l app/static/css/theme.css                    # どの段で止まっているかを見る
 ```
 `deploy/nginx-tsunagudake.conf` の中身（certbot の前の形）：
 ```nginx
@@ -316,6 +360,13 @@ dig +short tsunagudake.example.jp      # 自分の IP が返ってから（返�
 sudo certbot --nginx -d tsunagudake.example.jp
 sudo systemctl status certbot.timer    # 自動で更新される
 ```
+**2つ以上の名前で開けるようにするとき**（例：引っ越しの間、新旧のドメインを両方開く）は、`server_name` に名前を並べてから、証明書を1枚にまとめる（注意14）。
+```bash
+sudo certbot --nginx --cert-name tsunagudake.example.jp -d tsunagudake.example.jp -d tsunagudake.old.example.jp
+```
+`.env` の `TRUSTED_HOSTS` も、カンマでつないで両方を書く。`BASE_URL` は、主にする方の1つだけ。
+
+**ドメインを XServer で取ったとき**（実機で確認）：Xserverドメインの「ネームサーバー設定」で「XServer VPS クラウド」を選ぶ（`ns1〜3.vpscloud.ne.jp`）。VPS の「DNS設定」でドメインを追加し、A レコード（ホスト名は空・値は VPS の IP）を足す。`.jp` は、ネームサーバーを変えてから広まるまで数十分かかった。
 ドメインが間に合わないとき：IP を含む名前（`203-0-113-10.sslip.io`）で証明書を取り、`BASE_URL` と `TRUSTED_HOSTS` をその名前にする。**http のままでは、demo も production も起動しない**（鍵マークなしで、ログインを通さない）。
 
 ## 11. 確かめる
@@ -495,7 +546,11 @@ torudake（Laravel）の入れ方は、torudake のリポジトリの手順書�
 ## 困ったとき
 | 症状 | 見るところ |
 |---|---|
-| SSH で入れない | パケットフィルターに「SSH」があるか。`ufw` で 22 を閉じていないか。VPS パネルの「コンソール」から入って直す |
+| SSH で入れない（時間切れ） | パケットフィルターに「SSH」があるか。**VPS クラウドは、フィルターをサーバーの「ネットワーク」タブで適用したか**（注意11）。`ufw` で 22 を閉じていないか。VPS パネルの「コンソール」から入って直す |
+| SSH がしばらくすると切れる | 自分の PC の `~/.ssh/config` に `ServerAliveInterval 60` を足す |
+| https のトップが「Welcome to nginx!」 | `sites-enabled/default` が残っていて、証明書がそちらについた。外してから `certbot --nginx` で付け直す（注意13） |
+| 画面に色や形がつかない（`/static/` が 403） | `umask 077` のまま取ってきた。§9 の直し方（注意12） |
+| 片方の名前だけ証明書のエラー | 証明書が1つの名前だけに置き換わった。§10 の `--cert-name` で1枚にまとめる（注意14） |
 | SSH が `REMOTE HOST IDENTIFICATION HAS CHANGED` で止まる | OS を入れ直して、ホスト鍵が変わった。`ssh-keygen -R 203.0.113.10`（§16） |
 | パスワードでまだ入れてしまう | `sudo sshd -T | grep passwordauthentication`。`yes` なら、ほかの設定ファイルが勝っている（2.3） |
 | `uv: command not found` | インストーラーが表示したコマンドを打っていない。SSH を入り直す |
