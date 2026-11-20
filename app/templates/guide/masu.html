@@ -1,0 +1,26 @@
+{% set has_error = guide_endpoint == "error" or error or failed or (form is defined and form.errors) %}
+<footer class="guide-dock" data-mood="{{ 'worried' if has_error else guide_mood | default('idle') }}">
+  <details class="masu-guide">
+    <summary id="masu-guide-trigger" aria-label="案内役のマス。この画面の説明を聞く">
+      {% include "guide/masu.svg" %}
+    </summary>
+    <div class="guide-bubble">
+      <div class="guide-heading"><strong>マスの画面案内</strong><span class="guide-count"></span></div>
+      <div class="guide-lines" aria-live="polite" aria-atomic="true">
+        {% for line in guide_lines %}<p>{{ line }}</p>{% endfor %}
+      </div>
+      <div class="guide-controls" hidden>
+        <label class="guide-voice" hidden>声
+          <select aria-label="案内役の声">
+            <option value="off">なし</option>
+            <option value="calm">落ち着き</option>
+            <option value="clear">はきはき</option>
+            <option value="slow">ゆっくり</option>
+          </select>
+        </label>
+        <button type="button" class="guide-next secondary outline">次の一言</button>
+        <button type="button" class="guide-close secondary outline">閉じる</button>
+      </div>
+    </div>
+  </details>
+</footer>

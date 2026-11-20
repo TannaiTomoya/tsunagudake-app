@@ -1,8 +1,8 @@
 {
-  "version": "1.0.0",
+  "version": "1.0.1",
   "taxwork": ["申告書の作成", "申告書を作", "税務相談", "節税の提案", "税務調査の立ち会い", "税額の計算", "税務署への提出の代理", "税務代理", "税務書類の作成"],
   "patterns": [
-    {"kind": "collect", "words": ["集まらない", "催促", "回収", "届かない"], "tasks": ["reminder_flow", "intake_form"]},
+    {"kind": "collect", "words": ["集まらない", "催促", "回収", "届かない", "取りに行", "打ち直"], "tasks": ["reminder_flow", "intake_form"]},
     {"kind": "check", "words": ["チェック", "見比べ", "比較", "確認に時間"], "tasks": ["compare_sheet"]},
     {"kind": "entry", "words": ["手で打", "手入力", "取り込み"], "tasks": ["import_rule"]},
     {"kind": "report", "words": ["月次の資料", "報告の資料", "毎月作り直"], "tasks": ["template"]},
