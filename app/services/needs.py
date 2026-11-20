@@ -114,7 +114,9 @@ def save_need(
 def publish_need(office: Office, need_id: int, actor_id: int) -> None:
     need = require_need(office, need_id, lock=True)
     if need.status == NeedStatus.BLOCKED:
-        raise NeedConflict("税理士業務にあたる可能性があるため公開できません。")
+        raise NeedConflict(
+            "税理士業務にあたる可能性があるため公開できません。頼みたい作業をご確認ください。"
+        )
     if need.status != NeedStatus.DRAFT or not translations(need, lock=True):
         raise NeedConflict("公開するには下書きの型を選んでください。")
     need.status = NeedStatus.PUBLISHED

@@ -19,7 +19,7 @@
 
 ## 2. 主体
 
-公開の入口（段階0）：`GET /`、`GET /healthz`、`GET /static/<path:filename>` は未ログインを含む全員が利用できます。状態は変更しません。`/healthz` は DB に接続できる場合に `ok` だけを返し、接続情報や例外の詳細を表示しません。
+公開の入口：`GET /`、`GET /healthz`、`GET /favicon.ico`、`GET /static/<path:filename>` は未ログインを含む全員が利用できます。状態は変更しません。`/healthz` は DB に接続できる場合に `ok` だけを返し、接続情報や例外の詳細を表示しません。
 
 | 記号 | 誰 |
 |---|---|
@@ -134,6 +134,7 @@
 | `/admin/talents/<int:talent_id>/verify-grade` | POST | §8 |
 | `/admin/users/<int:user_id>/suspend` | POST | §8 |
 | `/demo/enter` | GET, POST | §8 |
+| `/favicon.ico` | GET | §2 |
 | `/healthz` | GET | §2 |
 | `/how` | GET | §8 |
 | `/login` | GET, POST | §2 |

@@ -1,0 +1,24 @@
+<h2>訪問</h2>
+{% if activity.talent_writer %}<p><a href="{{ url_for('statements.visit_form', engagement_id=engagement.id) }}">訪問を記録する</a></p>{% endif %}
+{% if activity.visits %}
+<div class="overflow-auto" role="region" aria-label="訪問の一覧" tabindex="0"><table>
+  <thead><tr><th scope="col">日付</th><th scope="col">業務の型</th><th scope="col" data-numeric>時間</th><th scope="col">伝えること</th><th scope="col">状態</th></tr></thead>
+  <tbody>{% for visit in activity.visits %}
+  <tr>
+    <td>{{ visit.visit_date }}</td><td>{{ categories[visit.category] }}</td><td data-numeric>{{ visit.minutes }}分</td><td>{{ visit.note or "—" }}</td>
+    <td><span class="state" data-status="{{ visit.status }}">{{ {"recorded": "確認待ち", "confirmed": "確認済み", "disputed": "相違あり"}[visit.status] }}</span>
+    {% if visit.status == "recorded" %}
+      {% if activity.office_writer %}
+        <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="secondary outline" formaction="{{ url_for('statements.visit_review', office_id=engagement.office_id, engagement_id=engagement.id, visit_id=visit.id, action='confirm') }}">確かめる</button>
+          <button class="secondary outline" formaction="{{ url_for('statements.visit_review', office_id=engagement.office_id, engagement_id=engagement.id, visit_id=visit.id, action='dispute') }}">相違を記録する</button>
+        </form>
+      {% elif activity.talent_writer %}
+        <a href="{{ url_for('statements.visit_form', engagement_id=engagement.id, visit_id=visit.id) }}">修正する</a>
+      {% endif %}
+    {% endif %}</td>
+  </tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}<p>訪問はまだありません。{% if activity.talent_writer %}訪問を終えたら「訪問を記録する」から入力してください。{% endif %}</p>{% endif %}

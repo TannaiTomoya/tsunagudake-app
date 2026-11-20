@@ -110,26 +110,31 @@ def test_demo_rehearsal_before_and_after_reset(monkeypatch: pytest.MonkeyPatch) 
         assert response.status_code == 302
         path = response.headers["Location"]
         page = office.get(path).get_data(as_text=True)
-        assert "資料回収" in page and "チェックと比較" in page and "120,000円" in page
+        assert (
+            "資料回収" in page and "チェックと比較" not in page and "120,000円" in page
+        )
         assert (
             office.post(
                 path + "/publish", data={"csrf_token": token(office, path)}
             ).status_code
             == 302
         )
+        assert 'data-mood="happy"' in office.get(path).get_data(as_text=True)
         match_path = path + "/candidates"
         csrf = token(office, match_path)
         assert office.post(match_path, data={"csrf_token": csrf}).status_code == 302
         page = office.get(match_path).get_data(as_text=True)
         for excluded in (
-            "守秘の誓約 1人",
-            "移動時間 1人",
-            "曜日 1人",
+            "守秘の誓約が未有効 1人",
+            "移動時間が60分超または不明 1人",
+            "希望曜日が合わない 1人",
             "受け持ち上限 1人",
         ):
             assert excluded in page
         ranks = _ranks(app)
         assert len(ranks) == 3
+        assert "資料回収が得意です" in page
+        assert "所属：地域おこし協力隊" in page
         candidate = ranks[0][0]
         assert (
             office.post(
@@ -174,11 +179,15 @@ def test_demo_rehearsal_before_and_after_reset(monkeypatch: pytest.MonkeyPatch) 
         assert (
             office.post(
                 f"{example}/statements/{month}/finalize",
-                data={"csrf_token": token(office, example)},
+                data={
+                    "csrf_token": token(office, example),
+                    "returned_to": "顧問先の相談に戻った",
+                },
             ).status_code
             == 302
         )
-        assert "確定済みの明細" in office.get(example).get_data(as_text=True)
+        page = office.get(example).get_data(as_text=True)
+        assert "確定済みの明細" in page and "顧問先の相談に戻った" in page
 
         town = app.test_client()
         response = town.post(
@@ -194,6 +203,7 @@ def test_demo_rehearsal_before_and_after_reset(monkeypatch: pytest.MonkeyPatch) 
         assert (
             "みなみ市" in page and "60時間" in page and "少ないため表示しません" in page
         )
+        assert "資料回収の時間が60時間減り、判断と相談に戻りました" in page
         assert runner.invoke(args=["verify-ledger"]).exit_code == 0
 
     rehearse()

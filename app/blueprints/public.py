@@ -1,4 +1,4 @@
-from flask import Blueprint, Response, render_template
+from flask import Blueprint, Response, current_app, render_template
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -11,6 +11,11 @@ bp = Blueprint("public", __name__)
 @bp.get("/")
 def index() -> str:
     return render_template("public/index.html")
+
+
+@bp.get("/favicon.ico")
+def favicon() -> Response:
+    return current_app.send_static_file("icons/masu.ico")
 
 
 @bp.get("/healthz")
