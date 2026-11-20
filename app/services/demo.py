@@ -10,6 +10,7 @@ from app.models import (
     BookkeepingLevel,
     CandidateStatus,
     Engagement,
+    Invitation,
     ItTask,
     LedgerRecord,
     MatchCandidate,
@@ -22,6 +23,7 @@ from app.models import (
     NeedTranslation,
     Office,
     OfficeMember,
+    OutboxMail,
     Reduction,
     ReductionStatus,
     Role,
@@ -442,7 +444,18 @@ def clear_demo() -> None:
         raise DemoError(
             "デモと通常のデータをまたぐ記録があるため初期化を中止しました。"
         )
+    demo_addresses = select(User.email).where(User.is_demo.is_(True))
+    invitation_addresses = select(Invitation.email).where(Invitation.is_demo.is_(True))
     groups: list[tuple[type[Any], Any]] = [
+        (
+            OutboxMail,
+            OutboxMail.is_demo.is_(True)
+            & (
+                OutboxMail.recipient.in_(demo_addresses)
+                | OutboxMail.recipient.in_(invitation_addresses)
+            ),
+        ),
+        (Invitation, Invitation.is_demo.is_(True)),
         (Statement, Statement.engagement_id.in_(engagements)),
         (Reduction, Reduction.engagement_id.in_(engagements)),
         (Visit, Visit.engagement_id.in_(engagements)),

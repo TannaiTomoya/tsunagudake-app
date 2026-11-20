@@ -11,4 +11,5 @@
   {{ form.password.label }} {{ form.password(autocomplete="current-password", maxlength=1024) }}
   <button type="submit">ログインする</button>
 </form>
+<p><a href="{{ url_for('accounts.forgot') }}">パスワードを忘れたとき</a></p>
 {% endblock %}

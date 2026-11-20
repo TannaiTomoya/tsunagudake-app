@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<p><a href="{{ url_for('admin.index') }}">運営に戻る</a></p>
+<h1>メールの記録</h1>
+{% if not production %}<p>メールはこの画面に記録されます。</p>{% endif %}
+{% for item, expired, body in rows %}
+<article>
+  <h2>{{ item.subject }}</h2>
+  <p>{{ item.recipient }}（{{ "送信済み" if item.sent_at else "期限切れ" if expired else "送信待ち" if production else "記録済み" }}）</p>
+  {% if body %}<pre>{{ body }}</pre>{% endif %}
+</article>
+{% else %}<p>メールの記録はまだありません。</p>{% endfor %}
+{% endblock %}

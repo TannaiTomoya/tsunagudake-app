@@ -121,6 +121,8 @@
 3. 守り（事務所から引く所・役割の確かめ）を1行外して、テストが落ちることを見る。戻す。
 4. 下記の一覧を `flask routes` と照合する。テストは GET・POST の明示ルートを比較し、Flask が自動で登録する HEAD・OPTIONS は除く。
 
+招待の発行とメール記録の閲覧は運営のみ。招待の受け取りとパスワード再設定は公開の入口で、本人宛ての期限内リンクが必要です。
+
 ### 実装済みルート一覧
 
 | 入口 | メソッド | 権限表 |
@@ -163,3 +165,8 @@
 | `/t/invitations/<int:candidate_id>/<any(accept,decline):answer>` | POST | §4 |
 | `/t/pledge` | GET, POST | §6 |
 | `/t/profile` | GET, POST | §6 |
+| `/accept-invite` | GET, POST | §8 |
+| `/forgot-password` | GET, POST | §8 |
+| `/reset-password` | GET, POST | §8 |
+| `/admin/invitations/new` | GET, POST | §8 |
+| `/admin/mail` | GET | §8 |

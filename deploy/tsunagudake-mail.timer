@@ -1,0 +1,10 @@
+[Unit]
+Description=Deliver queued tsunagudake mail once per minute
+
+[Timer]
+OnCalendar=minutely
+Persistent=true
+Unit=tsunagudake-mail.service
+
+[Install]
+WantedBy=timers.target

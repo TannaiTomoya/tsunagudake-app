@@ -1,0 +1,16 @@
+[Unit]
+Description=Deliver queued tsunagudake mail
+After=network-online.target mysql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/var/www/tsunagudake-app
+EnvironmentFile=/var/www/tsunagudake-app/.env
+EnvironmentFile=/home/ubuntu/.config/tsunagudake-mail/smtp.env
+ExecStart=/var/www/tsunagudake-app/.venv/bin/flask --app app send-mail
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes

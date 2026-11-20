@@ -45,9 +45,11 @@ def create_app(config: Mapping[str, Any] | None = None) -> Flask:
         from app.blueprints.demo import bp as demo_bp
 
         app.register_blueprint(demo_bp)
+    from app.blueprints.accounts import bp as accounts_bp
     from app.blueprints.admin import bp as admin_bp
     from app.blueprints.talent import bp as talent_bp
 
+    app.register_blueprint(accounts_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(talent_bp)
     init_cli(app)

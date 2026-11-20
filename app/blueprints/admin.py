@@ -1,27 +1,42 @@
 from typing import cast
 
-from flask import Blueprint, abort, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
 from sqlalchemy import select
-from wtforms import DateField  # type: ignore[import-untyped]
-from wtforms.validators import InputRequired  # type: ignore[import-untyped]
+from wtforms import DateField, EmailField, SelectField  # type: ignore[import-untyped]
+from wtforms.fields.choices import SelectChoice  # type: ignore[import-untyped]
+from wtforms.validators import InputRequired, Length  # type: ignore[import-untyped]
 
 from app.blueprints.needs import CATEGORIES, WEEKDAYS
 from app.blueprints.talent import AFFILIATIONS, TOOLS
 from app.extensions import db
 from app.models import (
     BookkeepingLevel,
+    MemberRole,
+    Municipality,
     Office,
+    OutboxMail,
     Role,
     Talent,
     TalentSkill,
     TrustKind,
     User,
     today_in_japan,
+    utc_now,
 )
+from app.services.accounts import AccountError, Invite, issue_invitation
 from app.services.ledger import ledger_failures
+from app.services.mail import MailError, mail_body
 from app.services.trust import (
     TrustConflict,
     add_trust_record,
@@ -156,3 +171,94 @@ def suspend(user_id: int) -> ResponseReturnValue:
 def ledger() -> str:
     _admin()
     return render_template("admin/ledger.html", failures=ledger_failures())
+
+
+class InviteForm(FlaskForm):  # type: ignore[misc]
+    email = EmailField("メールアドレス", validators=[InputRequired(), Length(max=255)])
+    role = SelectField(
+        "立場",
+        choices=[
+            SelectChoice("office", "事務所"),
+            SelectChoice("tsunagite", "つなぎ手"),
+            SelectChoice("municipality", "自治体担当"),
+        ],
+    )
+    office = SelectField("事務所", coerce=int)
+    member_role = SelectField(
+        "事務所での所属",
+        choices=[
+            SelectChoice("staff", "職員"),
+            SelectChoice("owner", "代表"),
+        ],
+    )
+    municipality = SelectField("担当する市町村", coerce=int)
+
+
+@bp.route("/invitations/new", methods=["GET", "POST"])
+@login_required  # type: ignore[untyped-decorator]
+def invite_account() -> ResponseReturnValue:
+    actor = _admin()
+    demo = current_app.config["APP_ENV"] == "demo"
+    form = InviteForm(data={"office": 0, "municipality": 0})
+    offices = db.session.scalars(
+        select(Office)
+        .where(
+            Office.is_active.is_(True),
+            Office.is_demo.is_(demo),
+        )
+        .order_by(Office.id)
+    )
+    form.office.choices = [
+        SelectChoice("0", "選択してください"),
+        *(SelectChoice(str(office.id), office.name) for office in offices),
+    ]
+    towns = db.session.scalars(select(Municipality).order_by(Municipality.code))
+    form.municipality.choices = [
+        SelectChoice("0", "選択してください"),
+        *(SelectChoice(str(town.id), town.name) for town in towns),
+    ]
+    error = None
+    if form.validate_on_submit():
+        try:
+            issue_invitation(
+                Invite(
+                    email=form.email.data,
+                    role=Role(form.role.data),
+                    office_id=form.office.data or None,
+                    member_role=MemberRole(form.member_role.data),
+                    municipality_id=form.municipality.data or None,
+                ),
+                actor.id,
+            )
+            return redirect(url_for("admin.mail"))
+        except AccountError as exc:
+            error = str(exc)
+    elif form.is_submitted():
+        error = "招待先の入力を確認してください。"
+    return render_template(
+        "admin/invite.html", form=form, error=error
+    ), 422 if error else 200
+
+
+@bp.get("/mail")
+@login_required  # type: ignore[untyped-decorator]
+def mail() -> ResponseReturnValue:
+    _admin()
+    production = current_app.config["APP_ENV"] == "production"
+    query = select(OutboxMail).where(OutboxMail.is_demo.is_(not production))
+    rows = []
+    now = utc_now()
+    for item in db.session.scalars(query.order_by(OutboxMail.id.desc()).limit(50)):
+        expired = item.expires_at is not None and item.expires_at <= now
+        body = ""
+        if not production and not expired:
+            try:
+                body = mail_body(item)
+            except MailError:
+                body = "本文を読み取れません。"
+        rows.append((item, expired, body))
+    return (
+        render_template("admin/mail.html", rows=rows, production=production),
+        200,
+        {"Cache-Control": "no-store"},
+    )
