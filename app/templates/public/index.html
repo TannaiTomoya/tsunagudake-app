@@ -9,7 +9,7 @@
       <h1 id="hero-title" data-text="税理士は、&#8203;判断するだけ。">税理士は、<wbr>判断するだけ。</h1>
       <a class="hero-masu" href="#masu-guide-trigger" aria-label="案内役のマス。この画面の説明を聞く">{% include "guide/masu.svg" %}</a>
     </div>
-    <p>会計とITがわかる人が毎週来て、資料回収を仕組みにします。<span class="fee-promise">減らなければ0円。</span></p>
+    <p>地方の会計事務所が、紙の帳簿を取りに行って打ち直す時間を、毎週来る人と仕組みで減らし、顧問先の相談に戻せます。<span class="fee-promise">減らなければ0円。</span></p>
     <div class="actions">
       <a class="action" href="{{ url_for('auth.account' if signed_in else 'auth.login') }}">{{ 'マイページを開く' if signed_in else 'ログインする' }}</a>
       {% if demo_available %}<a class="action quiet" href="{{ url_for('demo.enter') }}">デモで入る</a>{% else %}<a class="action quiet" href="{{ url_for('public.how') }}">しくみを見る</a>{% endif %}
@@ -31,7 +31,12 @@
 </section>
 </div>
 <section class="money-section" aria-label="お金の流れ（数字は架空）">
-  {% with money_example=true %}{% include "public/money_flow.html" %}{% endwith %}
+  {% with money_example=true %}<dl class="role-outcomes">
+  <div><dt>会計事務所</dt><dd>紙を集める時間を、顧問先の相談に戻せます。</dd></div>
+  <div><dt>つなぎ手</dt><dd>得意な作業で事務所を支え、確かめた成果に応じて料金を受け取れます。</dd></div>
+  <div><dt>町</dt><dd>地域で減った時間と、仕事につながった人数を確かめられます。</dd></div>
+</dl>
+{% include "public/money_flow.html" %}{% endwith %}
 </section>
 <section aria-labelledby="flow-title">
   <div class="section-head"><h2 id="flow-title">業務の流れ</h2></div>

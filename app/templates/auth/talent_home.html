@@ -1,8 +1,11 @@
 {% extends "auth/home.html" %}
+{% set progress_step = 3 if invitations else 4 if engagements else 2 %}
 {% block content %}
 <h1>{{ heading }}</h1>
 <div class="screen-columns work-first">
 <section class="decision-pane">
+<h2>今月の入金予定</h2>
+<p>確定明細のうち、入金確認前の合計は {{ "{:,}円".format(expected_income) }} です。</p>
 {% if invitations %}
 <h2>あなたへの声かけ</h2>
 {% for invitation, office_name, categories in invitations %}
@@ -10,6 +13,7 @@
   <h3>{{ office_name }}</h3>
   <p>業務の型：{{ categories | join("・") }}／曜日：{{ weekday_names[invitation.offer_weekday] }}／料金の割合：{{ "%g"|format(invitation.offer_fee_share_bp / 100) }}%</p>
   <p>月の上限：{{ "{:,}円".format(invitation.offer_fee_cap_yen) if invitation.offer_fee_cap_yen is not none else "なし" }}</p>
+  {% include "matching/estimate.html" %}
   <p>合意してもしないこと</p>
   <ul class="boundary-list">{% for item in boundaries %}<li>{{ item }}</li>{% endfor %}</ul>
   <form method="post">
@@ -34,6 +38,13 @@
 <p><a href="{{ url_for('talent.profile') }}">プロフィールを編集する</a></p>
 {% if talent %}<p><a href="{{ url_for('talent.pledge') }}">守秘の誓約に署名する</a></p>{% endif %}
 {% if talent %}
+<h2>直近の候補の点数</h2>
+{% if score %}<p>{{ score.score }}点</p><ul>{% for reason in score.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>
+{% else %}<p>現在の規則で候補に出た記録はまだありません。</p>{% endif %}
+<p>簿記の級は運営が確認します。得意な業務と道具は、伴走先が確認し、困りごとと合うと加点されます。</p>
+{% include "matching/skills.html" %}
+<h2>翻訳課題</h2>
+<p>{{ "合格（運営確認済み）" if talent.translation_verified_at else "未確認です。候補に出るには、運営の翻訳課題を受けてください。" }}</p>
 <h2>簿記の級</h2>
 {% if talent.bookkeeping_level != "none" %}<p>簿記{{ talent.bookkeeping_level }}級</p>{% endif %}
 {% if talent.bookkeeping_level == "none" or not talent.level_verified_at %}

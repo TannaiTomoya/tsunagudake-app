@@ -126,6 +126,13 @@ ROUTES = (
         ("admin",),
     ),
     Route(
+        "skill-verify",
+        "POST",
+        "{engagement}/skills/1/verify",
+        ("other_office", "other_staff", "unrelated", "municipality"),
+        ("assigned", "admin"),
+    ),
+    Route(
         "visit-confirm",
         "POST",
         "{engagement}/visits/1/confirm",
@@ -159,6 +166,33 @@ ROUTES = (
         "{engagement}/statements/{month}/finalize",
         ("other_office", "other_staff", "unrelated", "municipality"),
         ("staff", "assigned", "admin"),
+    ),
+    Route(
+        "office-invoice",
+        "GET",
+        "{engagement}/statements/{month}/invoice",
+        ("other_office", "other_staff", "unrelated", "municipality"),
+        ("staff", "assigned", "admin"),
+    ),
+    Route(
+        "talent-invoice",
+        "GET",
+        "{talent_engagement}/statements/{month}/invoice",
+        (*TALENT_ACTORS, "admin"),
+    ),
+    Route(
+        "transfer",
+        "POST",
+        "{engagement}/statements/{month}/report-transfer",
+        ("other_office", "other_staff", "unrelated", "municipality"),
+        ("staff", "assigned", "admin"),
+    ),
+    Route(
+        "receipt",
+        "POST",
+        "{talent_engagement}/statements/{month}/confirm-receipt",
+        TALENT_ACTORS,
+        ("admin",),
     ),
     Route(
         "profile",
@@ -208,6 +242,13 @@ ROUTES = (
     Route("admin-ledger", "GET", "/admin/ledger", (*TALENT_ACTORS, "assigned")),
     Route(
         "admin-talent", "GET", "/admin/talents/{talent}", (*TALENT_ACTORS, "assigned")
+    ),
+    Route(
+        "translation",
+        "POST",
+        "/admin/talents/{talent}/translation",
+        TALENT_ACTORS,
+        ("assigned",),
     ),
     Route(
         "admin-grade",

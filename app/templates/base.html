@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/kidou.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/guide-ask.css') }}">
+    {% if request.endpoint in ("auth.talent_home", "matching.candidates", "matching.invitation", "statements.invoice") %}<script defer src="{{ url_for('static', filename='js/documents.js') }}"></script>{% endif %}
     {% if guide_lines %}
     <script defer src="{{ url_for('static', filename='vendor/animejs/anime-4.1.3.umd.min.js') }}"></script>
     <script defer src="{{ url_for('static', filename='js/guide-voice.js') }}"></script>
@@ -49,12 +50,19 @@
       </header>
       <div class="workspace">
         <div class="topbar">
+          {% if signed_in %}<a class="account-link" href="{{ url_for('auth.today_tasks') }}">今日やること</a>{% endif %}
           <a class="account-link" href="{{ url_for('auth.account' if signed_in else 'auth.login') }}">{{ icon('user') }}{{ 'マイページ' if signed_in else 'ログイン' }}</a>
         </div>
         {% if config.APP_ENV == 'demo' %}
         <aside class="demo-notice">発表用のデモです。数字と名前はすべて架空です。本物の情報を入力しないでください。 <a href="{{ url_for('demo.enter') }}">立場を切り替える</a></aside>
         {% endif %}
-        <main id="main" tabindex="-1" class="{% block layout %}page{% endblock %}">{% block content %}{% endblock %}</main>
+        <main id="main" tabindex="-1" class="{% block layout %}page{% endblock %}">{% if progress_step is defined %}
+          <ol class="work-steps" aria-label="仕事の進行">
+            {% for label in ('困りごと', '候補', '合意', '訪問', '明細') %}
+            <li{% if loop.index == progress_step %} aria-current="step"{% endif %}><small>{{ loop.index }}</small>{{ label }}</li>
+            {% endfor %}
+          </ol>
+        {% endif %}{% block content %}{% endblock %}</main>
       </div>
     </div>
     {% if guide_lines %}{% include "guide/masu.html" %}{% endif %}

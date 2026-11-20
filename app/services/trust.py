@@ -10,6 +10,7 @@ from app.audit import record_audit
 from app.extensions import db
 from app.models import (
     BookkeepingLevel,
+    Engagement,
     Role,
     Talent,
     TalentAffiliation,
@@ -20,6 +21,7 @@ from app.models import (
     User,
     utc_now,
 )
+from app.services.billing import protect_payout
 from tsunagu_rules.types import NeedKind
 
 
@@ -77,6 +79,8 @@ class ProfileInput:
     is_listed: bool
     tools: frozenset[str]
     strengths: frozenset[NeedKind]
+    payout: str | None = None
+    registration: str | None = None
 
 
 class TrustConflict(Exception):
@@ -115,6 +119,10 @@ def save_profile(user_id: int, data: ProfileInput) -> None:
     if talent.bookkeeping_level != data.grade:
         talent.level_verified_at = None
         talent.level_verified_by = None
+    if data.payout is not None:
+        talent.payout_cipher = protect_payout(data.payout) if data.payout else None
+    if data.registration is not None:
+        talent.invoice_registration = data.registration or None
     talent.bookkeeping_level = data.grade
     talent.municipality_id = data.municipality_id
     talent.weekdays_mask = data.weekdays_mask
@@ -202,6 +210,58 @@ def add_trust_record(talent_id: int, kind: TrustKind, actor_id: int, day: date) 
         target_id=talent_id,
     )
     _commit()
+
+
+TRANSLATION_CRITERIA = {
+    "missing": "不足している資料を特定した",
+    "question": "相手が答えられる確認の一文を書いた",
+    "record": "事務所の言葉で次の対応を記録した",
+}
+
+
+def verify_translation(talent_id: int, actor_id: int, criteria: set[str]) -> None:
+    talent = _locked_talent(talent_id)
+    if criteria != TRANSLATION_CRITERIA.keys():
+        raise TrustConflict("3つの採点項目をすべて確認してください。")
+    if talent.translation_verified_at is None:
+        talent.translation_verified_at = utc_now()
+        talent.translation_verified_by = actor_id
+        record_audit(
+            "translation_passed",
+            actor_id=actor_id,
+            target_type="talent",
+            target_id=talent_id,
+        )
+        _commit()
+
+
+def verify_skill(
+    engagement: Engagement, skill_id: int, actor_id: int, expected_tag: str
+) -> None:
+    _locked_talent(engagement.talent_id)
+    skill = db.session.scalar(
+        select(TalentSkill)
+        .where(
+            TalentSkill.id == skill_id, TalentSkill.talent_id == engagement.talent_id
+        )
+        .with_for_update()
+    )
+    if skill is None:
+        abort(404)
+    if skill.tag != expected_tag:
+        raise TrustConflict("自己申告が変わりました。現在の内容を確認してください。")
+    if skill.verified_at is None:
+        skill.verified_at = utc_now()
+        skill.verified_by = actor_id
+        skill.verified_office_id = engagement.office_id
+        record_audit(
+            "skill_verified",
+            actor_id=actor_id,
+            office_id=engagement.office_id,
+            target_type="talent_skill",
+            target_id=skill.id,
+        )
+        _commit()
 
 
 def verify_grade(talent_id: int, expected: BookkeepingLevel, actor_id: int) -> None:

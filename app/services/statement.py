@@ -15,6 +15,7 @@ from app.models import (
     ReductionStatus,
     Statement,
     StatementStatus,
+    Talent,
     Visit,
     VisitStatus,
     today_in_japan,
@@ -38,6 +39,7 @@ class VisitInput:
     minutes: int
     category: NeedKind
     note: str | None
+    learned_term: str | None = None
 
 
 @dataclass(frozen=True)
@@ -122,6 +124,7 @@ def save_visit(
     visit.minutes = data.minutes
     visit.category = data.category
     visit.note = data.note
+    visit.learned_term = data.learned_term
     if visit_id is None:
         notify_office(
             engagement.office_id,
@@ -266,7 +269,12 @@ def fee_preview(engagement: Engagement, rows: list[Reduction]) -> Fee:
 
 
 def finalize(
-    engagement: Engagement, month: str, actor: int, *, returned_to: str = ""
+    engagement: Engagement,
+    month: str,
+    actor: int,
+    *,
+    returned_to: str = "",
+    due_date: str = "",
 ) -> None:
     need = _lock(engagement)
     statement = find_statement(engagement, month, lock=True)
@@ -293,6 +301,14 @@ def finalize(
     statement.fee_cap_yen = engagement.fee_cap_yen
     statement.rules_version = RULES_VERSION
     statement.status = StatementStatus.FINALIZED
+    try:
+        statement.due_on = date.fromisoformat(due_date) if due_date else None
+    except ValueError:
+        raise StatementConflict("振込期日の日付をご確認ください。") from None
+    talent = db.session.get(Talent, engagement.talent_id)
+    if talent:
+        statement.payout_cipher = talent.payout_cipher
+        statement.invoice_registration = talent.invoice_registration
     statement.returned_to = returned_to or None
     statement.finalized_by = actor
     statement.finalized_at = utc_now()
@@ -306,6 +322,7 @@ def finalize(
             "value_yen": fee.value_yen,
             "fee_yen": fee.fee_yen,
             "waived": fee.waived,
+            "due_on": due_date or None,
         },
     )
     record_audit(
@@ -316,3 +333,49 @@ def finalize(
         target_id=engagement.id,
     )
     _commit()
+
+
+def record_payment(
+    engagement: Engagement, month: str, actor: int, *, receipt: bool
+) -> None:
+    need = _lock(engagement)
+    statement = find_statement(engagement, month, lock=True)
+    if (
+        not statement
+        or statement.status != StatementStatus.FINALIZED
+        or not statement.fee_yen
+    ):
+        raise StatementConflict("支払金額のある確定明細を選んでください。")
+    if receipt:
+        if statement.receipt_confirmed_at:
+            return
+        if not statement.transfer_reported_at:
+            raise StatementConflict("事務所の振込報告を待ってください。")
+        statement.receipt_confirmed_at = utc_now()
+    else:
+        if statement.transfer_reported_at:
+            return
+        statement.transfer_reported_at = utc_now()
+    append_record(
+        need,
+        "receipt_confirmed" if receipt else "transfer_reported",
+        actor,
+        {"month": month, "fee_yen": statement.fee_yen},
+    )
+    _commit()
+
+
+def expected_income(talent_id: int, month: str) -> int:
+    return int(
+        db.session.scalar(
+            select(func.sum(Statement.fee_yen))
+            .join(Engagement)
+            .where(
+                Engagement.talent_id == talent_id,
+                Statement.month == month,
+                Statement.status == StatementStatus.FINALIZED,
+                Statement.receipt_confirmed_at.is_(None),
+            )
+        )
+        or 0
+    )

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set progress_step = 3 if pending else 2 %}
 {% set guide_endpoint = "matching.candidates" %}
 {% block title %}候補と理由{% endblock %}
 {% block content %}
@@ -11,15 +12,15 @@
 <h2>候補の一覧</h2>
 {% if run %}
   {% if candidates %}
-  <div class="overflow-auto" role="region" aria-label="候補の一覧" tabindex="0"><table>
+  <div class="overflow-auto" role="region" aria-label="候補の一覧" tabindex="0"><table class="candidate-comparison" role="table">
     <thead><tr><th scope="col" data-numeric>順位</th><th scope="col">表示名・所属</th><th scope="col">簿記</th><th scope="col">理由</th><th scope="col" data-numeric>点数</th><th scope="col">状態</th></tr></thead>
     <tbody>{% for candidate, talent, name, town in candidates %}
     <tr>
-      <td data-numeric>{{ candidate.rank }}</td>
-      <td>{{ name }}（{{ town }}）<br><small>所属：{{ affiliations[talent.affiliation] }}</small></td>
-      <td>{{ talent.bookkeeping_level ~ "級" if talent.level_verified_at and talent.bookkeeping_level != "none" else "—" }}</td>
-      <td><ul>{% for reason in candidate.reasons %}<li>{{ reason }}</li>{% endfor %}</ul></td>
-      <td data-numeric>{{ candidate.score }}</td><td><span class="{{ 'seal' if candidate.status == 'accepted' else 'state' }}" data-status="{{ candidate.status }}">{{ labels[candidate.status] }}</span></td>
+      <td data-numeric data-label="順位">{{ candidate.rank }}</td>
+      <td data-label="表示名・所属">{{ name }}（{{ town }}）<br><small>所属：{{ affiliations[talent.affiliation] }}</small></td>
+      <td data-label="簿記">{{ talent.bookkeeping_level ~ "級" if talent.level_verified_at and talent.bookkeeping_level != "none" else "—" }}</td>
+      <td data-label="理由">{% if run.rules_version not in ("1.0.0", "1.0.1") and talent.translation_verified_at %}<p>確認の一文が書けます（翻訳課題合格）。</p>{% endif %}<ul>{% for reason in candidate.reasons %}<li>{{ reason }}</li>{% endfor %}</ul></td>
+      <td data-numeric data-label="点数">{{ candidate.score }}</td><td data-label="状態"><span class="{{ 'seal' if candidate.status == 'accepted' else 'state' }}" data-status="{{ candidate.status }}">{{ labels[candidate.status] }}</span></td>
     </tr>
     {% endfor %}</tbody>
   </table></div>
@@ -52,13 +53,17 @@
         <label for="share-{{ candidate.id }}">{{ form.share_percent.label.text }}</label>
         {{ form.share_percent(id="share-" ~ candidate.id, min=1, max=49, step=1, required=true, **{"aria-describedby": "share-hint-" ~ candidate.id}) }}
         <small id="share-hint-{{ candidate.id }}">50%未満</small>
+        <label for="hours-{{ candidate.id }}">減る時間の見込み（月）</label>
+        {{ form.estimate_hours(id="hours-" ~ candidate.id, min=0, max=need.monthly_hours, placeholder=(need.monthly_hours * 35 // 100)) }}
+        <small>空欄なら今かかる時間の35%で見積もります。料金は事務所が実際に確かめた時間で決まります。</small>
         <label for="cap-{{ candidate.id }}">{{ form.cap_yen.label.text }}</label>
         {{ form.cap_yen(id="cap-" ~ candidate.id, min=0) }}
-        <button type="submit" class="secondary outline">声をかける</button>
+        <button type="submit" class="secondary outline">見積書を添えて声をかける</button>
       </form>
       {% else %}<p>双方が通える曜日がありません。候補を出し直してください。</p>{% endif %}
     </details>
     {% elif candidate.status == "invited" %}
+    {% with invitation=candidate %}{% include "matching/estimate.html" %}{% endwith %}
     <form method="post" action="{{ url_for('matching.cancel_invitation', office_id=office.id, need_id=need.id, candidate_id=candidate.id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="secondary outline">{{ name }}さんへの声かけを取り消す</button>

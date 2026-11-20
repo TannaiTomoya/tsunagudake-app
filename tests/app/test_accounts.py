@@ -176,14 +176,20 @@ def test_t38_events_are_queued_and_demo_never_sends(identity_app: Flask) -> None
     )
     with identity_app.app_context():
         mails = db.session.scalars(select(OutboxMail).order_by(OutboxMail.id)).all()
-        assert [row.subject for row in mails] == [
-            "伴走の声かけが届きました",
-            "伴走が決まりました",
-            "伴走が決まりました",
-            "訪問の確認をお願いします",
-            "減った時間の確認をお願いします",
-        ]
+        assert len(mails) == 2
+        assert all(
+            row.subject == "つなぐだけ：今日やること" and row.deliver_after
+            for row in mails
+        )
+        office_mail = next(
+            row for row in mails if row.recipient == "office@example.org"
+        )
+        assert "訪問の確認をお願いします" in mail_body(office_mail)
+        assert "減った時間の確認をお願いします" in mail_body(office_mail)
         assert all(row.is_demo and row.sent_at is None for row in mails)
+    todo = office.get("/account/today").get_data(as_text=True)
+    assert "訪問を確認する" in todo and "減った時間を確認する" in todo
+    assert "訪問を確認する" not in talent.get("/account/today").get_data(as_text=True)
     identity_app.config["APP_ENV"] = "demo"
     with patch("app.services.mail.smtplib.SMTP_SSL") as connect:
         result = identity_app.test_cli_runner().invoke(args=["send-mail"])

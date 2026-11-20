@@ -161,6 +161,9 @@ def test_demo_rehearsal_before_and_after_reset(monkeypatch: pytest.MonkeyPatch) 
             "受け持ち上限 1人",
         ):
             assert excluded in page
+        assert 'class="candidate-comparison"' in page
+        for label in ("順位", "表示名・所属", "簿記", "理由", "点数", "状態"):
+            assert page.count(f'data-label="{label}"') == 3
         ranks = _ranks(app)
         assert [row[2] for row in ranks] == [84, 36, 36]
         assert "資料回収が得意です（10点）" in page
@@ -342,7 +345,7 @@ def test_demo_weekdays_and_candidate_specific_choices(
     for day in range(5):
         page = generate_for([day])
         assert [r[2] for r in _ranks(app)] == [84, 36, 36]
-        assert re.findall(r"<td>架空つなぎ手 (\d+)（", page) == ["1", "2", "3"]
+        assert re.findall(r"<td[^>]*>架空つなぎ手 (\d+)（", page) == ["1", "2", "3"]
         assert re.findall(r'<option value="(\d)" selected>', page) == [str(day)] * 3
     page = generate_for([6])
     assert not _ranks(app)
@@ -378,3 +381,33 @@ def test_demo_weekdays_and_candidate_specific_choices(
     assert response.status_code == 409 and "双方が通える曜日" in response.get_data(
         as_text=True
     )
+
+
+def test_t39_demo_work_steps(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_ENV", "development")
+    app = create_app(
+        {"SQLALCHEMY_DATABASE_URI": "sqlite://", "DEMO_PASSWORD": PASSPHRASE}
+    )
+    with app.app_context():
+        db.create_all()
+    assert app.test_cli_runner().invoke(args=["seed-demo"]).exit_code == 0
+    client = app.test_client()
+    entry = "/demo/enter"
+    home = client.post(
+        entry,
+        data={
+            "role": "office",
+            "password": PASSPHRASE,
+            "csrf_token": token(client, entry),
+        },
+    ).headers["Location"]
+    for path, step in (
+        (home, 1),
+        (home + "needs/new", 1),
+        (home + "needs/1/candidates", 2),
+        (home + "engagements/1", 5),
+    ):
+        html = client.get(path).get_data(as_text=True)
+        assert html.count('aria-current="step"') == 1
+        assert f'aria-current="step"><small>{step}</small>' in html
+    assert 'aria-current="step"' not in client.get("/how").get_data(as_text=True)

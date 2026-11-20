@@ -19,6 +19,24 @@
   </tbody>
   <tfoot><tr><th scope="row">料金</th><td data-numeric><strong>{{ "{:,}".format(activity.fee.fee_yen) }}円</strong></td></tr></tfoot>
 </table></div>
+{% if activity.finalized and (activity.owner or activity.talent_writer) %}
+<p><a href="{{ url_for('statements.invoice', office_id=engagement.office_id if activity.owner else none, engagement_id=engagement.id, month=activity.month) }}">請求書を見る・印刷する</a></p>
+{% endif %}
+{% if activity.finalized and activity.statement and activity.statement.fee_yen %}
+<h3>支払いの記録</h3>
+{% if activity.statement.receipt_confirmed_at %}<p>入金確認済み</p>
+{% elif activity.statement.transfer_reported_at %}
+<p>振込報告済み・入金確認待ち</p>
+{% if activity.talent_writer %}
+<form method="post" action="{{ url_for('statements.confirm_receipt', engagement_id=engagement.id, month=activity.month) }}">
+  {{ csrf() }}<button type="submit">入金を確認しました</button>
+</form>{% endif %}
+{% else %}<p>振込報告待ち</p>
+{% if activity.owner %}
+<form method="post" action="{{ url_for('statements.report_transfer', office_id=engagement.office_id, engagement_id=engagement.id, month=activity.month) }}">
+  {{ csrf() }}<button type="submit">振込しました</button>
+</form>{% endif %}{% endif %}
+{% endif %}
 {% if activity.fee.waived and (activity.finalized or (activity.reductions and not pending_reductions)) %}
 <p>減らなかったので0円です。</p>
 {% endif %}
@@ -30,6 +48,7 @@
 {% else %}
 <form method="post" action="{{ url_for('statements.statement_finalize', office_id=engagement.office_id, engagement_id=engagement.id, month=activity.month) }}">
   {{ csrf() }}
+  <label for="due_on">合意した振込期日（任意）</label><input type="date" id="due_on" name="due_on">
   <label for="returned_to">この時間は、何に戻りましたか（任意）</label>
   <input id="returned_to" name="returned_to" type="text" maxlength="100" placeholder="例：顧問先の相談に戻った">
   <button data-masu-success>明細を確定する</button>

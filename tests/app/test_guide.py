@@ -90,7 +90,7 @@ def test_candidates_table_precedes_invitation_controls() -> None:
         source.index("reading-pane")
         < source.index("候補の一覧")
         < source.index("decision-pane")
-        < source.index(">声をかける</button>")
+        < source.index(">見積書を添えて声をかける</button>")
     )
 
 

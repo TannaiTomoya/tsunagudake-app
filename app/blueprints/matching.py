@@ -19,6 +19,7 @@ from app.authz import (
 )
 from app.blueprints.needs import CATEGORIES, WEEKDAYS, weekday_options
 from app.blueprints.statements import activity_for
+from app.blueprints.talent import TOOLS
 from app.extensions import db
 from app.models import (
     CandidateStatus,
@@ -35,6 +36,7 @@ from app.models import (
     Role,
     Talent,
     TalentAffiliation,
+    TalentSkill,
     User,
 )
 from app.services.ledger import records_for_need
@@ -47,11 +49,13 @@ from app.services.matching import (
     latest_run,
     respond,
 )
+from app.services.trust import TrustConflict, verify_skill
 
 bp = Blueprint("matching", __name__)
 EXCLUSIONS = {
     "pledge": "守秘の誓約が未有効",
     "training": "研修が未有効",
+    "translation": "翻訳課題が未確認",
     "distance": "移動時間が60分超または不明",
     "weekday": "希望曜日が合わない",
     "capacity": "受け持ち上限",
@@ -85,6 +89,9 @@ class OfferForm(FlaskForm):  # type: ignore[misc]
         "料金の割合（％）",
         default=40,
         validators=[InputRequired(), NumberRange(min=1, max=49)],
+    )
+    estimate_hours = IntegerField(
+        "減る時間の見込み", validators=[Optional(), NumberRange(0, 400)]
     )
     cap_yen = IntegerField(
         "月の上限（円、省略可）",
@@ -196,7 +203,10 @@ def invitation(office_id: int, need_id: int, candidate_id: int) -> ResponseRetur
                 candidate_id,
                 _actor().id,
                 Offer(
-                    form.weekday.data, form.share_percent.data * 100, form.cap_yen.data
+                    form.weekday.data,
+                    form.share_percent.data * 100,
+                    form.cap_yen.data,
+                    form.estimate_hours.data,
                 ),
             )
     except MatchConflict as exc:
@@ -281,6 +291,12 @@ def _engagement_page(engagement: Engagement, *, office_side: bool) -> str:
         engagement=engagement,
         need=need,
         weekdays=dict(WEEKDAYS),
+        skills=db.session.scalars(
+            select(TalentSkill)
+            .where(TalentSkill.talent_id == engagement.talent_id)
+            .order_by(TalentSkill.kind, TalentSkill.tag)
+        ).all(),
+        tools=TOOLS,
         activity=activity_for(engagement, office_side=office_side),
         categories=CATEGORIES,
         ledger=[
@@ -301,3 +317,25 @@ def office_engagement(office_id: int, engagement_id: int) -> str:
 @login_required  # type: ignore[untyped-decorator]
 def talent_engagement(engagement_id: int) -> str:
     return _engagement_page(require_talent_engagement(engagement_id), office_side=False)
+
+
+@bp.post(
+    "/o/<int:office_id>/engagements/<int:engagement_id>/skills/<int:skill_id>/verify"
+)
+@login_required  # type: ignore[untyped-decorator]
+def skill_confirmation(
+    office_id: int, engagement_id: int, skill_id: int
+) -> ResponseReturnValue:
+    engagement = require_office_engagement(office_id, engagement_id, write=True)
+    try:
+        verify_skill(engagement, skill_id, _actor().id, request.form.get("tag", ""))
+    except TrustConflict as exc:
+        return render_template("error.html", message=str(exc)), 409
+    return redirect(
+        url_for(
+            "matching.office_engagement",
+            office_id=office_id,
+            engagement_id=engagement_id,
+            _anchor="skills",
+        )
+    )

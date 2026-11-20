@@ -4,8 +4,10 @@ from flask import (
     Blueprint,
     abort,
     current_app,
+    make_response,
     redirect,
     render_template,
+    request,
     session,
     url_for,
 )
@@ -18,10 +20,13 @@ from wtforms.validators import InputRequired, Length  # type: ignore[import-unty
 
 from app.authz import require_municipality, require_office
 from app.blueprints.matching import talent_activity
-from app.blueprints.needs import STATUSES, WEEKDAYS, weekday_options
+from app.blueprints.needs import CATEGORIES, STATUSES, WEEKDAYS, weekday_options
+from app.blueprints.talent import TOOLS
 from app.extensions import db
 from app.models import (
     Engagement,
+    MatchCandidate,
+    MatchRun,
     Municipality,
     MunicipalityMember,
     Need,
@@ -32,13 +37,17 @@ from app.models import (
     ReductionStatus,
     Role,
     Talent,
+    TalentSkill,
     User,
     today_in_japan,
 )
-from app.services.auth import authenticate
+from app.services import second_factor
+from app.services.auth import authenticate, requires_second_factor
 from app.services.region import dashboard_for
-from app.services.statement import confirmed_visits
+from app.services.statement import confirmed_visits, expected_income
+from app.services.tasks import tasks_for
 from app.services.trust import trust_statuses
+from tsunagu_rules import RULES_VERSION
 from tsunagu_rules.ledger import REQUIRED_BOUNDARIES
 
 bp = Blueprint("auth", __name__)
@@ -79,6 +88,9 @@ def _destination(user: User) -> str:
 
 def start_session(user: User) -> Response:
     session.clear()
+    if requires_second_factor(user):
+        second_factor.begin(user)
+        return redirect(url_for("auth.challenge"))
     session.permanent = True
     login_user(user)
     return redirect(_destination(user))
@@ -99,12 +111,58 @@ def login() -> str | Response | tuple[str, int]:
     return render_template("auth/login.html", form=form)
 
 
+@bp.route("/login/second-factor", methods=["GET", "POST"])
+def challenge() -> Response:
+    user, factor = second_factor.pending(submitted=request.method == "POST")
+    if user is None or factor is None:
+        return redirect(url_for("auth.login"))
+    error = None
+    if request.method == "POST":
+        accepted, codes = second_factor.confirm(
+            user, factor, request.form.get("code", "")
+        )
+        if accepted:
+            session.clear()
+            session.permanent = True
+            session["second_factor_identity"] = user.get_id()
+            login_user(user)
+            if not codes:
+                return redirect(_destination(user))
+            response = make_response(
+                render_template(
+                    "auth/recovery.html", codes=codes, workspace_url=_destination(user)
+                )
+            )
+            response.headers["Cache-Control"] = "no-store"
+            return response
+        error = "コードを確認してください。"
+    response = make_response(
+        render_template(
+            "auth/second_factor.html",
+            setup_key=second_factor.setup_key(factor),
+            error=error,
+        ),
+        401 if error else 200,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @bp.post("/logout")
 @login_required  # type: ignore[untyped-decorator]
 def logout() -> Response:
     logout_user()
     session.clear()
     return redirect(url_for("auth.login"))
+
+
+@bp.get("/account/today")
+@login_required  # type: ignore[untyped-decorator]
+def today_tasks() -> str:
+    actor = cast(User, current_user)
+    return render_template(
+        "auth/today.html", tasks=tasks_for(actor), workspace_url=_destination(actor)
+    )
 
 
 @bp.get("/account")
@@ -176,6 +234,30 @@ def talent_home() -> str:
         talent=talent,
         statuses=trust_statuses(talent, today) if talent is not None else (),
         today=today,
+        skills=db.session.scalars(
+            select(TalentSkill)
+            .where(TalentSkill.talent_id == talent.id)
+            .order_by(TalentSkill.kind, TalentSkill.tag)
+        ).all()
+        if talent
+        else (),
+        score=db.session.scalar(
+            select(MatchCandidate)
+            .join(MatchRun)
+            .where(
+                MatchCandidate.talent_id == talent.id,
+                MatchRun.rules_version == RULES_VERSION,
+            )
+            .order_by(MatchCandidate.id.desc())
+            .limit(1)
+        )
+        if talent
+        else None,
+        tools=TOOLS,
+        categories=CATEGORIES,
+        expected_income=expected_income(talent.id, today.strftime("%Y-%m"))
+        if talent
+        else 0,
         confirmed_visits=confirmed_visits(talent.id) if talent is not None else 0,
         invitations=invitations,
         weekday_names=dict(WEEKDAYS),

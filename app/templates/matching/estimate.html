@@ -1,0 +1,8 @@
+{% if invitation.estimate_total is not none %}
+<section class="print-document"><h3>見積書</h3>
+<p>{{ office_name if office_name is defined else office.name }}からの提案・声かけ番号 {{ invitation.id }}</p>
+<p>見込み {{ invitation.estimate_hours }}時間 × 時給 {{ "{:,}円".format(invitation.estimate_hourly_rate) }} × {{ "%g"|format(invitation.offer_fee_share_bp / 100) }}%{% if invitation.offer_fee_cap_yen is not none %}（上限 {{ "{:,}円".format(invitation.offer_fee_cap_yen) }}）{% endif %}</p>
+<p>月の見積額 <strong>{{ "{:,}円".format(invitation.estimate_total) }}</strong></p>
+<p>減らなければ0円です。支払額は月の明細で確定します。</p>
+<button class="secondary outline print-button" type="button">この見積書を印刷する</button></section>
+{% endif %}

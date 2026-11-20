@@ -38,6 +38,7 @@ from app.models import (
     Talent,
     TalentAffiliation,
     TalentSkill,
+    TalentSkillKind,
     TravelTime,
     TrustItem,
     TrustKind,
@@ -423,6 +424,8 @@ def _seed_candidates(app: Flask) -> None:
             talent = Talent(
                 user_id=user.id,
                 municipality_id=2 if index == 3 else 1,
+                translation_verified_at=datetime(2026, 1, 1),
+                translation_verified_by=4,
                 weekdays_mask=2 if index == 4 else 1,
                 is_listed=True,
                 capacity=1,
@@ -675,6 +678,7 @@ def test_t28_confirmed_visit_is_immutable_and_counted(database_app: Flask) -> No
         "minutes": "60",
         "category": "collect",
         "note": "架空の記録",
+        "learned_term": "月締め箱",
     }
     assert (
         talent.post(
@@ -700,6 +704,7 @@ def test_t28_confirmed_visit_is_immutable_and_counted(database_app: Flask) -> No
     )
     assert "1回" in talent.get("/t/").get_data(as_text=True)
     assert talent.post(edit, data=visit).status_code == 409
+    assert "聞き返した用語：月締め箱" in office.get(office_path).get_data(as_text=True)
     assert "75分" in office.get(office_path).get_data(as_text=True)
 
 
@@ -709,7 +714,7 @@ def test_t22_t27_finalize_confirmed_hours_once(
     monkeypatch.setattr(
         "app.services.ledger.utc_now", lambda: datetime(2030, 1, 1, 0, 0, 0, 900000)
     )
-    office, talent, office_path, _ = _agree(database_app)
+    office, talent, office_path, talent_path = _agree(database_app)
     month = today_in_japan().strftime("%Y-%m")
     csrf = token(office, office_path)
     reduction = {
@@ -766,6 +771,35 @@ def test_t22_t27_finalize_confirmed_hours_once(
         assert len(entries) == 1
     result = database_app.test_cli_runner().invoke(args=["verify-ledger"])
     assert result.exit_code == 0, result.output
+
+    invoice_url = f"/statements/{month}/invoice"
+    invoice = office.get(office_path + invoice_url)
+    assert "32,000円" in invoice.get_data(as_text=True)
+    assert invoice.headers["Cache-Control"] == "no-store"
+    assert "請求書" in talent.get(talent_path + invoice_url).get_data(as_text=True)
+    transfer = office_path + f"/statements/{month}/report-transfer"
+    receipt = talent_path + f"/statements/{month}/confirm-receipt"
+    talent_csrf = token(talent, talent_path)
+    assert talent.post(receipt, data={"csrf_token": talent_csrf}).status_code == 409
+    for _ in range(2):
+        assert office.post(transfer, data={"csrf_token": csrf}).status_code == 302
+        assert talent.post(receipt, data={"csrf_token": talent_csrf}).status_code == 302
+    assert "入金確認済み" in office.get(office_path + f"?month={month}").get_data(
+        as_text=True
+    )
+    with database_app.app_context():
+        assert (
+            len(
+                db.session.scalars(
+                    select(LedgerRecord).where(
+                        LedgerRecord.kind.in_(
+                            ("transfer_reported", "receipt_confirmed")
+                        )
+                    )
+                ).all()
+            )
+            == 2
+        )
 
     zero_month = (today_in_japan().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
     assert (
@@ -1127,3 +1161,114 @@ def test_admin_audits_office_view_and_revokes_account(database_app: Flask) -> No
         record.entry_hash = "0" * 64
         db.session.commit()
     assert "記録が一致しません" in admin.get("/admin/ledger").get_data(as_text=True)
+
+
+def test_t41_only_full_rubric_records_one_pass(identity_app: Flask) -> None:
+    _seed_candidates(identity_app)
+    with identity_app.app_context():
+        talent = db.session.scalar(select(Talent).where(Talent.user_id == 2))
+        assert talent is not None
+        talent.translation_verified_at = talent.translation_verified_by = None
+        path = f"/admin/talents/{talent.id}"
+        db.session.commit()
+    client = identity_app.test_client()
+    sign_in(client, "admin@example.org")
+    csrf = token(client, path)
+    action = path + "/translation"
+    assert (
+        client.post(
+            action, data={"csrf_token": csrf, "criterion": ["missing"]}
+        ).status_code
+        == 422
+    )
+    for _ in range(2):
+        assert (
+            client.post(
+                action,
+                data={
+                    "csrf_token": csrf,
+                    "criterion": ["missing", "question", "record"],
+                },
+            ).status_code
+            == 302
+        )
+    with identity_app.app_context():
+        events = db.session.scalars(
+            select(AuditLog).where(AuditLog.action == "translation_passed")
+        ).all()
+        assert len(events) == 1
+
+
+def test_t42_only_partner_verified_claims_contribute(database_app: Flask) -> None:
+    office, talent, office_path, _ = _agree(database_app)
+    with database_app.app_context():
+        engagement = db.session.scalar(select(Engagement))
+        assert engagement
+        profile = db.session.get(Talent, engagement.talent_id)
+        assert profile
+        profile.capacity = 3
+        other = db.session.scalar(select(Talent).where(Talent.id != profile.id))
+        assert other
+        claim = TalentSkill(
+            talent_id=profile.id, kind=TalentSkillKind.STRENGTH, tag="collect"
+        )
+        foreign = TalentSkill(
+            talent_id=other.id, kind=TalentSkillKind.TOOL, tag="python"
+        )
+        db.session.add_all([claim, foreign])
+        db.session.commit()
+        talent_id, skill_id, other_id = profile.id, claim.id, foreign.id
+    _, match_path = _publish_and_generate(office)
+    previous = next(row for row in _ranks(database_app) if row[1] == talent_id)
+    assert all("資料回収が得意" not in s for s in previous[3])
+    csrf = token(office, office_path)
+    assert (
+        office.post(
+            f"{office_path}/skills/{other_id}/verify",
+            data={"csrf_token": csrf, "tag": "python"},
+        ).status_code
+        == 404
+    )
+    action = f"{office_path}/skills/{skill_id}/verify"
+    assert (
+        office.post(action, data={"csrf_token": csrf, "tag": "wrong"}).status_code
+        == 409
+    )
+    for _ in range(2):
+        assert (
+            office.post(action, data={"csrf_token": csrf, "tag": "collect"}).status_code
+            == 302
+        )
+    assert office.post(match_path, data={"csrf_token": csrf}).status_code == 302
+    current = next(row for row in _ranks(database_app) if row[1] == talent_id)
+    assert current[2] == previous[2] + 10
+    page = talent.get("/t/").get_data(as_text=True)
+    assert "資料回収が得意です（10点）" in page
+    assert "資料回収（事務所が確認済み）" in page
+
+
+def test_t46_agreement_uses_rate_from_sent_estimate(identity_app: Flask) -> None:
+    _seed_candidates(identity_app)
+    office = identity_app.test_client()
+    talent = identity_app.test_client()
+    sign_in(office, "office@example.org")
+    sign_in(talent, "tsunagite@example.org")
+    _, path = _publish_and_generate(office)
+    first = _ranks(identity_app)[0][0]
+    data = {**_offer_data(token(office, path)), "estimate_hours": "5"}
+    assert office.post(f"{path}/{first}/invite", data=data).status_code == 302
+    assert "8,000円" in talent.get("/t/").get_data(as_text=True)
+    with identity_app.app_context():
+        org = db.session.get(Office, 1)
+        assert org
+        org.hourly_rate_yen = 7000
+        db.session.commit()
+    assert (
+        talent.post(
+            f"/t/invitations/{first}/accept", data={"csrf_token": token(talent, "/t/")}
+        ).status_code
+        == 302
+    )
+    with identity_app.app_context():
+        agreement = db.session.scalar(select(Engagement))
+        assert agreement and agreement.hourly_rate_yen == 4000

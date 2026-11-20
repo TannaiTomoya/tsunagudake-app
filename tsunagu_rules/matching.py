@@ -90,6 +90,7 @@ def match(
                 Exclusion.TRAINING,
                 talent.training_until is not None and talent.training_until >= today,
             ),
+            (Exclusion.TRANSLATION, talent.translation_verified),
             (
                 Exclusion.DISTANCE,
                 minutes is not None and 0 <= minutes <= limits.travel_minutes,

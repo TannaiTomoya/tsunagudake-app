@@ -1,11 +1,11 @@
-<h2>訪問</h2>
+<h2 id="visits">訪問</h2>
 {% if activity.talent_writer %}<p><a href="{{ url_for('statements.visit_form', engagement_id=engagement.id) }}">訪問を記録する</a></p>{% endif %}
 {% if activity.visits %}
 <div class="overflow-auto" role="region" aria-label="訪問の一覧" tabindex="0"><table>
   <thead><tr><th scope="col">日付</th><th scope="col">業務の型</th><th scope="col" data-numeric>時間</th><th scope="col">伝えること</th><th scope="col">状態</th></tr></thead>
   <tbody>{% for visit in activity.visits %}
   <tr>
-    <td>{{ visit.visit_date }}</td><td>{{ categories[visit.category] }}</td><td data-numeric>{{ visit.minutes }}分</td><td>{{ visit.note or "—" }}</td>
+    <td>{{ visit.visit_date }}</td><td>{{ categories[visit.category] }}</td><td data-numeric>{{ visit.minutes }}分</td><td>{{ visit.note or "—" }}{% if visit.learned_term %}<br>聞き返した用語：{{ visit.learned_term }}{% endif %}</td>
     <td><span class="state" data-status="{{ visit.status }}">{{ {"recorded": "確認待ち", "confirmed": "確認済み", "disputed": "相違あり"}[visit.status] }}</span>
     {% if visit.status == "recorded" %}
       {% if activity.office_writer %}

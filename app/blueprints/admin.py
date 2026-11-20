@@ -38,11 +38,13 @@ from app.services.accounts import AccountError, Invite, issue_invitation
 from app.services.ledger import ledger_failures
 from app.services.mail import MailError, mail_body
 from app.services.trust import (
+    TRANSLATION_CRITERIA,
     TrustConflict,
     add_trust_record,
     suspend_user,
     trust_statuses,
     verify_grade,
+    verify_translation,
 )
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -114,6 +116,7 @@ def _talent_page(talent_id: int, error: str | None = None) -> str:
         categories=CATEGORIES,
         affiliations=AFFILIATIONS,
         skills=skills,
+        criteria=TRANSLATION_CRITERIA,
         error=error,
     )
 
@@ -123,6 +126,17 @@ def _talent_page(talent_id: int, error: str | None = None) -> str:
 def talent(talent_id: int) -> str:
     _admin()
     return _talent_page(talent_id)
+
+
+@bp.post("/talents/<int:talent_id>/translation")
+@login_required  # type: ignore[untyped-decorator]
+def translation(talent_id: int) -> ResponseReturnValue:
+    actor = _admin_for_talent_action(talent_id)
+    try:
+        verify_translation(talent_id, actor.id, set(request.form.getlist("criterion")))
+    except TrustConflict as exc:
+        return _talent_page(talent_id, str(exc)), 422
+    return redirect(url_for("admin.talent", talent_id=talent_id))
 
 
 @bp.post("/talents/<int:talent_id>/verify-grade")

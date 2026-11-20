@@ -123,6 +123,18 @@
 
 招待の発行とメール記録の閲覧は運営のみ。招待の受け取りとパスワード再設定は公開の入口で、本人宛ての期限内リンクが必要です。
 
+振込報告は担当事務所の代表だけ、入金確認は伴走を担当するつなぎ手本人だけが行えます。金額は確定明細から読みます。
+
+翻訳課題は運営だけが3項目を目視採点します。本人による合格操作は403、その他の利用者には404です。
+
+道具・得意分野の確認は、その伴走の事務所に所属する人だけが行えます。別のつなぎ手の項目は404です。本人のホームだけに自分の直近の候補点と内訳を表示します。
+
+「今日やること」は所属する有効な事務所または本人の伴走と信用情報を表示します。他のアカウントの指定は受け付けません。
+
+本番の全利用者はパスワードの後に認証アプリまたは使い切り予備コードが必要です。登録途中・旧セッションは業務データにアクセスできません。デモ環境では架空利用者が発表用の入口を利用できます。
+
+請求書の振込先は担当事務所の代表と担当つなぎ手だけが表示・印刷できます。職員と運営には表示しません。
+
 ### 実装済みルート一覧
 
 | 入口 | メソッド | 権限表 |
@@ -171,3 +183,11 @@
 | `/reset-password` | GET, POST | §8 |
 | `/admin/invitations/new` | GET, POST | §8 |
 | `/admin/mail` | GET | §8 |
+| `/o/<int:office_id>/engagements/<int:engagement_id>/statements/<month>/report-transfer` | POST | §5 |
+| `/t/engagements/<int:engagement_id>/statements/<month>/confirm-receipt` | POST | §5 |
+| `/admin/talents/<int:talent_id>/translation` | POST | §8 |
+| `/o/<int:office_id>/engagements/<int:engagement_id>/skills/<int:skill_id>/verify` | POST | §5 |
+| `/account/today` | GET | §2 |
+| `/login/second-factor` | GET, POST | §2 |
+| `/o/<int:office_id>/engagements/<int:engagement_id>/statements/<month>/invoice` | GET | §5 |
+| `/t/engagements/<int:engagement_id>/statements/<month>/invoice` | GET | §5 |

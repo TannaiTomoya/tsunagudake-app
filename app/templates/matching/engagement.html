@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set progress_step = 5 if activity.reductions or activity.statement else 4 %}
 {% set guide_mood = "happy" %}
 {% block title %}伴走{% endblock %}
 {% block content %}
@@ -9,6 +10,8 @@
 </section>
 <section class="reading-pane">
 {% include "matching/visits.html" %}
+<h2 id="skills">道具と得意な業務</h2>
+{% include "matching/skills.html" %}
 <h2>境界線台帳</h2>
 {% include "matching/ledger.html" %}
 <h2>合意した条件</h2>

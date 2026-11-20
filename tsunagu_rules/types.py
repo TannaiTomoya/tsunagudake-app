@@ -16,6 +16,7 @@ class NeedKind(StrEnum):
 class Exclusion(StrEnum):
     PLEDGE = "pledge"
     TRAINING = "training"
+    TRANSLATION = "translation"
     DISTANCE = "distance"
     WEEKDAY = "weekday"
     CAPACITY = "capacity"
@@ -77,6 +78,7 @@ class Talent:
     suspended: bool
     verified_bookkeeping_grade: int | None
     verified_visits: int
+    translation_verified: bool = False
 
 
 @dataclass(frozen=True)

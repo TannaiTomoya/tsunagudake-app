@@ -16,16 +16,19 @@ from app.extensions import db
 from app.models import (
     Engagement,
     MemberRole,
+    Office,
     OfficeMember,
     Reduction,
     Role,
     Statement,
     StatementStatus,
+    Talent,
     User,
     Visit,
     VisitStatus,
     today_in_japan,
 )
+from app.services.billing import read_payout
 from app.services.statement import (
     ReductionInput,
     StatementConflict,
@@ -36,6 +39,7 @@ from app.services.statement import (
     find_statement,
     find_visit,
     month_reductions,
+    record_payment,
     review_visit,
     save_reduction,
     save_visit,
@@ -53,6 +57,7 @@ class VisitForm(FlaskForm):  # type: ignore[misc]
         "訪問時間（分）", validators=[InputRequired(), NumberRange(15, 600)]
     )
     category = SelectField("業務の型", choices=_CHOICES, validators=[InputRequired()])
+    learned_term = StringField("聞き返した用語（任意）", validators=[Length(max=100)])
     note = TextAreaField("事務所に伝えること（任意）", validators=[Length(max=300)])
 
 
@@ -171,6 +176,7 @@ def visit_form(engagement_id: int, visit_id: int | None = None) -> ResponseRetur
             "minutes": visit.minutes,
             "category": visit.category.value,
             "note": visit.note,
+            "learned_term": visit.learned_term,
         }
     form = VisitForm(data=initial)
     error = None
@@ -184,6 +190,7 @@ def visit_form(engagement_id: int, visit_id: int | None = None) -> ResponseRetur
                     form.minutes.data,
                     NeedKind(form.category.data),
                     (form.note.data or "").strip() or None,
+                    (form.learned_term.data or "").strip() or None,
                 ),
                 visit_id,
             )
@@ -276,7 +283,76 @@ def statement_finalize(
             month,
             _actor().id,
             returned_to=request.form.get("returned_to", ""),
+            due_date=request.form.get("due_on", ""),
         )
     except StatementConflict as exc:
         return _conflict(exc)
     return _office_back(engagement, month)
+
+
+@bp.post(
+    "/o/<int:office_id>/engagements/<int:engagement_id>/statements/<month>/report-transfer"
+)
+@login_required  # type: ignore[untyped-decorator]
+def report_transfer(
+    office_id: int, engagement_id: int, month: str
+) -> ResponseReturnValue:
+    engagement = require_office_engagement(office_id, engagement_id, owner_only=True)
+    if not valid_month(month):
+        abort(400)
+    try:
+        record_payment(engagement, month, _actor().id, receipt=False)
+    except StatementConflict as exc:
+        return _conflict(exc)
+    return _office_back(engagement, month)
+
+
+@bp.post("/t/engagements/<int:engagement_id>/statements/<month>/confirm-receipt")
+@login_required  # type: ignore[untyped-decorator]
+def confirm_receipt(engagement_id: int, month: str) -> ResponseReturnValue:
+    engagement = require_talent_engagement(engagement_id, write=True)
+    if not valid_month(month):
+        abort(400)
+    try:
+        record_payment(engagement, month, _actor().id, receipt=True)
+    except StatementConflict as exc:
+        return _conflict(exc)
+    return redirect(
+        url_for("matching.talent_engagement", engagement_id=engagement_id, month=month)
+    )
+
+
+@bp.get("/o/<int:office_id>/engagements/<int:engagement_id>/statements/<month>/invoice")
+@bp.get("/t/engagements/<int:engagement_id>/statements/<month>/invoice")
+@login_required  # type: ignore[untyped-decorator]
+def invoice(
+    engagement_id: int, month: str, office_id: int | None = None
+) -> ResponseReturnValue:
+    if office_id is not None:
+        engagement = require_office_engagement(
+            office_id, engagement_id, owner_only=True
+        )
+    else:
+        engagement = require_talent_engagement(engagement_id)
+    if not valid_month(month):
+        abort(400)
+    bill = find_statement(engagement, month)
+    if not bill or bill.status != StatementStatus.FINALIZED:
+        abort(404)
+    office = db.session.get(Office, engagement.office_id)
+    issuer = db.session.scalar(
+        select(User.display_name)
+        .join(Talent, Talent.user_id == User.id)
+        .where(Talent.id == engagement.talent_id)
+    )
+    return (
+        render_template(
+            "matching/invoice.html",
+            bill=bill,
+            office=office,
+            issuer=issuer,
+            payout=read_payout(bill.payout_cipher),
+        ),
+        200,
+        {"Cache-Control": "no-store"},
+    )

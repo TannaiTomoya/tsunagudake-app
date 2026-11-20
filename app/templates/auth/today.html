@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}今日やること{% endblock %}
+{% block content %}
+<h1>今日やること</h1>
+{% if tasks %}<ul>{% for task in tasks %}<li><a href="{{ task.link }}">{{ task.title }}</a><p>{{ task.reason }}</p></li>{% endfor %}</ul>
+{% else %}<p>いま確認する項目はありません。</p>{% endif %}
+<p><a href="{{ workspace_url }}">担当のホームに戻る</a></p>
+{% endblock %}

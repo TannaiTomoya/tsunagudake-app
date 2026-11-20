@@ -207,3 +207,46 @@ body {
 .hero-masu .masu { filter: drop-shadow(0 0 18px color-mix(in srgb, var(--action) 45%, transparent)); }
 .guide-dock .masu { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--action) 40%, transparent)); }
 .guide-ask > summary { color: var(--action); }
+
+
+.work-steps, .role-outcomes { display: grid; gap: .4rem; padding: 0; margin: 0 0 1.25rem; }
+.work-steps { grid-template-columns: repeat(5, minmax(0, 1fr)); list-style: none; }
+.work-steps li, .role-outcomes > div { border: 1px solid var(--line); padding: .45rem; background: var(--surface); }
+.work-steps li { list-style: none; margin: 0; text-align: center; }
+.work-steps small, .next-step { display: block; color: var(--muted); }
+.work-steps li[aria-current="step"] { border-color: var(--action); color: var(--action); font-weight: bold; }
+.role-outcomes { grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); }
+.role-outcomes dt { font-weight: bold; }
+.role-outcomes dd { margin: .35rem 0 0; }
+@media (max-width: 480px) {
+  .work-steps { gap: .15rem; }
+  .work-steps li { padding: .3rem 0; font-size: .85rem; }
+}
+
+@media (max-width: 767px) {
+  .candidate-comparison, .candidate-comparison tbody,
+  .candidate-comparison tr, .candidate-comparison td { display: block; }
+  .candidate-comparison thead {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .candidate-comparison tbody { display: grid; gap: 1rem; }
+  .candidate-comparison tbody tr {
+    border: 1px solid var(--line); background: var(--surface); padding: .5rem;
+  }
+  .candidate-comparison tbody td {
+    text-align: start; white-space: normal; overflow-wrap: anywhere;
+    padding: .4rem .5rem; border: 0;
+  }
+  .candidate-comparison td::before {
+    content: attr(data-label); display: block; color: var(--muted); font-weight: 600;
+  }
+  .candidate-comparison td ul, .candidate-comparison td p { margin-bottom: 0; }
+}
+
+.print-copy { display: none; }
+@media print {
+  body:has(> .print-copy) > :not(.print-copy) { display: none; }
+  body > .print-copy { display: block; margin: 0; box-shadow: none; }
+  .print-button, .guide-dock, .topbar, .demo-notice, .rail { display: none; }
+}

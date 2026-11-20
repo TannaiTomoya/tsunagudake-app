@@ -75,6 +75,18 @@ class User(UserMixin, Created, Base):  # type: ignore[misc]
         return f"{self.id}:{self.session_nonce}"
 
 
+class SecondFactor(Base):
+    __tablename__ = "second_factors"
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    secret_cipher: Mapped[str] = mapped_column(String(255))
+    enrollment_ticket: Mapped[str | None] = mapped_column(String(48))
+    last_step: Mapped[int | None]
+    recovery_hashes: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+
 class Municipality(Created, Base):
     __tablename__ = "municipalities"
 
@@ -283,6 +295,12 @@ class Talent(Created, Base):
         ),
         default=BookkeepingLevel.NONE,
     )
+    payout_cipher: Mapped[str | None] = mapped_column(Text)
+    invoice_registration: Mapped[str | None] = mapped_column(String(14))
+    translation_verified_at: Mapped[datetime | None]
+    translation_verified_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
     level_verified_at: Mapped[datetime | None]
     level_verified_by: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
@@ -313,6 +331,13 @@ class TalentSkill(Created, Base):
     talent_id: Mapped[int] = mapped_column(ForeignKey("talents.id"))
     kind: Mapped[TalentSkillKind] = mapped_column(stored_enum(TalentSkillKind))
     tag: Mapped[str] = mapped_column(String(20))
+    verified_at: Mapped[datetime | None]
+    verified_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    verified_office_id: Mapped[int | None] = mapped_column(
+        ForeignKey("offices.id", ondelete="SET NULL")
+    )
 
 
 class TrustItem(Created, Base):
@@ -376,6 +401,9 @@ class MatchCandidate(Created, Base):
     status: Mapped[CandidateStatus] = mapped_column(
         stored_enum(CandidateStatus), default=CandidateStatus.LISTED
     )
+    estimate_hours: Mapped[int | None]
+    estimate_hourly_rate: Mapped[int | None]
+    estimate_total: Mapped[int | None]
     offer_weekday: Mapped[int | None]
     offer_fee_share_bp: Mapped[int | None]
     offer_fee_cap_yen: Mapped[int | None]
@@ -458,6 +486,7 @@ class Visit(Created, Base):
     category: Mapped[NeedKind] = mapped_column(
         stored_enum(NeedKind, name="visit_category")
     )
+    learned_term: Mapped[str | None] = mapped_column(String(100))
     note: Mapped[str | None] = mapped_column(String(300))
     status: Mapped[VisitStatus] = mapped_column(
         stored_enum(VisitStatus), default=VisitStatus.RECORDED
@@ -517,6 +546,11 @@ class Statement(Created, Base):
     finalized_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     finalized_at: Mapped[datetime | None]
     returned_to: Mapped[str | None] = mapped_column(String(100))
+    due_on: Mapped[date | None]
+    payout_cipher: Mapped[str | None] = mapped_column(Text)
+    invoice_registration: Mapped[str | None] = mapped_column(String(14))
+    transfer_reported_at: Mapped[datetime | None]
+    receipt_confirmed_at: Mapped[datetime | None]
 
 
 class RateLimitEvent(Created, Base):
@@ -572,6 +606,8 @@ class OutboxMail(Created, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     recipient: Mapped[str] = mapped_column(String(255))
+    digest_key: Mapped[str | None] = mapped_column(String(48), unique=True)
+    deliver_after: Mapped[datetime | None]
     subject: Mapped[str] = mapped_column(String(150))
     body_encrypted: Mapped[str | None] = mapped_column(Text)
     is_demo: Mapped[bool]

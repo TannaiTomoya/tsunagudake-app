@@ -1,6 +1,6 @@
 from typing import cast
 
-from flask import Blueprint, abort, redirect, render_template, url_for
+from flask import Blueprint, abort, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
@@ -11,9 +11,10 @@ from wtforms import (  # type: ignore[import-untyped]
     IntegerField,
     SelectField,
     SelectMultipleField,
+    StringField,
 )
 from wtforms.fields.choices import SelectChoice  # type: ignore[import-untyped]
-from wtforms.validators import InputRequired, NumberRange  # type: ignore[import-untyped]
+from wtforms.validators import InputRequired, Length, NumberRange, Optional, Regexp  # type: ignore[import-untyped]
 
 from app.blueprints.needs import CATEGORIES, WEEKDAYS
 from app.extensions import db
@@ -91,6 +92,13 @@ class ProfileForm(FlaskForm):  # type: ignore[misc]
     capacity = IntegerField(
         "同時に受け持てる件数", validators=[InputRequired(), NumberRange(1, 5)]
     )
+    payout = StringField(
+        "振込先（銀行・支店・種別・口座番号・名義）", validators=[Length(max=200)]
+    )
+    registration = StringField(
+        "インボイス登録番号（任意）", validators=[Optional(), Regexp(r"^T[0-9]{13}$")]
+    )
+    clear_payout = BooleanField("登録済みの振込先を消す")
     listed = BooleanField("候補に出る")
 
 
@@ -141,6 +149,7 @@ def profile() -> ResponseReturnValue:
             if talent
             else TalentAffiliation.NONE.value,
             "capacity": talent.capacity if talent else 2,
+            "registration": talent.invoice_registration if talent else None,
             "listed": bool(talent and talent.is_listed),
             "tools": [
                 skill.tag for skill in skills if skill.kind == TalentSkillKind.TOOL
@@ -167,6 +176,12 @@ def profile() -> ResponseReturnValue:
                     affiliation=TalentAffiliation(form.affiliation.data),
                     capacity=form.capacity.data,
                     is_listed=form.listed.data,
+                    payout=""
+                    if form.clear_payout.data
+                    else (form.payout.data or "").strip() or None,
+                    registration=(form.registration.data or "").strip()
+                    if "registration" in request.form
+                    else None,
                     tools=frozenset(form.tools.data),
                     strengths=frozenset(NeedKind(kind) for kind in form.strengths.data),
                 ),
