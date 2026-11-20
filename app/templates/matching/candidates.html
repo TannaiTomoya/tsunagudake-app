@@ -10,6 +10,7 @@
 <div class="screen-columns">
 <section class="reading-pane">
 <h2>候補の一覧</h2>
+<p>移動時間を登録していない町のつなぎ手は、候補に出ません。<a href="{{ url_for('auth.office_routes', office_id=office.id) }}">事務所までの移動時間</a></p>
 {% if run %}
   {% if candidates %}
   <div class="overflow-auto" role="region" aria-label="候補の一覧" tabindex="0"><table class="candidate-comparison" role="table">

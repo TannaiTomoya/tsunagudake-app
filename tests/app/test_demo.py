@@ -10,9 +10,11 @@ from app.extensions import db
 from app.models import (
     Engagement,
     MatchCandidate,
+    Municipality,
     Need,
     NeedStatus,
     Office,
+    OfficeRoute,
     Role,
     Talent,
     User,
@@ -121,6 +123,27 @@ def test_demo_rehearsal_before_and_after_reset(monkeypatch: pytest.MonkeyPatch) 
                 )
                 == 8
             )
+        # T52：デモの事務所は、架空の移動時間の表を読むだけ。登録はできない。
+        routes = office.get(home + "/routes").get_data(as_text=True)
+        assert "架空広域 きた町" in routes and "25分" in routes
+        assert "架空広域 ひがし村" in routes and "70分" in routes
+        assert "登録はできません" in routes and 'name="minutes"' not in routes
+        with app.app_context():
+            north = db.session.scalar(
+                select(Municipality.id).where(Municipality.code == "90002")
+            )
+        refused = office.post(
+            home + "/routes",
+            data={
+                "csrf_token": token(office, home + "/"),
+                "municipality": str(north),
+                "minutes": "5",
+            },
+        )
+        assert refused.status_code == 409
+        assert "登録はできません" in refused.get_data(as_text=True)
+        with app.app_context():
+            assert db.session.scalar(select(OfficeRoute)) is None
         form = home + "/needs/new"
         response = office.post(
             form,

@@ -53,6 +53,8 @@ mv -- "$pending_backup" "$backup_dir/${stamp}-${pending_backup##*.}.sql.gz"
 git merge --ff-only "$target_sha"
 uv sync --frozen --no-dev
 uv run --frozen --no-dev flask db upgrade
+# 市町村の一覧から、無い行だけを足す（直さない・消さない）。
+uv run --frozen --no-dev flask sync-municipalities
 sudo -n /usr/bin/systemctl restart tsunagudake.service
 
 for attempt in {1..30}; do

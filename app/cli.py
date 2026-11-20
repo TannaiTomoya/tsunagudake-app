@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.models import Municipality, Role, Talent, User
+from app.services.municipalities import allowed
 
 
 def init_cli(app: Flask) -> None:
@@ -28,7 +29,8 @@ def init_cli(app: Flask) -> None:
             municipality = db.session.scalar(
                 select(Municipality).where(Municipality.code == municipality_code)
             )
-            if municipality is None:
+            # このコマンドが作るのは通常のアカウントなので、実在の町だけ。
+            if not allowed(municipality, demo=False):
                 raise click.ClickException("登録済みの市町村コードを指定してください。")
         try:
             address = validate_email(
@@ -110,6 +112,34 @@ def init_cli(app: Flask) -> None:
         if not yes:
             raise click.ClickException("デモの初期化には --yes を指定してください。")
         run_demo(reset=True)
+
+    @app.cli.command("sync-municipalities")
+    def sync_municipalities() -> None:
+        """市町村の一覧（総務省のコード）から、無い行だけを足す。"""
+        from sqlalchemy.exc import SQLAlchemyError
+
+        from app.services.municipalities import load_source, sync
+
+        try:
+            result = sync(load_source())
+        except (OSError, KeyError, ValueError) as exc:
+            raise click.ClickException(
+                f"市町村の一覧を読めませんでした。{exc}"
+            ) from None
+        except SQLAlchemyError:
+            db.session.rollback()
+            raise click.ClickException(
+                "市町村を保存できませんでした。マイグレーションをご確認ください。"
+            ) from None
+        click.echo(
+            f"市町村を{result.added}件足しました。"
+            f"すでにある{result.kept}件は、そのままです。"
+        )
+        if result.different:
+            click.echo(
+                f"名前か都道府県が一覧と違う行が{result.different}件あります。"
+                "直していません。"
+            )
 
     @app.cli.command("send-mail")
     def send_mail() -> None:

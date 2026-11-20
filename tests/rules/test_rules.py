@@ -6,6 +6,7 @@ import pytest
 from tsunagu_rules import RULES_VERSION, ledger
 from tsunagu_rules.matching import match
 from tsunagu_rules.region import (
+    is_fictional,
     mask_breakdown,
     mask_cells,
     mask_region,
@@ -264,3 +265,9 @@ def test_t41_translation_is_required_even_with_otherwise_full_score() -> None:
     )
     assert not result.candidates
     assert result.excluded == {Exclusion.TRANSLATION: 1}
+
+
+def test_t51_only_codes_starting_with_nine_are_fictional() -> None:
+    assert all(is_fictional(code) for code in ("90001", "99999", "9"))
+    assert not any(is_fictional(code) for code in ("01100", "47382", "00001", "09201"))
+    assert not is_fictional("")

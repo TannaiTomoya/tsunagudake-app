@@ -157,7 +157,7 @@ def test_t50_region_shows_the_client_total_only_from_five_offices(
         db.session.commit()
     town = profile_app.test_client()
     assert sign_in(town, "municipality@example.org") == 302
-    page = town.get("/r/90001/").get_data(as_text=True)
+    page = town.get("/r/00001/").get_data(as_text=True)
     section = _section(page)
     total = 30 + 11 * (entered - 1)
     if shown:
@@ -172,7 +172,7 @@ def test_t50_region_shows_the_client_total_only_from_five_offices(
     # 町そのものを伏せるときは、見出しも数字も出さない（運営が開いても同じ）。
     admin = profile_app.test_client()
     assert sign_in(admin, "admin@example.org") == 302
-    small = admin.get("/r/90002/").get_data(as_text=True)
+    small = admin.get("/r/00002/").get_data(as_text=True)
     assert HEADING not in small and "900" not in small
 
 
@@ -185,5 +185,5 @@ def test_t50_region_says_when_no_office_has_entered(profile_app: Flask) -> None:
         db.session.commit()
     town = profile_app.test_client()
     assert sign_in(town, "municipality@example.org") == 302
-    section = _section(town.get("/r/90001/").get_data(as_text=True))
+    section = _section(town.get("/r/00001/").get_data(as_text=True))
     assert "顧問先の数を入力した事務所は、まだありません" in section

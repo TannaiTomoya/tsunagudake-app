@@ -1,13 +1,16 @@
 {% extends "base.html" %}
+{% from "_prefecture.html" import prefecture_form %}
 {% set progress_step = 2 %}
 {% block title %}プロフィールの編集｜つなぐだけ{% endblock %}
 {% block content %}
 <p><a href="{{ url_for('auth.talent_home') }}">信用台帳に戻る</a></p>
 <h1>プロフィールの編集</h1>
 {% if error %}<p role="alert">{{ error }}</p>{% endif %}
-<form method="post">
+{{ prefecture_form(prefectures, prefecture, "住む都道府県", "都道府県を選び直すと、下に入力した内容は消えます。先に選んでください。") }}
+<form method="post" action="{{ url_for('talent.profile', prefecture=prefecture or none) }}">
   {{ form.hidden_tag() }}
   {{ form.municipality.label }} {{ form.municipality(required=true) }}
+  {% if form.municipality.choices|length < 2 %}<small>先に、住む都道府県を選んでください。</small>{% endif %}
   {{ form.grade.label }} {{ form.grade() }}
   <small>級を変えると、運営の再確認が必要です。</small>
   {% for field in [form.weekdays, form.tools, form.strengths] %}

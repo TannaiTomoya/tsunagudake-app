@@ -1,0 +1,47 @@
+{% extends "auth/home.html" %}
+{% from "_prefecture.html" import prefecture_form %}
+{% block title %}事務所までの移動時間{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('auth.office_home', office_id=office.id) }}">事務所のホームに戻る</a></p>
+<h1>事務所までの移動時間</h1>
+{% if office.is_demo %}
+<p>{{ heading }}。デモでは、架空の移動時間の表を使います。車で{{ limit }}分以内の町のつなぎ手が、候補に出ます。</p>
+{% else %}
+<p>{{ heading }}。登録した町のうち、車で{{ limit }}分以内の町のつなぎ手が、候補に出ます。</p>
+{% endif %}
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+{% if routes %}
+<div class="overflow-auto statement-table" role="region" aria-label="事務所までの移動時間" tabindex="0"><table>
+  <thead><tr><th scope="col">出発の町</th><th scope="col" data-numeric>車での時間</th><th scope="col">確かめた日</th><th scope="col">確かめた人</th></tr></thead>
+  <tbody>{% for row, day in routes %}
+    <tr><th scope="row">{{ row.prefecture }} {{ row.town }}</th><td data-numeric>{{ row.minutes }}分</td><td>{{ day }}</td><td>{{ row.confirmed_by or "—" }}</td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% elif office.is_demo %}
+<p>移動時間の表は、まだありません。</p>
+{% else %}
+<p>まだ登録がありません。事務所と同じ町も、登録すると候補に出ます。</p>
+{% endif %}
+{% if office.is_demo %}
+<p>デモの事務所では、登録はできません。事務所と同じ町は、15分として扱います。</p>
+{% elif owner %}
+<h2>確かめた経路を登録する</h2>
+<p>実際に確かめた時間だけを入れてください。同じ町をもう一度登録すると、時間を直します。</p>
+{{ prefecture_form(prefectures, prefecture, "出発の都道府県", "都道府県を選び直すと、下の町の一覧が変わります。") }}
+<form method="post" action="{{ url_for('auth.office_routes', office_id=office.id, prefecture=prefecture or none) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label for="municipality">出発の市町村</label>
+  <select id="municipality" name="municipality" required>
+    <option value="">{{ "選択してください" if towns else "先に都道府県を選んでください" }}</option>
+    {% for town in towns %}<option value="{{ town.id }}"{% if town.id == chosen %} selected{% endif %}>{{ town.name }}</option>
+    {% endfor %}
+  </select>
+  <label for="minutes">車での時間（分）</label>
+  <input id="minutes" name="minutes" type="number" inputmode="numeric" min="1" max="300" step="1" required value="{{ entered }}" aria-describedby="minutes-note">
+  <small id="minutes-note">1〜300分の整数。{{ limit }}分を超える町のつなぎ手は、候補に出ません。</small>
+  <button type="submit">登録する</button>
+</form>
+{% else %}
+<p>経路を登録できるのは、事務所の代表だけです。</p>
+{% endif %}
+{% endblock %}

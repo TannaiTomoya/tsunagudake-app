@@ -46,4 +46,7 @@ jobs:
           version: "0.13.6"
       - run: uv sync --locked
       - run: uv run --frozen flask db upgrade
+      # 市町村の一覧を2回取り込む（2回目は、何も足さない）。
+      - run: uv run --frozen flask sync-municipalities
+      - run: uv run --frozen flask sync-municipalities | grep -q "0件足しました"
       - run: uv run --frozen pytest

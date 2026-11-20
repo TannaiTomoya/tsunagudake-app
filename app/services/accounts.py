@@ -24,6 +24,7 @@ from app.models import (
 )
 from app.ratelimit import check_login, finish_login, login_buckets
 from app.services.mail import enqueue
+from app.services.municipalities import allowed
 
 
 class AccountError(Exception):
@@ -82,8 +83,10 @@ def issue_invitation(data: Invite, actor_id: int) -> None:
             if data.municipality_id
             else None
         )
-        if town is None:
+        # demo では架空の町だけ、それ以外では実在の町だけ。
+        if not allowed(town, demo=demo):
             raise AccountError("担当する市町村を選んでください。")
+        assert town is not None
         municipality_id = town.id
     elif data.role != Role.TSUNAGITE:
         raise AccountError("招待できる立場を選んでください。")
@@ -159,6 +162,13 @@ def accept_invitation(token: str, display_name: str, password: str) -> None:
                 )
             )
         if invite.municipality_id:
+            town = db.session.get(Municipality, invite.municipality_id)
+            # 発行のあとに決まりが変わっても、反対側の町には結びつけない。
+            if not allowed(town, demo=invite.is_demo):
+                db.session.rollback()
+                raise AccountError(
+                    "招待先の市町村を確認できません。運営にご確認ください。"
+                )
             db.session.add(
                 MunicipalityMember(
                     user_id=user.id, municipality_id=invite.municipality_id

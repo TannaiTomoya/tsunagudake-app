@@ -1,4 +1,6 @@
+from datetime import UTC, datetime
 from typing import cast
+from zoneinfo import ZoneInfo
 
 from flask import (
     Blueprint,
@@ -47,12 +49,20 @@ from app.models import (
 )
 from app.services import second_factor
 from app.services.auth import authenticate, requires_second_factor
+from app.services.municipalities import chosen_prefecture, prefectures, towns_in
 from app.services.office import (
     OfficeNotFound,
     OfficeProfileError,
     save_client_count,
 )
 from app.services.region import dashboard_for
+from app.services.routes import (
+    RouteConflict,
+    RouteError,
+    RouteOfficeNotFound,
+    routes_for,
+    save_route,
+)
 from app.services.statement import confirmed_visits, expected_income
 from app.services.tasks import tasks_for
 from app.services.trust import trust_statuses
@@ -266,6 +276,73 @@ def office_profile(office_id: int) -> ResponseReturnValue:
             entered=request.form.get("client_count", "") if error else None,
         ),
         422 if error else 200,
+    )
+
+
+def _japan_day(moment: datetime | None) -> str:
+    if moment is None:
+        return "—"
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=UTC)
+    local = moment.astimezone(ZoneInfo("Asia/Tokyo"))
+    return f"{local.month}月{local.day}日({'月火水木金土日'[local.weekday()]})"
+
+
+@bp.route("/o/<int:office_id>/routes", methods=["GET", "POST"])
+@login_required  # type: ignore[untyped-decorator]
+def office_routes(office_id: int) -> ResponseReturnValue:
+    user = cast(User, current_user)
+    error = None
+    status = 200
+    if request.method == "POST":
+        # 登録できるのは代表だけ。事務所は URL から、確かめた人はログインから決める。
+        office = require_office(office_id, owner_only=True)
+        try:
+            save_route(
+                office.id,
+                user.id,
+                request.form.get("municipality", type=int),
+                request.form.get("minutes"),
+            )
+        except RouteOfficeNotFound:
+            abort(404)
+        except RouteError as exc:
+            error, status = str(exc), 422
+        except RouteConflict as exc:
+            error, status = str(exc), 409
+        else:
+            return redirect(url_for("auth.office_routes", office_id=office.id))
+    else:
+        office = require_office(office_id)
+    owner = (
+        db.session.scalar(
+            select(OfficeMember.member_role).where(
+                OfficeMember.office_id == office.id, OfficeMember.user_id == user.id
+            )
+        )
+        == MemberRole.OWNER
+    )
+    # 通常の事務所が選べるのは、実在の町だけ。デモの事務所は登録しない。
+    groups = [] if office.is_demo else prefectures(demo=False)
+    prefecture = chosen_prefecture(
+        groups, request.args.get("prefecture"), office.municipality_id
+    )
+    return (
+        render_template(
+            "auth/office_routes.html",
+            heading=office.name,
+            office=office,
+            owner=owner,
+            error=error,
+            routes=[(row, _japan_day(row.confirmed_at)) for row in routes_for(office)],
+            prefectures=groups,
+            prefecture=prefecture,
+            towns=towns_in(prefecture, demo=False) if groups else [],
+            chosen=request.form.get("municipality", type=int),
+            entered=request.form.get("minutes", "") if error else "",
+            limit=current_app.config.get("TRAVEL_LIMIT_MINUTES", 60),
+        ),
+        status,
     )
 
 

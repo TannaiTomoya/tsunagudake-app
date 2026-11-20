@@ -101,6 +101,7 @@ make check                       # 整形 → 静的解析 → 型 → 全テス
 | `uv run flask seed-demo` | 架空のデータを用意する（demo・development だけ） |
 | `uv run flask reset-demo --yes` | 架空のデータを消して入れ直す（demo・development だけ） |
 | `uv run flask verify-ledger` | 境界線台帳が書き換えられていないかを確かめる |
+| `uv run flask sync-municipalities` | 市町村の一覧（1,741件）から、DB に無い行だけを足す（直さない・消さない） |
 | `TEST_DATABASE_URL=… uv run pytest` | MySQL で全テスト（公開の前に必ず） |
 
 ## 設定（`.env`）
@@ -133,6 +134,11 @@ make check                       # 整形 → 静的解析 → 型 → 全テス
 
 法律（税理士法・職業安定法・労働者派遣法・フリーランス法・個人情報保護法）に関わる所は、**実際の事務所が使う前に、専門家に確かめる**（01 §9.3）。今は、発表用の架空のデータだけで動かす。
 
+## 出典
+
+- 市町村の一覧（[app/data/municipalities.csv](app/data/municipalities.csv)）：「都道府県コード及び市区町村コード」（総務省）（https://www.soumu.go.jp/denshijiti/code.html ）を加工して作成（令和6年1月1日更新の Excel を、2026年11月20日に利用）。[公共データ利用規約（第1.0版）](https://www.digital.go.jp/resources/open_data/public_data_license_v1.0)による。加工の中身は [app/data/README.md](app/data/README.md)
+- 置いているのは、市町村の名前とコードだけ。デモの事務所・人・数字は、コードが 9 で始まる架空の町だけに結びつける
+
 ## 公開
 
 Xserver VPS（Ubuntu 26.04）に、nginx ＋ gunicorn ＋ MySQL ＋ HTTPS で置く。手順は [docs/runbook.md](docs/runbook.md)。
@@ -143,4 +149,4 @@ Xserver VPS（Ubuntu 26.04）に、nginx ＋ gunicorn ＋ MySQL ＋ HTTPS で置
 - 1つの Issue ＝ 1つの段階。1つずつ進め、終えるたびに `make check` を通してコミットする。
 - 機能を足したら、同じコミットでテストを足す（番号は 03 §10）。
 - 入口（ルート）を足すときは、先に [権限表](docs/authorization.md) にマスを足す。
-- 実在の事務所・人・数字は、リポジトリ・テスト・デモのデータに入れない（このリポジトリは公開）。
+- 実在の事務所・人・数字は、リポジトリ・テスト・デモのデータに入れない（このリポジトリは公開）。実在の市町村は、名前とコードの一覧だけを置く。

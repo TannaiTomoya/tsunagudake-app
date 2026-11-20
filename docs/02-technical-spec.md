@@ -101,7 +101,8 @@ tsunagudake-app/
 │  ├─ ratelimit.py         # 回数制限
 │  ├─ security.py          # Host の確認・応答ヘッダー（CSP など）
 │  ├─ charts.py            # 地域のグラフの座標（SVG はテンプレートで描く。色は kidou.css、数字は表）
-│  ├─ cli.py               # flask create-user / seed-demo / reset-demo / verify-ledger
+│  ├─ cli.py               # flask create-user / seed-demo / reset-demo / verify-ledger / sync-municipalities
+│  ├─ data/                # 市町村の一覧（総務省のコードを加工。出典は data/README.md）
 │  ├─ blueprints/
 │  │  ├─ public.py         # / ・ /how ・ /healthz
 │  │  ├─ auth.py           # /login ・ /logout ・（demo）/demo/enter
@@ -121,6 +122,7 @@ tsunagudake-app/
 ├─ tests/
 │  ├─ rules/               # 規則のテスト（DB なし。速い）
 │  └─ app/                 # 画面・権限・状態のテスト
+├─ scripts/                # check_secrets.py・build_municipalities.py（総務省の Excel から一覧を作る。標準ライブラリだけ）
 ├─ deploy/                 # nginx・systemd・deploy.sh・backup の雛形（秘密は入れない）
 ├─ docs/                   # 設計書
 ├─ .claude/agents/         # 点検だけをする担当（§12）
@@ -335,7 +337,7 @@ make check        # ruff format --check → ruff check → mypy → pytest
 テスト番号（T…）は 03 §10。機能を足したら、同じコミットでテストを足す。
 
 ### 10.3 CI（`.github/workflows/ci.yml`）
-push と PR で動く。①`make check`（SQLite）②MySQL 8.0 と 8.4 のサービスを立てて全テスト（`TEST_DATABASE_URL`）③空の MySQL に `flask db upgrade` が通る ④秘密の形をした文字列・`.env` が入っていないかの確認。
+push と PR で動く。①`make check`（SQLite）②MySQL 8.0 と 8.4 のサービスを立てて全テスト（`TEST_DATABASE_URL`）③空の MySQL に `flask db upgrade` が通り、`flask sync-municipalities` を2回動かして2回目は何も足さない ④秘密の形をした文字列・`.env` が入っていないかの確認。
 
 **公開の前に、MySQL で全テストを通す。** SQLite で通っても、MySQL で落ちることがある（文字の長さ・ロック・日時）。
 
@@ -376,7 +378,7 @@ push と PR で動く。①`make check`（SQLite）②MySQL 8.0 と 8.4 のサ�
 
 ### 11.4 反映（F67）
 main に入る → `ci.yml` が通る → `deploy.yml` が SSH で `deploy.sh` を動かす。
-`deploy.sh`：①DB をバックアップ ②`git pull` ③`uv sync --frozen --no-dev` ④`flask db upgrade` ⑤`sudo systemctl restart tsunagudake` ⑥`/healthz` が 200 を返すまで待つ。返らなければ失敗として知らせる。
+`deploy.sh`：①DB をバックアップ ②`git pull` ③`uv sync --frozen --no-dev` ④`flask db upgrade` と `flask sync-municipalities`（市町村の無い行を足すだけ）⑤`sudo systemctl restart tsunagudake` ⑥`/healthz` が 200 を返すまで待つ。返らなければ失敗として知らせる。
 再起動だけを sudo で許す（`/etc/sudoers.d/` に1行）。**サーバーの上でファイルを直さない**（次の `git pull` でぶつかる）。
 
 ### 11.5 バックアップ（F66）
@@ -442,7 +444,7 @@ VPS と バケットが別の会社なので、片方の契約が止まっても
 | U2 | Xserver VPS のプラン（2GB を申し込めるか） | 段階1 |
 | U3 | 本番は認証付き SMTP リレーに TLS（既定465）で送る。日常の送信は outbox を `flask send-mail` で処理する。demo・development は運営画面に記録する | 段階16 |
 | U4 | 2段階認証のライブラリ | 段階17 |
-| U5 | 市町村の間の移動時間の出どころ。**決定（11月20日）**：事務所が確かめた経路だけを、手で登録する。地図のサービスは使わない。発表は架空の表（#72） | 作るのは、実際の事務所が使う前 |
+| U5 | 市町村の間の移動時間の出どころ。**決定（11月20日）**：事務所が確かめた経路だけを、手で登録する。地図のサービスは使わない。発表は架空の表（#72）。通常の事務所は `office_routes`、デモの事務所は `travel_times` を使う（03 §4.1・§5.4） | 実装済み（#72） |
 | U6 | プライバシーポリシー・利用規約の文面 | 実際の事務所が使う前 |
 | U7 | 公開デモの共有アカウントは、発表時に案内する合言葉で利用できる。発表直前に `reset-demo` を実行する。 | 段階9 |
 
