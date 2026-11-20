@@ -515,6 +515,7 @@ class Statement(Created, Base):
     status: Mapped[StatementStatus] = mapped_column(stored_enum(StatementStatus))
     finalized_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     finalized_at: Mapped[datetime | None]
+    returned_to: Mapped[str | None] = mapped_column(String(100))
 
 
 class RateLimitEvent(Created, Base):
