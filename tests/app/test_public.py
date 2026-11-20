@@ -1,4 +1,6 @@
+from struct import unpack
 from unittest.mock import patch
+from urllib.parse import urljoin
 
 import pytest
 from flask.testing import FlaskClient
@@ -78,3 +80,35 @@ def test_branded_pages(client: FlaskClient, path: str, title: str, status: int) 
         assert "先に登録された人" in html
     if path == "/missing":
         assert "ホームから開き直してください" in html
+
+
+def test_masu_app_icons(client: FlaskClient) -> None:
+    manifest_path = "/static/manifest.json"
+    apple_icon = "/static/icons/masu-180.png"
+    for page in ("/", "/login"):
+        html = client.get(page).get_data(as_text=True)
+        assert f'rel="manifest" href="{manifest_path}"' in html
+        assert f'rel="apple-touch-icon" sizes="180x180" href="{apple_icon}"' in html
+        assert 'rel="icon" href="/favicon.ico"' in html
+
+    favicon = client.get("/favicon.ico")
+    assert favicon.status_code == 200
+    assert favicon.data[:4] == b"\x00\x00\x01\x00"
+    manifest = client.get(manifest_path).get_json()
+    assert manifest["name"] == manifest["short_name"] == "つなぐだけ"
+    assert manifest["display"] == "standalone"
+    assert urljoin(manifest_path, manifest["start_url"]) == "/"
+    assert urljoin(manifest_path, manifest["scope"]) == "/"
+
+    assert {(icon["purpose"], icon["sizes"]) for icon in manifest["icons"]} == {
+        ("any", "192x192"),
+        ("any", "512x512"),
+        ("maskable", "512x512"),
+    }
+    for icon in [*manifest["icons"], {"src": apple_icon, "sizes": "180x180"}]:
+        png = client.get(urljoin(manifest_path, icon["src"]))
+        assert png.status_code == 200
+        assert png.mimetype == "image/png"
+        assert png.data[:8] == b"\x89PNG\r\n\x1a\n"
+        width, height = unpack(">II", png.data[16:24])
+        assert f"{width}x{height}" == icon["sizes"]

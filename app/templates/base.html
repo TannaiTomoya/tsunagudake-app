@@ -10,6 +10,11 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0f1422">
+    <meta name="apple-mobile-web-app-title" content="{{ brand }}">
+    <link rel="icon" href="{{ url_for('public.favicon') }}" type="image/x-icon">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icons/masu-180.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <title>{% block title %}ホーム{% endblock %}｜{{ brand }}</title>
     <link rel="preload" as="style" href="{{ url_for('static', filename='vendor/pico.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
