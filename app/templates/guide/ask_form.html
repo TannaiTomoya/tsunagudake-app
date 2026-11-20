@@ -1,0 +1,21 @@
+{# 選ぶ質問と、自分の言葉の質問は、別のフォームにする（Enter で選ぶ質問が送られないように）。 #}
+<div class="guide-ask-forms">
+  <form class="guide-ask-form guide-ask-choices" method="post" action="{{ url_for('guide.ask') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="screen" value="{{ ask_screen }}">
+    {% for faq in guide_questions(ask_screen, ask_exclude | default(none)) %}
+    <button type="submit" name="faq" value="{{ faq.key }}" class="secondary outline">{{ faq.question }}</button>
+    {% endfor %}
+  </form>
+  <form class="guide-ask-form guide-ask-free" method="post" action="{{ url_for('guide.ask') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="screen" value="{{ ask_screen }}">
+    <label>自分の言葉で聞く
+      <span class="guide-ask-row">
+        <input type="text" name="question" maxlength="100" required autocomplete="off" aria-describedby="guide-ask-note">
+        <button type="submit" class="secondary">聞く</button>
+      </span>
+    </label>
+    <small id="guide-ask-note">顧問先の名前と金額は書かないでください。用意した答えの中からお答えします。</small>
+  </form>
+</div>

@@ -19,7 +19,7 @@
 
 ## 2. 主体
 
-公開の入口：`GET /`、`GET /healthz`、`GET /favicon.ico`、`GET /static/<path:filename>` は未ログインを含む全員が利用できます。状態は変更しません。`/healthz` は DB に接続できる場合に `ok` だけを返し、接続情報や例外の詳細を表示しません。
+公開の入口：`GET /`、`GET /healthz`、`GET /favicon.ico`、`GET /static/<path:filename>`、`POST /guide/ask` は未ログインを含む全員が利用できます。状態は変更しません。`POST /guide/ask`（案内役への質問）は、あらかじめ書いた答えだけを返します。受け取るのは質問の文（100字まで）・選んだ質問の名前・画面の名前だけで、`office_id`・役割・業務データは受け取らず、ログインの有無で答えを変えません。質問は保存せず、ログにも残しません。CSRF の確かめは他の POST と同じです。`/healthz` は DB に接続できる場合に `ok` だけを返し、接続情報や例外の詳細を表示しません。
 
 | 記号 | 誰 |
 |---|---|
@@ -137,6 +137,7 @@
 | `/admin/users/<int:user_id>/suspend` | POST | §8 |
 | `/demo/enter` | GET, POST | §8 |
 | `/favicon.ico` | GET | §2 |
+| `/guide/ask` | POST | §2 |
 | `/healthz` | GET | §2 |
 | `/how` | GET | §8 |
 | `/login` | GET, POST | §2 |

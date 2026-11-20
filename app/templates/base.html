@@ -18,9 +18,12 @@
     <title>{% block title %}ホーム{% endblock %}｜{{ brand }}</title>
     <link rel="preload" as="style" href="{{ url_for('static', filename='vendor/pico.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/guide-ask.css') }}">
     {% if guide_lines %}
     <script defer src="{{ url_for('static', filename='vendor/animejs/anime-4.1.3.umd.min.js') }}"></script>
-    <script defer src="{{ url_for('static', filename='js/guide.js') }}"></script>{% endif %}
+    <script defer src="{{ url_for('static', filename='js/guide-voice.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/guide.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/guide-ask.js') }}"></script>{% endif %}
   </head>
   <body{% if guide_lines %} class="with-guide"{% endif %}>
     <a class="skip-link" href="#main">本文へ移動します</a>
