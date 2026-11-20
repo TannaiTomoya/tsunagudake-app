@@ -112,3 +112,24 @@ def test_masu_app_icons(client: FlaskClient) -> None:
         assert png.data[:8] == b"\x89PNG\r\n\x1a\n"
         width, height = unpack(">II", png.data[16:24])
         assert f"{width}x{height}" == icon["sizes"]
+
+
+@pytest.mark.parametrize(("path", "example"), [("/", True), ("/how", False)])
+def test_money_flow_shows_who_pays_whom(
+    client: FlaskClient, path: str, example: bool
+) -> None:
+    html = client.get(path).get_data(as_text=True)
+    figure = html.split('<figure class="money-flow"', 1)[1].split("</figure>", 1)[0]
+    for text in (
+        "会計事務所",
+        "つなぎ手",
+        "料金を振込",
+        "減った時間 × 時給 × 割合（50%未満）",
+        "減らなければ、つなぎ手への料金は0円です。",
+        "アプリはお金を預かりません。",
+        "運営の取り分は検討中です。",
+    ):
+        assert text in figure
+    assert ("32,000円" in figure) is example
+    if path == "/how":
+        assert "理由ごとに何点かを表示します" in html

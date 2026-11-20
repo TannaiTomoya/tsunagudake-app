@@ -130,12 +130,14 @@ def test_t09_reasons_and_unverified_grade() -> None:
     (candidate,) = result.candidates
     assert candidate.score == 49
     assert candidate.reasons == (
-        "同じ会計ソフトを使えます",
-        "資料回収が得意です",
-        "車で25分：毎週通える距離です",
-        "確かめられた訪問が8回あります",
-        "月曜に通えます",
+        "同じ会計ソフトを使えます（20点）",
+        "資料回収が得意です（10点）",
+        "車で25分：毎週通える距離です（10点）",
+        "確かめられた訪問が8回あります（6点）",
+        "月曜に通えます（3点）",
     )
+    points = [int(r.rsplit("（", 1)[1].removesuffix("点）")) for r in candidate.reasons]
+    assert sum(points) == candidate.score
 
 
 def test_t11_reduction_and_waiver() -> None:
