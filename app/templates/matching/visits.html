@@ -1,5 +1,5 @@
 <h2 id="visits">訪問</h2>
-{% if activity.talent_writer %}<p><a href="{{ url_for('statements.visit_form', engagement_id=engagement.id) }}">訪問を記録する</a></p>{% endif %}
+{% if activity.talent_writer and engagement.status != 'ended' %}<p><a href="{{ url_for('statements.visit_form', engagement_id=engagement.id) }}">訪問を記録する</a></p>{% endif %}
 {% if activity.visits %}
 <div class="overflow-auto" role="region" aria-label="訪問の一覧" tabindex="0"><table>
   <thead><tr><th scope="col">日付</th><th scope="col">業務の型</th><th scope="col" data-numeric>時間</th><th scope="col">伝えること</th><th scope="col">状態</th></tr></thead>

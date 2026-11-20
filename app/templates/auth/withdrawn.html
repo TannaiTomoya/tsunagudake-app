@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}退会しました{% endblock %}
+{% block content %}
+<h1>退会しました</h1>
+<p>表示名とメールアドレスを消しました。ご利用ありがとうございました。</p>
+<p><a href="{{ url_for('public.index') }}">ホームに戻る</a></p>
+{% endblock %}

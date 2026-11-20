@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}退会する{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('auth.account') }}">マイページに戻る</a></p>
+<h1>退会する</h1>
+<p>退会すると、このアカウントではログインできなくなります。元に戻せません。</p>
+<div class="overflow-auto" role="region" aria-label="退会で消すものと残すもの" tabindex="0"><table>
+  <thead><tr><th scope="col">もの</th><th scope="col">退会のあと</th></tr></thead>
+  <tbody>
+    <tr><th scope="row">表示名・メールアドレス</th><td>消します（「退会した人」と表示します）</td></tr>
+    {% if role == "tsunagite" %}
+    <tr><th scope="row">プロフィール・誓約と研修の記録・振込先</th><td>消します</td></tr>
+    {% endif %}
+    {% if closes_office %}
+    <tr><th scope="row">困りごとの本文・訪問のメモ</th><td>消します。事務所は閉じます</td></tr>
+    {% endif %}
+    <tr><th scope="row">伴走と明細（月・時間・金額）</th><td>残します（相手の記録でもあるためです）</td></tr>
+    <tr><th scope="row">境界線台帳</th><td>残します（名前は入っていません）</td></tr>
+  </tbody>
+</table></div>
+{% if reasons %}
+<h2>まだ退会できません</h2>
+<ul role="alert">{% for reason in reasons %}<li>{{ reason }}</li>{% endfor %}</ul>
+{% else %}
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label for="password">パスワード</label>
+  <input id="password" name="password" type="password" autocomplete="current-password" maxlength="1024" required>
+  <label><input type="checkbox" name="confirm" value="yes" required> 元に戻せないことを確かめました</label>
+  <button type="submit">退会する</button>
+</form>
+{% endif %}
+{% endblock %}

@@ -39,6 +39,7 @@ from app.models import (
     TalentSkill,
     User,
 )
+from app.services.engagement import END_REASONS, EngagementConflict, end_engagement
 from app.services.ledger import records_for_need
 from app.services.matching import (
     MatchConflict,
@@ -300,6 +301,7 @@ def _engagement_page(engagement: Engagement, *, office_side: bool) -> str:
         activity=activity_for(engagement, office_side=office_side),
         categories=CATEGORIES,
         returned_kinds=RETURNED_KINDS,
+        end_reasons=END_REASONS,
         ledger=[
             (row, json.loads(row.payload)["data"]) for row in records_for_need(need)
         ],
@@ -340,3 +342,34 @@ def skill_confirmation(
             _anchor="skills",
         )
     )
+
+
+@bp.post("/o/<int:office_id>/engagements/<int:engagement_id>/end")
+@bp.post("/t/engagements/<int:engagement_id>/end", endpoint="talent_end")
+@login_required  # type: ignore[untyped-decorator]
+def end(engagement_id: int, office_id: int | None = None) -> ResponseReturnValue:
+    # 終えられるのは、事務所の代表と、担当するつなぎ手本人だけ。
+    if office_id is not None:
+        engagement = require_office_engagement(
+            office_id, engagement_id, owner_only=True
+        )
+    else:
+        engagement = require_talent_engagement(engagement_id, write=True)
+    try:
+        end_engagement(
+            engagement,
+            _actor().id,
+            request.form.get("reason", ""),
+            by_office=office_id is not None,
+        )
+    except EngagementConflict as exc:
+        return render_template("error.html", message=str(exc)), 409
+    if office_id is not None:
+        return redirect(
+            url_for(
+                "matching.office_engagement",
+                office_id=office_id,
+                engagement_id=engagement_id,
+            )
+        )
+    return redirect(url_for("matching.talent_engagement", engagement_id=engagement_id))

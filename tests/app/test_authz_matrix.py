@@ -284,6 +284,16 @@ ROUTES = (
         "admin-suspend", "POST", "/admin/users/2/suspend", (*TALENT_ACTORS, "assigned")
     ),
     Route("admin-self-suspend", "POST", "/admin/users/4/suspend", (), ("admin",)),
+    Route(
+        "office-end",
+        "POST",
+        "{engagement}/end",
+        ("other_office", "other_staff", "unrelated", "municipality"),
+        ("staff", "assigned", "admin"),
+    ),
+    Route("talent-end", "POST", "{talent_engagement}/end", TALENT_ACTORS, ("admin",)),
+    Route("withdraw-form", "GET", "/account/withdraw", (), ("admin",)),
+    Route("withdraw", "POST", "/account/withdraw", (), ("admin",)),
 )
 
 
@@ -390,6 +400,9 @@ def test_denial_matrix(
                 "grade": "2",
                 "client_count": "12",
                 "municipality": "2",
+                "reason": "goal_met",
+                "password": PASSWORD,
+                "confirm": "yes",
             },
         )
     else:

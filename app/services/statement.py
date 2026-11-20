@@ -10,6 +10,7 @@ from app.audit import record_audit
 from app.extensions import db
 from app.models import (
     Engagement,
+    EngagementStatus,
     Need,
     Reduction,
     ReductionStatus,
@@ -109,6 +110,11 @@ def save_visit(
     engagement: Engagement, data: VisitInput, visit_id: int | None = None
 ) -> None:
     _lock(engagement)
+    state = db.session.scalar(
+        select(Engagement.status).where(Engagement.id == engagement.id)
+    )
+    if state == EngagementStatus.ENDED:
+        raise StatementConflict("終わった伴走には、訪問を記録できません。")
     if data.day > today_in_japan() or not 15 <= data.minutes <= 600:
         raise StatementConflict("訪問の日付と時間をご確認ください。")
     visit = (

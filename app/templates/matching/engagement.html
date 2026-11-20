@@ -22,6 +22,26 @@
   <dt>月の上限</dt><dd>{{ "{:,}円".format(engagement.fee_cap_yen) if engagement.fee_cap_yen is not none else "なし" }}</dd>
   <dt>お試し期間の終了日</dt><dd>{{ engagement.trial_ends_on }}</dd>
 </dl>
+<h2 id="end">伴走を終える</h2>
+{% if engagement.status == "ended" %}
+<p><span class="state" data-status="ended">終了</span> この伴走は終わりました（{{ engagement.end_reason }}）。記録は残ります。減った時間の確認と明細の確定は、続けてできます。</p>
+{% elif activity.owner or activity.talent_writer %}
+<details>
+  <summary>伴走を終える</summary>
+  <p>終えると、新しい訪問は記録できません。終えた理由は、境界線台帳に残ります。</p>
+  <form method="post" action="{{ url_for('matching.end', office_id=engagement.office_id, engagement_id=engagement.id) if activity.owner else url_for('matching.talent_end', engagement_id=engagement.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="end-reason">終える理由</label>
+    <select id="end-reason" name="reason" required>
+      <option value="">選択してください</option>
+      {% for value, label in end_reasons.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+    </select>
+    <button class="secondary outline" type="submit">この伴走を終える</button>
+  </form>
+</details>
+{% else %}
+<p>伴走を終えられるのは、事務所の代表と、担当するつなぎ手です。</p>
+{% endif %}
 </section>
 </div>
 {% endblock %}

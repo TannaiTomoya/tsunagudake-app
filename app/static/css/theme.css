@@ -1233,6 +1233,9 @@ body.with-guide {
 .guide-voice { display: flex; align-items: center; gap: .4rem; margin: 0 auto 0 0; }
 .masu-guide [hidden] { display: none; }
 .masu-guide :focus-visible { outline: 2px solid var(--action); outline-offset: 2px; }
+/* 画面の下の、規約とポリシーへのリンク。 */
+.legal-links { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; padding: 1.5rem 1rem 6rem; font-size: 0.875rem; }
+.legal-links a { color: var(--muted); }
 /* 都道府県 → 市町村の1段目。次の入力欄との間をあける。 */
 .prefecture-form { margin-block-end: 1.5rem; }
 .screen-columns { display: grid; gap: 1.5rem; align-items: start; }

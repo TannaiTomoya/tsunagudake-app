@@ -150,3 +150,21 @@ def init_cli(app: Flask) -> None:
         except MailError as exc:
             raise click.ClickException(str(exc)) from None
         click.echo(f"{sent}件のメールを送信しました。")
+
+    @app.cli.command("prune-audit")
+    def prune_audit() -> None:
+        """監査記録の IP の印を、180日たったら消す（行は残す）。"""
+        from datetime import timedelta
+
+        from app.models import AuditLog, utc_now
+
+        limit = utc_now() - timedelta(days=180)
+        rows = db.session.scalars(
+            select(AuditLog).where(
+                AuditLog.ip_hash.is_not(None), AuditLog.created_at < limit
+            )
+        ).all()
+        for row in rows:
+            row.ip_hash = None
+        db.session.commit()
+        click.echo(f"監査記録{len(rows)}件から、IP の印を消しました。")

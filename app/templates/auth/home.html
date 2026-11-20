@@ -9,4 +9,5 @@
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <button class="secondary outline" type="submit">ログアウトする</button>
 </form>
+<p><a href="{{ url_for('accounts.withdraw_account') }}">退会する</a></p>
 {% endblock %}

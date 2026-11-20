@@ -63,6 +63,10 @@
             {% endfor %}
           </ol>
         {% endif %}{% block content %}{% endblock %}</main>
+        <footer class="legal-links">
+          <a href="{{ url_for('public.terms') }}">利用規約（案）</a>
+          <a href="{{ url_for('public.privacy') }}">プライバシーポリシー（案）</a>
+        </footer>
       </div>
     </div>
     {% if guide_lines %}{% include "guide/masu.html" %}{% endif %}

@@ -31,3 +31,13 @@ def healthz() -> Response:
 @bp.get("/how")
 def how() -> str:
     return render_template("public/how.html", boundaries=REQUIRED_BOUNDARIES)
+
+
+@bp.get("/privacy")
+def privacy() -> str:
+    return render_template("public/privacy.html")
+
+
+@bp.get("/terms")
+def terms() -> str:
+    return render_template("public/terms.html", boundaries=REQUIRED_BOUNDARIES)

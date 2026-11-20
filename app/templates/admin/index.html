@@ -8,7 +8,7 @@
   <thead><tr><th scope="col">表示名</th><th scope="col">状態</th><th scope="col">操作</th></tr></thead>
   <tbody>{% for account, talent_id in folks %}
   <tr><td>{% if talent_id is not none %}<a href="{{ url_for('admin.talent', talent_id=talent_id) }}">{{ account.display_name }}</a>{% else %}{{ account.display_name }}{% endif %}</td>
-    <td>{{ "利用中" if account.is_active else "停止中" }}</td><td>
+    <td>{{ "利用中" if account.is_active else "退会済み" if account.email.endswith("@withdrawn.invalid") else "停止中" }}</td><td>
     {% if account.is_active and account.role != "admin" %}
     <form method="post" action="{{ url_for('admin.suspend', user_id=account.id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
