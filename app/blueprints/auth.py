@@ -4,8 +4,10 @@ from flask import (
     Blueprint,
     abort,
     current_app,
+    make_response,
     redirect,
     render_template,
+    request,
     session,
     url_for,
 )
@@ -39,7 +41,8 @@ from app.models import (
     User,
     today_in_japan,
 )
-from app.services.auth import authenticate
+from app.services import second_factor
+from app.services.auth import authenticate, requires_second_factor
 from app.services.region import dashboard_for
 from app.services.statement import confirmed_visits, expected_income
 from app.services.tasks import tasks_for
@@ -85,6 +88,9 @@ def _destination(user: User) -> str:
 
 def start_session(user: User) -> Response:
     session.clear()
+    if requires_second_factor(user):
+        second_factor.begin(user)
+        return redirect(url_for("auth.challenge"))
     session.permanent = True
     login_user(user)
     return redirect(_destination(user))
@@ -103,6 +109,43 @@ def login() -> str | Response | tuple[str, int]:
             return render_template("auth/login.html", form=form, failed=True), 401
         return start_session(user)
     return render_template("auth/login.html", form=form)
+
+
+@bp.route("/login/second-factor", methods=["GET", "POST"])
+def challenge() -> Response:
+    user, factor = second_factor.pending(submitted=request.method == "POST")
+    if user is None or factor is None:
+        return redirect(url_for("auth.login"))
+    error = None
+    if request.method == "POST":
+        accepted, codes = second_factor.confirm(
+            user, factor, request.form.get("code", "")
+        )
+        if accepted:
+            session.clear()
+            session.permanent = True
+            session["second_factor_identity"] = user.get_id()
+            login_user(user)
+            if not codes:
+                return redirect(_destination(user))
+            response = make_response(
+                render_template(
+                    "auth/recovery.html", codes=codes, workspace_url=_destination(user)
+                )
+            )
+            response.headers["Cache-Control"] = "no-store"
+            return response
+        error = "コードを確認してください。"
+    response = make_response(
+        render_template(
+            "auth/second_factor.html",
+            setup_key=second_factor.setup_key(factor),
+            error=error,
+        ),
+        401 if error else 200,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @bp.post("/logout")

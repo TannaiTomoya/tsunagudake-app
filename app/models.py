@@ -75,6 +75,18 @@ class User(UserMixin, Created, Base):  # type: ignore[misc]
         return f"{self.id}:{self.session_nonce}"
 
 
+class SecondFactor(Base):
+    __tablename__ = "second_factors"
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    secret_cipher: Mapped[str] = mapped_column(String(255))
+    enrollment_ticket: Mapped[str | None] = mapped_column(String(48))
+    last_step: Mapped[int | None]
+    recovery_hashes: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+
 class Municipality(Created, Base):
     __tablename__ = "municipalities"
 

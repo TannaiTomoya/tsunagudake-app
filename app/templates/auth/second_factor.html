@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}2段階認証{% endblock %}
+{% block content %}
+<h1>2段階認証</h1>
+{% if setup_key %}
+<p>認証アプリで「設定キーを入力」を選び、名前に「つなぐだけ」、種類に「時間ベース」を選んでください。</p>
+<p>設定キー <code id="setup-key">{{ setup_key }}</code></p>
+{% endif %}
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label for="code">{{ "認証アプリの6桁のコード" if setup_key else "認証アプリの6桁のコード、または予備コード" }}</label>
+  <input id="code" name="code" type="text" autocomplete="one-time-code" maxlength="24" required>
+  <button>確認する</button>
+</form>
+<p><a href="{{ url_for('auth.login') }}">ログインからやり直す</a></p>
+{% endblock %}

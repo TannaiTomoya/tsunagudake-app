@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}予備コード{% endblock %}
+{% block content %}
+<h1>予備コードを保管してください</h1>
+<p>認証アプリを使えないときに、1つにつき1回使えます。安全な場所に控えてください。表示は今回だけです。</p>
+<ul>{% for code in codes %}<li><code>{{ code }}</code></li>{% endfor %}</ul>
+<a role="button" href="{{ workspace_url }}">担当のホームに進む</a>
+{% endblock %}

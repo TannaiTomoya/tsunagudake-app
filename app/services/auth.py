@@ -1,7 +1,7 @@
 import hmac
 from typing import cast
 
-from flask import current_app
+from flask import current_app, session
 from sqlalchemy import select
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -11,6 +11,13 @@ from app.models import User, utc_now
 from app.ratelimit import check_login, finish_login, login_buckets
 
 _DUMMY_HASH = generate_password_hash("unused account")
+
+
+def requires_second_factor(user: User) -> bool:
+    return not user.is_demo and (
+        current_app.config["APP_ENV"] in {"production", "demo"}
+        or current_app.config.get("MFA_REQUIRED", False)
+    )
 
 
 def _can_sign_in(user: User) -> bool:
@@ -26,6 +33,11 @@ def load_user(identity: str) -> User | None:
         return None
     user = db.session.get(User, int(user_id))
     if user and _can_sign_in(user) and hmac.compare_digest(user.session_nonce, nonce):
+        if (
+            requires_second_factor(user)
+            and session.get("second_factor_identity") != identity
+        ):
+            return None
         return user
     return None
 
@@ -49,7 +61,10 @@ def authenticate(email: str, password: str, *, demo_only: bool = False) -> User 
         return None
 
     finish_login(buckets, successful=True)
-    user.last_login_at = utc_now()
-    record_audit("login", actor_id=user.id)
+    if requires_second_factor(user):
+        record_audit("password_verified", actor_id=user.id)
+    else:
+        user.last_login_at = utc_now()
+        record_audit("login", actor_id=user.id)
     db.session.commit()
     return cast(User, user)

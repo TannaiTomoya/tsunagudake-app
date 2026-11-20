@@ -131,6 +131,8 @@
 
 「今日やること」は所属する有効な事務所または本人の伴走と信用情報を表示します。他のアカウントの指定は受け付けません。
 
+本番の全利用者はパスワードの後に認証アプリまたは使い切り予備コードが必要です。登録途中・旧セッションは業務データにアクセスできません。デモ環境では架空利用者が発表用の入口を利用できます。
+
 ### 実装済みルート一覧
 
 | 入口 | メソッド | 権限表 |
@@ -184,3 +186,4 @@
 | `/admin/talents/<int:talent_id>/translation` | POST | §8 |
 | `/o/<int:office_id>/engagements/<int:engagement_id>/skills/<int:skill_id>/verify` | POST | §5 |
 | `/account/today` | GET | §2 |
+| `/login/second-factor` | GET, POST | §2 |
