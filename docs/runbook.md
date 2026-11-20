@@ -322,15 +322,33 @@ sudo systemctl status certbot.timer    # 自動で更新される
 - [ ] 一晩おいた翌朝も、最初の1回でエラーにならない（DB の接続が切れていても、つなぎ直す。02 §6）
 
 ## 12. 更新
-自動デプロイ（段階11）の前は、手で：
+
+変更はブランチで作り、PR を経由して `main` に入れます。`main` への push の検査が成功すると「VPS へ自動反映」が起動します。VPS の作業ツリーは `main` にしておきます。
+
+### 12.1 自動反映の準備
+
+1. VPS の `ubuntu` ユーザーに Actions 専用の SSH 公開鍵を登録します。VPS が GitHub を読むための Deploy key とは別の鍵です。
+2. GitHub の `production` Environment に `VPS_DEPLOY_SSH_KEY`（Actions 専用の秘密鍵）と `VPS_DEPLOY_KNOWN_HOSTS`（VPS の照合済みホスト鍵）を Secrets として登録します。SSH ホスト鍵は VPS パネル等の信頼できる経路で照合します。
+3. リポジトリの Actions Variables に `VPS_DEPLOY_HOST`（SSH のホスト名または IPv4）と `VPS_BASE_URL`（末尾スラッシュなしの公開 HTTPS URL）を登録します。
+4. §13 の `my.cnf` を用意し、下記の手動反映を運用者が1回実行します。VPS 側にも検査済みコミットの引数を扱う版が入ります。
+5. `sudo visudo -f /etc/sudoers.d/tsunagudake-deploy` で、サービスの再起動だけを許可します。
+
+```sudoers
+ubuntu ALL=(root) NOPASSWD: /usr/bin/systemctl restart tsunagudake.service
+```
+
+6. 管理用のログインを確保したうえで、`sudo -l -U ubuntu` で既存のグループ設定も含めた権限を確認します。反映用アカウントの sudo 権限を上記の再起動に絞ってから、リポジトリの Actions Variable `VPS_DEPLOY_ENABLED` を `true` にします。
+
+### 12.2 手動反映と結果の確認
+
 ```bash
 cd /var/www/tsunagudake-app
 bash deploy/deploy.sh https://tsunagudake.example.jp
 ```
-更新前に §13 の `my.cnf` を用意する。更新用の控えは `~/.local/state/tsunagudake/backups/` に保存される。
 
-`deploy/deploy.sh` がすること：①DB をバックアップ ②`git pull --ff-only` ③`uv sync --frozen --no-dev` ④`uv run --frozen --no-dev flask db upgrade` ⑤`sudo systemctl restart tsunagudake` ⑥`/healthz` が 200 を返すまで待つ（返らなければ、失敗として終わる）。
-**サーバーの上でファイルを直さない。** 直すのは自分の PC で、push して、ここで取り込む。
+更新前に DB の gzip を保存し、`main` を対象コミットへ早送りして、`uv sync --frozen --no-dev`、`flask db upgrade`、再起動を行います。公開 `/healthz` が HTTP 200 を返さなければ Actions に失敗が残ります。自動実行では Actions 側と VPS 側で `main` を照合し、進んでいた場合は反映を見送ります。
+
+更新用の控えは `~/.local/state/tsunagudake/backups/` に保存されます。変更は GitHub の PR で行い、VPS 上では手順どおりに取り込みます。
 
 ## 13. バックアップと復元の練習
 
