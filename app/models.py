@@ -283,6 +283,10 @@ class Talent(Created, Base):
         ),
         default=BookkeepingLevel.NONE,
     )
+    translation_verified_at: Mapped[datetime | None]
+    translation_verified_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
     level_verified_at: Mapped[datetime | None]
     level_verified_by: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
@@ -458,6 +462,7 @@ class Visit(Created, Base):
     category: Mapped[NeedKind] = mapped_column(
         stored_enum(NeedKind, name="visit_category")
     )
+    learned_term: Mapped[str | None] = mapped_column(String(100))
     note: Mapped[str | None] = mapped_column(String(300))
     status: Mapped[VisitStatus] = mapped_column(
         stored_enum(VisitStatus), default=VisitStatus.RECORDED

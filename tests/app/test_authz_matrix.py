@@ -224,6 +224,13 @@ ROUTES = (
         "admin-talent", "GET", "/admin/talents/{talent}", (*TALENT_ACTORS, "assigned")
     ),
     Route(
+        "translation",
+        "POST",
+        "/admin/talents/{talent}/translation",
+        TALENT_ACTORS,
+        ("assigned",),
+    ),
+    Route(
         "admin-grade",
         "POST",
         "/admin/talents/{talent}/verify-grade",

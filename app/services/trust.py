@@ -204,6 +204,29 @@ def add_trust_record(talent_id: int, kind: TrustKind, actor_id: int, day: date) 
     _commit()
 
 
+TRANSLATION_CRITERIA = {
+    "missing": "不足している資料を特定した",
+    "question": "相手が答えられる確認の一文を書いた",
+    "record": "事務所の言葉で次の対応を記録した",
+}
+
+
+def verify_translation(talent_id: int, actor_id: int, criteria: set[str]) -> None:
+    talent = _locked_talent(talent_id)
+    if criteria != TRANSLATION_CRITERIA.keys():
+        raise TrustConflict("3つの採点項目をすべて確認してください。")
+    if talent.translation_verified_at is None:
+        talent.translation_verified_at = utc_now()
+        talent.translation_verified_by = actor_id
+        record_audit(
+            "translation_passed",
+            actor_id=actor_id,
+            target_type="talent",
+            target_id=talent_id,
+        )
+        _commit()
+
+
 def verify_grade(talent_id: int, expected: BookkeepingLevel, actor_id: int) -> None:
     talent = _locked_talent(talent_id)
     if expected == BookkeepingLevel.NONE or talent.bookkeeping_level != expected:

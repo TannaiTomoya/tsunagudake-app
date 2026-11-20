@@ -52,6 +52,7 @@ bp = Blueprint("matching", __name__)
 EXCLUSIONS = {
     "pledge": "守秘の誓約が未有効",
     "training": "研修が未有効",
+    "translation": "翻訳課題が未確認",
     "distance": "移動時間が60分超または不明",
     "weekday": "希望曜日が合わない",
     "capacity": "受け持ち上限",

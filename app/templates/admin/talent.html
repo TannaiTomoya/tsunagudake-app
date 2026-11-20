@@ -10,6 +10,15 @@
   <dt>候補への掲載</dt><dd>{{ "掲載する" if profile.is_listed else "掲載しない" }}</dd>
   <dt>道具と得意な業務</dt><dd>{% for skill in skills %}{{ (tools if skill.kind == "tool" else categories)[skill.tag] }}{% if not loop.last %}・{% endif %}{% else %}未設定{% endfor %}</dd>
 </dl>
+<h2>翻訳課題（10分）</h2>
+{% if profile.translation_verified_at %}<p>運営確認済み</p>{% else %}
+<p>架空のカード明細には「印刷代」と「消耗品代」の2件、添付の領収書には「印刷代」だけがあります。足りない資料を見つけ、顧問先への確認の一文と事務所内の引き継ぎを書いてもらってください。</p>
+<form method="post" action="{{ url_for('admin.translation', talent_id=profile.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <fieldset><legend>回答を見て確認した項目</legend>
+  {% for key, label in criteria.items() %}<label><input type="checkbox" name="criterion" value="{{ key }}" required> {{ label }}</label>{% endfor %}</fieldset>
+  <button>合格を記録する</button>
+</form>{% endif %}
 <h2>簿記の級</h2>
 {% if profile.bookkeeping_level == "none" %}<p>級の申告がありません。</p>
 {% else %}

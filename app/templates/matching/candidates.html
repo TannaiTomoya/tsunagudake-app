@@ -19,7 +19,7 @@
       <td data-numeric>{{ candidate.rank }}</td>
       <td>{{ name }}（{{ town }}）<br><small>所属：{{ affiliations[talent.affiliation] }}</small></td>
       <td>{{ talent.bookkeeping_level ~ "級" if talent.level_verified_at and talent.bookkeeping_level != "none" else "—" }}</td>
-      <td><ul>{% for reason in candidate.reasons %}<li>{{ reason }}</li>{% endfor %}</ul></td>
+      <td>{% if run.rules_version not in ("1.0.0", "1.0.1") and talent.translation_verified_at %}<p>確認の一文が書けます（翻訳課題合格）。</p>{% endif %}<ul>{% for reason in candidate.reasons %}<li>{{ reason }}</li>{% endfor %}</ul></td>
       <td data-numeric>{{ candidate.score }}</td><td><span class="{{ 'seal' if candidate.status == 'accepted' else 'state' }}" data-status="{{ candidate.status }}">{{ labels[candidate.status] }}</span></td>
     </tr>
     {% endfor %}</tbody>

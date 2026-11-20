@@ -54,6 +54,7 @@ class VisitForm(FlaskForm):  # type: ignore[misc]
         "訪問時間（分）", validators=[InputRequired(), NumberRange(15, 600)]
     )
     category = SelectField("業務の型", choices=_CHOICES, validators=[InputRequired()])
+    learned_term = StringField("聞き返した用語（任意）", validators=[Length(max=100)])
     note = TextAreaField("事務所に伝えること（任意）", validators=[Length(max=300)])
 
 
@@ -172,6 +173,7 @@ def visit_form(engagement_id: int, visit_id: int | None = None) -> ResponseRetur
             "minutes": visit.minutes,
             "category": visit.category.value,
             "note": visit.note,
+            "learned_term": visit.learned_term,
         }
     form = VisitForm(data=initial)
     error = None
@@ -185,6 +187,7 @@ def visit_form(engagement_id: int, visit_id: int | None = None) -> ResponseRetur
                     form.minutes.data,
                     NeedKind(form.category.data),
                     (form.note.data or "").strip() or None,
+                    (form.learned_term.data or "").strip() or None,
                 ),
                 visit_id,
             )

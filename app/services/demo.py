@@ -348,6 +348,8 @@ def seed_demo(password: str) -> bool:
                 user_id=user.id,
                 municipality_id=town.id,
                 bookkeeping_level=grade,
+                translation_verified_at=utc_now() if index != 4 else None,
+                translation_verified_by=recorder.id if index != 4 else None,
                 level_verified_at=utc_now() if index < 5 else None,
                 level_verified_by=recorder.id if index < 5 else None,
                 weekdays_mask=weekdays_mask,

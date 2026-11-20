@@ -38,6 +38,7 @@ class VisitInput:
     minutes: int
     category: NeedKind
     note: str | None
+    learned_term: str | None = None
 
 
 @dataclass(frozen=True)
@@ -122,6 +123,7 @@ def save_visit(
     visit.minutes = data.minutes
     visit.category = data.category
     visit.note = data.note
+    visit.learned_term = data.learned_term
     if visit_id is None:
         notify_office(
             engagement.office_id,

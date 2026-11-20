@@ -38,6 +38,7 @@ TALENT = Talent(
     False,
     2,
     0,
+    True,
 )
 
 
@@ -208,3 +209,15 @@ def test_t16_t17_region_threshold_and_total() -> None:
 def test_region_total_cannot_reveal_one_suppressed_cell() -> None:
     rows = [RegionRow("架空町", 6, 3, 0, 9, 12), RegionRow("架空市", 5, 8, 0, 8, 10)]
     assert mask_region(rows, 5).total == RegionMetrics(11, None, 0, 17, 22)
+
+
+def test_t41_translation_is_required_even_with_otherwise_full_score() -> None:
+    result = match(
+        NEED,
+        [replace(TALENT, translation_verified=False)],
+        {("架空町", "架空市"): 15},
+        TODAY,
+        MatchLimits(),
+    )
+    assert not result.candidates
+    assert result.excluded == {Exclusion.TRANSLATION: 1}

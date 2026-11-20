@@ -146,6 +146,7 @@ def _rank(
                 not user.is_active,
                 int(grade) if talent.level_verified_at and grade != "none" else None,
                 confirmed_visits(talent.id),
+                talent.translation_verified_at is not None,
             )
         )
     return match(

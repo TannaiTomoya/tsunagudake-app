@@ -10,6 +10,7 @@
   {{ form.day.label }} {{ form.day(required=true) }}
   {{ form.minutes.label }} {{ form.minutes(min=15, max=600, required=true) }}
   {{ form.category.label }} {{ form.category() }}
+  {{ form.learned_term.label }} {{ form.learned_term(maxlength=100, **{"aria-describedby": "visit-note"}) }}
   {{ form.note.label }}
   <small id="visit-note">顧問先の名前と金額は書かないでください。</small>
   {{ form.note(maxlength=300, **{"aria-describedby": "visit-note"}) }}

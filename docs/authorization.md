@@ -125,6 +125,8 @@
 
 振込報告は担当事務所の代表だけ、入金確認は伴走を担当するつなぎ手本人だけが行えます。金額は確定明細から読みます。
 
+翻訳課題は運営だけが3項目を目視採点します。本人による合格操作は403、その他の利用者には404です。
+
 ### 実装済みルート一覧
 
 | 入口 | メソッド | 権限表 |
@@ -175,3 +177,4 @@
 | `/admin/mail` | GET | §8 |
 | `/o/<int:office_id>/engagements/<int:engagement_id>/statements/<month>/report-transfer` | POST | §5 |
 | `/t/engagements/<int:engagement_id>/statements/<month>/confirm-receipt` | POST | §5 |
+| `/admin/talents/<int:talent_id>/translation` | POST | §8 |

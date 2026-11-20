@@ -423,6 +423,8 @@ def _seed_candidates(app: Flask) -> None:
             talent = Talent(
                 user_id=user.id,
                 municipality_id=2 if index == 3 else 1,
+                translation_verified_at=datetime(2026, 1, 1),
+                translation_verified_by=4,
                 weekdays_mask=2 if index == 4 else 1,
                 is_listed=True,
                 capacity=1,
@@ -675,6 +677,7 @@ def test_t28_confirmed_visit_is_immutable_and_counted(database_app: Flask) -> No
         "minutes": "60",
         "category": "collect",
         "note": "架空の記録",
+        "learned_term": "月締め箱",
     }
     assert (
         talent.post(
@@ -700,6 +703,7 @@ def test_t28_confirmed_visit_is_immutable_and_counted(database_app: Flask) -> No
     )
     assert "1回" in talent.get("/t/").get_data(as_text=True)
     assert talent.post(edit, data=visit).status_code == 409
+    assert "聞き返した用語：月締め箱" in office.get(office_path).get_data(as_text=True)
     assert "75分" in office.get(office_path).get_data(as_text=True)
 
 
@@ -1151,3 +1155,39 @@ def test_admin_audits_office_view_and_revokes_account(database_app: Flask) -> No
         record.entry_hash = "0" * 64
         db.session.commit()
     assert "記録が一致しません" in admin.get("/admin/ledger").get_data(as_text=True)
+
+
+def test_t41_only_full_rubric_records_one_pass(identity_app: Flask) -> None:
+    _seed_candidates(identity_app)
+    with identity_app.app_context():
+        talent = db.session.scalar(select(Talent).where(Talent.user_id == 2))
+        assert talent is not None
+        talent.translation_verified_at = talent.translation_verified_by = None
+        path = f"/admin/talents/{talent.id}"
+        db.session.commit()
+    client = identity_app.test_client()
+    sign_in(client, "admin@example.org")
+    csrf = token(client, path)
+    action = path + "/translation"
+    assert (
+        client.post(
+            action, data={"csrf_token": csrf, "criterion": ["missing"]}
+        ).status_code
+        == 422
+    )
+    for _ in range(2):
+        assert (
+            client.post(
+                action,
+                data={
+                    "csrf_token": csrf,
+                    "criterion": ["missing", "question", "record"],
+                },
+            ).status_code
+            == 302
+        )
+    with identity_app.app_context():
+        events = db.session.scalars(
+            select(AuditLog).where(AuditLog.action == "translation_passed")
+        ).all()
+        assert len(events) == 1
