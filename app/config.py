@@ -69,6 +69,19 @@ def region_threshold(environ: Mapping[str, str]) -> int:
     return threshold
 
 
+def positive_integer(
+    environ: Mapping[str, str], name: str, default: int, *, maximum: int
+) -> int:
+    raw = environ.get(name, "").strip()
+    try:
+        value = int(raw) if raw else default
+    except ValueError:
+        value = 0
+    if not 1 <= value <= maximum:
+        raise ConfigError(f"{name} は 1〜{maximum} の整数を指定してください。")
+    return value
+
+
 def load_config(environ: Mapping[str, str]) -> dict[str, Any]:
     mode = environ.get("APP_ENV", "production")
     if mode not in CONFIGS:
@@ -81,6 +94,16 @@ def load_config(environ: Mapping[str, str]) -> dict[str, Any]:
         database = environ.get("DATABASE_URL") or "sqlite:///tsunagudake.sqlite"
     return {
         "APP_ENV": mode,
+        "RATE_LIMIT_ENABLED": boolean(environ, "RATE_LIMIT_ENABLED", True),
+        "RATE_LOGIN_FAIL_MAX": positive_integer(
+            environ, "RATE_LOGIN_FAIL_MAX", 5, maximum=1000
+        ),
+        "RATE_LOGIN_FAIL_SECONDS": positive_integer(
+            environ, "RATE_LOGIN_FAIL_SECONDS", 900, maximum=43200
+        ),
+        "RATE_LOGIN_IP_MAX": positive_integer(
+            environ, "RATE_LOGIN_IP_MAX", 20, maximum=1000
+        ),
         "REGION_K_ANONYMITY": region_threshold(environ),
         "DEBUG": defaults.DEBUG,
         "TESTING": defaults.TESTING,
