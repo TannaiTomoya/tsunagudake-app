@@ -56,7 +56,7 @@
 | 公開・取り下げ | → | 404 | 403 | ○ | 404 | 404 | 404 | 403 |
 
 ## 4. 候補・声かけ・合意
-候補の再計算は事務所の代表・職員が POST で実行します。閲覧は表の条件に従います。つなぎ手のホームには本人宛ての声かけと本人の伴走だけを表示し、声かけ中の本文は表示しません。
+候補の再計算は事務所の代表・職員が POST で実行します。運営の再計算は403、他の所属やロールは404です。閲覧は表の条件に従います。つなぎ手のホームには本人宛ての声かけと本人の伴走だけを表示し、声かけ中の本文は表示しません。
 
 | 操作 | 未 | 他 | 職 | 代 | つ外 | つ声 | 自 | 運 |
 |---|---|---|---|---|---|---|---|---|
@@ -65,7 +65,7 @@
 | 受ける・断る | → | 404 | 404 | 404 | 404 | ○（自分への声かけだけ） | 404 | 403 |
 
 ## 5. 伴走（訪問・減った時間・明細・境界線台帳）
-段階7の訪問・減った時間・明細は既存の伴走画面から操作します。つなぎ手は本人の訪問だけ、事務所は所属する事務所の伴走だけを扱えます。減った時間の確認と明細の確定は代表だけです。
+段階7の訪問・減った時間・明細は既存の伴走画面から操作します。つなぎ手は本人の訪問だけ、事務所は所属する事務所の伴走だけを扱えます。減った時間の確認と明細の確定は代表だけです。台帳への独立した指摘追加と伴走終了は将来の操作で、現在の公開ルートにはありません。
 
 | 操作 | 未 | 他 | 職 | 代 | つ外 | つ声 | 自 | 運 |
 |---|---|---|---|---|---|---|---|---|
@@ -119,4 +119,47 @@
 1. 新しい入口（ルート）を足すときは、**先にこの表にマスを足す**。
 2. `tests/app/test_authz_*.py` に、拒否のマスごとのテストを書く（他の事務所・職員・関わりのないつなぎ手・ほかの市町村）。
 3. 守り（事務所から引く所・役割の確かめ）を1行外して、テストが落ちることを見る。戻す。
-4. 段階15で、ルートの一覧（`flask routes`）とこの表を見比べ、表に無い入口が無いことを確かめる。
+4. 下記の一覧を `flask routes` と照合する。テストは GET・POST の明示ルートを比較し、Flask が自動で登録する HEAD・OPTIONS は除く。
+
+### 実装済みルート一覧
+
+| 入口 | メソッド | 権限表 |
+|---|---|---|
+| `/` | GET | §2 |
+| `/account` | GET | §2 |
+| `/admin/` | GET | §8 |
+| `/admin/ledger` | GET | §8 |
+| `/admin/talents/<int:talent_id>` | GET | §8 |
+| `/admin/talents/<int:talent_id>/training` | POST | §8 |
+| `/admin/talents/<int:talent_id>/verify-grade` | POST | §8 |
+| `/admin/users/<int:user_id>/suspend` | POST | §8 |
+| `/demo/enter` | GET, POST | §8 |
+| `/favicon.ico` | GET | §2 |
+| `/healthz` | GET | §2 |
+| `/how` | GET | §8 |
+| `/login` | GET, POST | §2 |
+| `/logout` | POST | §2 |
+| `/o/<int:office_id>/` | GET | §2 |
+| `/o/<int:office_id>/engagements/<int:engagement_id>` | GET | §5 |
+| `/o/<int:office_id>/engagements/<int:engagement_id>/reductions` | POST | §5 |
+| `/o/<int:office_id>/engagements/<int:engagement_id>/reductions/<int:reduction_id>/confirm` | POST | §5 |
+| `/o/<int:office_id>/engagements/<int:engagement_id>/statements/<month>/finalize` | POST | §5 |
+| `/o/<int:office_id>/engagements/<int:engagement_id>/visits/<int:visit_id>/<any(confirm,dispute):action>` | POST | §5 |
+| `/o/<int:office_id>/needs/<int:need_id>` | GET | §3 |
+| `/o/<int:office_id>/needs/<int:need_id>/candidates` | GET | §4 |
+| `/o/<int:office_id>/needs/<int:need_id>/candidates` | POST | §4 |
+| `/o/<int:office_id>/needs/<int:need_id>/candidates/<int:candidate_id>/cancel` | POST | §4 |
+| `/o/<int:office_id>/needs/<int:need_id>/candidates/<int:candidate_id>/invite` | POST | §4 |
+| `/o/<int:office_id>/needs/<int:need_id>/edit` | GET, POST | §3 |
+| `/o/<int:office_id>/needs/<int:need_id>/publish` | POST | §3 |
+| `/o/<int:office_id>/needs/<int:need_id>/withdraw` | POST | §3 |
+| `/o/<int:office_id>/needs/new` | GET, POST | §3 |
+| `/r/<code>/` | GET | §7 |
+| `/static/<path:filename>` | GET | §2 |
+| `/t/` | GET | §2 |
+| `/t/engagements/<int:engagement_id>` | GET | §5 |
+| `/t/engagements/<int:engagement_id>/visits/<int:visit_id>/edit` | GET, POST | §5 |
+| `/t/engagements/<int:engagement_id>/visits/new` | GET, POST | §5 |
+| `/t/invitations/<int:candidate_id>/<any(accept,decline):answer>` | POST | §4 |
+| `/t/pledge` | GET, POST | §6 |
+| `/t/profile` | GET, POST | §6 |

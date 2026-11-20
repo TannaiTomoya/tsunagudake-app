@@ -28,7 +28,7 @@ def require_role(role: Role) -> User:
 
 
 def require_office(
-    office_id: int, *, owner_only: bool = False, write: bool = False
+    office_id: int, *, owner_only: bool = False, write: bool = False, audit: bool = True
 ) -> Office:
     user = cast(User, current_user)
     offices = select(Office).where(Office.id == office_id, Office.is_active.is_(True))
@@ -38,8 +38,9 @@ def require_office(
             abort(404)
         if owner_only or write:
             abort(403)
-        record_audit("admin_viewed_office", actor_id=user.id, office_id=office.id)
-        db.session.commit()
+        if audit:
+            record_audit("admin_viewed_office", actor_id=user.id, office_id=office.id)
+            db.session.commit()
         return office
     if user.role != Role.OFFICE:
         abort(404)
@@ -81,10 +82,32 @@ def require_need(office: Office, need_id: int, *, lock: bool = False) -> Need:
     return need
 
 
+def require_need_office(
+    office_id: int, need_id: int, *, owner_only: bool = False
+) -> Office:
+    office = require_office(office_id, audit=False)
+    require_need(office, need_id)
+    return require_office(office_id, write=True, owner_only=owner_only)
+
+
 def require_office_engagement(
     office_id: int, engagement_id: int, *, write: bool = False, owner_only: bool = False
 ) -> Engagement:
-    office = require_office(office_id, write=write, owner_only=owner_only)
+    user = cast(User, current_user)
+    if (write or owner_only) and user.role == Role.TSUNAGITE:
+        assigned = db.session.scalar(
+            select(Engagement.id)
+            .join(Talent)
+            .join(Office, Office.id == Engagement.office_id)
+            .where(
+                Engagement.office_id == office_id,
+                Engagement.id == engagement_id,
+                Talent.user_id == user.id,
+                Office.is_active.is_(True),
+            )
+        )
+        abort(403 if assigned is not None else 404)
+    office = require_office(office_id, audit=not (write or owner_only))
     engagement = db.session.scalar(
         select(Engagement).where(
             Engagement.office_id == office.id,
@@ -93,6 +116,8 @@ def require_office_engagement(
     )
     if engagement is None:
         abort(404)
+    if write or owner_only:
+        require_office(office_id, write=write, owner_only=owner_only)
     return engagement
 
 

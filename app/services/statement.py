@@ -68,7 +68,14 @@ def confirmed_visits(talent_id: int) -> int:
 
 def _lock(engagement: Engagement) -> Need:
     # Use the same parent lock as the agreement and ledger writers.
-    need = db.session.get(Need, engagement.need_id, with_for_update=True)
+    need = db.session.scalar(
+        select(Need)
+        .where(
+            Need.id == engagement.need_id,
+            Need.office_id == engagement.office_id,
+        )
+        .with_for_update()
+    )
     if need is None:
         abort(404)
     return need
