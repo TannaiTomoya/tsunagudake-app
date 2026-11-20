@@ -1,0 +1,15 @@
+[Unit]
+Description=Back up tsunagudake MySQL and upload to object storage
+After=network-online.target mysql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+Environment=PATH=/home/ubuntu/.local/bin:/usr/bin:/bin
+EnvironmentFile=/home/ubuntu/.config/tsunagudake-backup/s3.env
+ExecStart=/usr/bin/bash /var/www/tsunagudake-app/deploy/backup.sh
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
