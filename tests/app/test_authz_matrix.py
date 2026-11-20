@@ -315,6 +315,20 @@ ROUTES = (
         OFFICE_ACTORS,
         ("staff", "admin"),
     ),
+    Route(
+        "checkin",
+        "POST",
+        "{talent_engagement}/checkins",
+        TALENT_ACTORS,
+        ("admin",),
+    ),
+    Route(
+        "office-location",
+        "POST",
+        "/o/1/location",
+        OFFICE_ACTORS,
+        ("staff", "admin"),
+    ),
     # メッセージは、運営にも見せない（GET も 403）。
     Route(
         "office-messages",
@@ -453,7 +467,12 @@ def test_denial_matrix(
                 "client_count": "12",
                 "municipality": "2",
                 "reason": "goal_met",
-                "action": "send" if path.endswith("/messages") else "add",
+                "action": "send"
+                if path.endswith("/messages")
+                else "heading"
+                if path.endswith("/checkins")
+                else "add",
+                "address": "架空市架空町1-1",
                 "body": "架空の連絡",
                 "client_no": "5",
                 "compared": "4",

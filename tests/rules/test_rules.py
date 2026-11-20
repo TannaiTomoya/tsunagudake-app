@@ -5,6 +5,7 @@ import pytest
 
 from tsunagu_rules import RULES_VERSION, ledger
 from tsunagu_rules.compare import CompareLine, MarkReason, compare
+from tsunagu_rules.distance import NEAR_RADIUS_M, distance_m, is_near
 from tsunagu_rules.matching import match
 from tsunagu_rules.region import (
     is_fictional,
@@ -255,6 +256,29 @@ def test_t58_compare_never_treats_a_missing_period_as_zero() -> None:
     assert compare(lines, 0).flagged == 8
     with pytest.raises(ValueError):
         compare(lines, 10001)
+
+
+def test_t62_distance_is_pure_and_the_edge_is_inside() -> None:
+    # 海の上の、架空の地点。
+    here = (10_000_000, 150_000_000)
+    assert distance_m(*here, *here) == 0
+    # 緯度1度は、およそ 111.19km。
+    assert distance_m(0, 0, 1_000_000, 0) == 111_194
+    assert distance_m(0, 0, 1_000_000, 0) == distance_m(1_000_000, 0, 0, 0)
+    # 日付変更線をまたいでも、近いものは近い。
+    assert distance_m(0, 179_999_000, 0, -179_999_000) == 222
+    there = (10_001_500, 150_000_000)
+    apart = distance_m(*here, *there)
+    assert 160 < apart < 170
+    assert is_near(*here, *there) and is_near(*here, *there, apart)
+    assert not is_near(*here, *there, apart - 1)
+    assert not is_near(*here, 10_001_900, 150_000_000)
+    assert NEAR_RADIUS_M == 200
+    for bad in ((90_000_001, 0), (0, 180_000_001), (-90_000_001, 0)):
+        with pytest.raises(ValueError):
+            distance_m(*bad, 0, 0)
+    with pytest.raises(ValueError):
+        is_near(*here, *there, -1)
 
 
 def test_t16_t17_region_threshold_and_total() -> None:

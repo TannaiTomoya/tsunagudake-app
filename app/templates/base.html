@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/kidou.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/guide-ask.css') }}">
     {% if request.endpoint in ("auth.talent_home", "matching.candidates", "matching.invitation", "statements.invoice") %}<script defer src="{{ url_for('static', filename='js/documents.js') }}"></script>{% endif %}
+    {% if request.endpoint in ("matching.talent_engagement", "matching.checkin", "auth.office_profile", "auth.office_location") %}<script defer src="{{ url_for('static', filename='js/checkin.js') }}"></script>{% endif %}
     {% if guide_lines %}
     <script defer src="{{ url_for('static', filename='vendor/animejs/anime-4.1.3.umd.min.js') }}"></script>
     <script defer src="{{ url_for('static', filename='js/guide-voice.js') }}"></script>

@@ -135,6 +135,14 @@ def test_t54_withdrawal_waits_for_open_work_and_keeps_shared_records(
         person = db.session.get(Talent, talent_id)
         assert person is not None
         person.invoice_registration = "T1234567890123"
+        place = db.session.get(Office, 1)
+        assert place is not None
+        # 架空の住所と、海の上の位置。
+        place.address, place.lat_e6, place.lon_e6 = (
+            "架空市架空町1-1",
+            10_000_000,
+            150_000_000,
+        )
         db.session.commit()
     csrf = token(office, office_path)
     reduction = {
@@ -229,6 +237,7 @@ def test_t54_withdrawal_waits_for_open_work_and_keeps_shared_records(
     with app.app_context():
         closed = db.session.get(Office, 1)
         assert closed is not None and not closed.is_active
+        assert (closed.address, closed.lat_e6, closed.lon_e6) == (None, None, None)
         need = db.session.scalar(select(Need))
         assert need is not None and "機密の本文" not in need.body
         visit = db.session.scalar(select(Visit))

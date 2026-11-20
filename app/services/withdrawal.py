@@ -237,6 +237,8 @@ def _close_office(office_id: int) -> None:
         return
     office.is_active = False
     office.client_count = None
+    office.address = None
+    office.lat_e6 = office.lon_e6 = None
     # 件数の受け取りも止める。
     office.collection_token_hash = None
     for need in db.session.scalars(select(Need).where(Need.office_id == office.id)):

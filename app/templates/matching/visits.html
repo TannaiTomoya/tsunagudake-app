@@ -7,6 +7,7 @@
   <tr>
     <td>{{ visit.visit_date }}</td><td>{{ categories[visit.category] }}</td><td data-numeric>{{ visit.minutes }}分</td><td>{{ visit.note or "—" }}{% if visit.learned_term %}<br>聞き返した用語：{{ visit.learned_term }}{% endif %}</td>
     <td><span class="state" data-status="{{ visit.status }}">{{ {"recorded": "確認待ち", "confirmed": "確認済み", "disputed": "相違あり"}[visit.status] }}</span>
+    {% if visit.visit_date in arrivals %}<br>到着の記録あり{{ "（事務所の近く）" if arrivals[visit.visit_date] else "（位置は確かめていません）" }}{% endif %}
     {% if visit.status == "recorded" %}
       {% if activity.office_writer %}
         <form method="post">

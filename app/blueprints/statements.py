@@ -8,7 +8,7 @@ from flask_wtf import FlaskForm
 from sqlalchemy import select
 from wtforms import DateField, IntegerField, SelectField, StringField, TextAreaField  # type: ignore[import-untyped]
 from wtforms.fields.choices import SelectChoice  # type: ignore[import-untyped]
-from wtforms.validators import InputRequired, Length, NumberRange  # type: ignore[import-untyped]
+from wtforms.validators import InputRequired, Length, NumberRange, Optional  # type: ignore[import-untyped]
 
 from app.authz import require_office_engagement, require_talent_engagement
 from app.blueprints.needs import CATEGORIES
@@ -69,6 +69,7 @@ class VisitForm(FlaskForm):  # type: ignore[misc]
     learned_term = StringField("聞き返した用語（任意）", validators=[Length(max=100)])
     note = TextAreaField("事務所に伝えること（任意）", validators=[Length(max=300)])
     idea = StringField("気づいたこと（任意）", validators=[Length(max=100)])
+    next_visit = DateField("次の訪問日（任意）", validators=[Optional()])
 
 
 class ReductionForm(FlaskForm):  # type: ignore[misc]
@@ -212,6 +213,7 @@ def visit_form(engagement_id: int, visit_id: int | None = None) -> ResponseRetur
                     (form.note.data or "").strip() or None,
                     (form.learned_term.data or "").strip() or None,
                     (form.idea.data or "").strip() or None,
+                    form.next_visit.data,
                 ),
                 visit_id,
             )
@@ -223,7 +225,7 @@ def visit_form(engagement_id: int, visit_id: int | None = None) -> ResponseRetur
     elif form.is_submitted():
         error, status = (
             "日付、業務の型、15〜600分の訪問時間、300文字以内の伝える内容、"
-            "100文字以内の気づいたことをご確認ください。",
+            "100文字以内の気づいたこと、次の訪問日をご確認ください。",
             422,
         )
     return render_template(
