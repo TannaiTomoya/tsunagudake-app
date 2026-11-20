@@ -586,6 +586,8 @@ class OutboxMail(Created, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     recipient: Mapped[str] = mapped_column(String(255))
+    digest_key: Mapped[str | None] = mapped_column(String(48), unique=True)
+    deliver_after: Mapped[datetime | None]
     subject: Mapped[str] = mapped_column(String(150))
     body_encrypted: Mapped[str | None] = mapped_column(Text)
     is_demo: Mapped[bool]

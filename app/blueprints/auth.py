@@ -42,6 +42,7 @@ from app.models import (
 from app.services.auth import authenticate
 from app.services.region import dashboard_for
 from app.services.statement import confirmed_visits, expected_income
+from app.services.tasks import tasks_for
 from app.services.trust import trust_statuses
 from tsunagu_rules import RULES_VERSION
 from tsunagu_rules.ledger import REQUIRED_BOUNDARIES
@@ -110,6 +111,15 @@ def logout() -> Response:
     logout_user()
     session.clear()
     return redirect(url_for("auth.login"))
+
+
+@bp.get("/account/today")
+@login_required  # type: ignore[untyped-decorator]
+def today_tasks() -> str:
+    actor = cast(User, current_user)
+    return render_template(
+        "auth/today.html", tasks=tasks_for(actor), workspace_url=_destination(actor)
+    )
 
 
 @bp.get("/account")

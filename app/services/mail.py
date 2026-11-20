@@ -3,12 +3,12 @@ import hmac
 import os
 import smtplib
 import ssl
-from datetime import datetime
+from datetime import datetime, timedelta
 from email.message import EmailMessage
 
 from cryptography.fernet import Fernet, InvalidToken
 from flask import current_app
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from app.extensions import db
 from app.models import MemberRole, OfficeMember, OutboxMail, User, utc_now
@@ -56,8 +56,48 @@ def enqueue(
 
 
 def notify_user(user: User, subject: str, body: str) -> None:
-    if user.is_active:
-        enqueue(user.email, subject, body, demo=user.is_demo)
+    # Serialize a recipient's digest creation with their other notifications.
+    with db.session.no_autoflush:
+        account = db.session.get(
+            User, user.id, with_for_update=True, populate_existing=True
+        )
+        if account is None or not account.is_active:
+            return
+        now = utc_now()
+        # 00:00 UTC is 09:00 JST throughout the year.
+        delivery = (now + timedelta(days=1)).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        key = f"{account.id}-{delivery.date()}"
+        mail = db.session.scalar(
+            select(OutboxMail).where(OutboxMail.digest_key == key).with_for_update()
+        )
+    if mail is None:
+        mail = next(
+            (
+                row
+                for row in db.session.new
+                if isinstance(row, OutboxMail) and row.digest_key == key
+            ),
+            None,
+        )
+    if mail is None:
+        mail = OutboxMail(
+            recipient=account.email,
+            subject="つなぐだけ：今日やること",
+            digest_key=key,
+            deliver_after=delivery,
+            is_demo=account.is_demo or current_app.config["APP_ENV"] != "production",
+        )
+        db.session.add(mail)
+        summary = "ログインして「今日やること」をご確認ください。"
+    else:
+        summary = mail_body(mail)
+    item = f"・{subject}：{body}"
+    if item not in summary.splitlines():
+        mail.body_encrypted = (
+            _cipher().encrypt((summary + "\n" + item).encode()).decode("ascii")
+        )
 
 
 def notify_office(
@@ -75,7 +115,7 @@ def notify_office(
         members = members.where(OfficeMember.member_role == MemberRole.OWNER)
     with db.session.no_autoflush:
         recipients = db.session.scalars(members).all()
-    for user in recipients:
+    for user in sorted(recipients, key=lambda person: person.id):
         notify_user(user, subject, body)
 
 
@@ -114,6 +154,10 @@ def send_pending(limit: int = 20) -> int:
             select(OutboxMail)
             .where(
                 OutboxMail.is_demo.is_(False),
+                or_(
+                    OutboxMail.deliver_after.is_(None),
+                    OutboxMail.deliver_after <= utc_now(),
+                ),
                 OutboxMail.sent_at.is_(None),
                 OutboxMail.body_encrypted.is_not(None),
             )

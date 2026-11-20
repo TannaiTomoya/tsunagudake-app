@@ -129,6 +129,8 @@
 
 道具・得意分野の確認は、その伴走の事務所に所属する人だけが行えます。別のつなぎ手の項目は404です。本人のホームだけに自分の直近の候補点と内訳を表示します。
 
+「今日やること」は所属する有効な事務所または本人の伴走と信用情報を表示します。他のアカウントの指定は受け付けません。
+
 ### 実装済みルート一覧
 
 | 入口 | メソッド | 権限表 |
@@ -181,3 +183,4 @@
 | `/t/engagements/<int:engagement_id>/statements/<month>/confirm-receipt` | POST | §5 |
 | `/admin/talents/<int:talent_id>/translation` | POST | §8 |
 | `/o/<int:office_id>/engagements/<int:engagement_id>/skills/<int:skill_id>/verify` | POST | §5 |
+| `/account/today` | GET | §2 |

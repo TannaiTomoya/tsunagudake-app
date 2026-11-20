@@ -22,6 +22,7 @@
         <button type="button" class="guide-next secondary outline">次の一言</button>
         <button type="button" class="guide-close secondary outline">閉じる</button>
       </div>
+      {% if signed_in %}<p><a href="{{ url_for('auth.today_tasks') }}">今日やること</a></p>{% endif %}
       <details class="guide-ask">
         <summary>質問する</summary>
         {% set ask_screen = guide_endpoint | default(request.endpoint) %}

@@ -49,6 +49,7 @@
       </header>
       <div class="workspace">
         <div class="topbar">
+          {% if signed_in %}<a class="account-link" href="{{ url_for('auth.today_tasks') }}">今日やること</a>{% endif %}
           <a class="account-link" href="{{ url_for('auth.account' if signed_in else 'auth.login') }}">{{ icon('user') }}{{ 'マイページ' if signed_in else 'ログイン' }}</a>
         </div>
         {% if config.APP_ENV == 'demo' %}
