@@ -1,0 +1,7 @@
+<svg viewBox="0 0 320 148" width="320" height="148" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+  <g stroke="var(--misreg-c)" opacity=".55"><path d="M61 27h178v94H61z M61 49h178 M61 68h178 M61 87h178 M61 106h178 M93 27v94 M183 27v94"/></g>
+  <g stroke="var(--misreg-m)" opacity=".5"><path d="M65 25h178v94H65z M65 47h178 M65 66h178 M65 85h178 M65 104h178 M97 25v94 M187 25v94"/></g>
+  <g fill="var(--surface)" stroke="var(--muted)"><path d="M86 14h174v95H86z"/><path d="M86 37h174 M86 56h174 M86 75h174 M86 94h174 M115 37v72 M204 37v72" stroke="var(--line)"/></g>
+  <path d="M95 26h49 M222 26h26 M124 47h48 M124 66h60 M124 85h38 M221 47h25 M226 66h20 M218 85h28" stroke="var(--muted)" stroke-width="2"/>
+  <path d="M49 21v-6h6 M271 108v6h-6" stroke="var(--misreg-c)"/>
+</svg>
