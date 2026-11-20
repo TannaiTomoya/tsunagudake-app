@@ -71,6 +71,10 @@ STATUSES = {
 WEEKDAYS = tuple(enumerate(("月曜", "火曜", "水曜", "木曜", "金曜", "土曜", "日曜")))
 
 
+def weekday_options(mask: int) -> list[tuple[int, str]]:
+    return [(day, label) for day, label in WEEKDAYS if mask & (1 << day)]
+
+
 class NeedForm(FlaskForm):  # type: ignore[misc]
     body = TextAreaField(
         "困りごと",
@@ -157,7 +161,7 @@ def _detail(office: Office, need_id: int, error: str | None = None) -> str:
         tasks=TASKS,
         status=STATUSES[need.status],
         estimate=estimate_value(need.monthly_hours, rate),
-        weekdays=[label for day, label in WEEKDAYS if need.weekdays_mask & (1 << day)],
+        weekdays=[label for _, label in weekday_options(need.weekdays_mask)],
         error=error,
     )
 
@@ -182,7 +186,7 @@ def edit(office_id: int, need_id: int) -> ResponseReturnValue:
         data={
             "body": need.body,
             "monthly_hours": need.monthly_hours,
-            "weekdays": [day for day, _ in WEEKDAYS if need.weekdays_mask & (1 << day)],
+            "weekdays": [day for day, _ in weekday_options(need.weekdays_mask)],
             "manual_kind": manual_kind,
         }
     )

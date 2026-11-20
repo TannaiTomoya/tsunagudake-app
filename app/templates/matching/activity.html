@@ -1,5 +1,5 @@
 {% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
-<h2>減った時間と月の明細</h2>
+<h2 id="statement">減った時間と月の明細</h2>
 <form class="month-picker" method="get">
   <label for="view-month">対象月</label>
   <input id="view-month" type="month" name="month" value="{{ activity.month }}" required>

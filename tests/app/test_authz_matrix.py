@@ -323,7 +323,7 @@ def test_denial_matrix(
             data={
                 "csrf_token": token(client, "/login"),
                 "weekday": "0",
-                "share_bp": "4000",
+                "share_percent": "40",
                 "month": paths["month"],
                 "category": "collect",
                 "before": "30",

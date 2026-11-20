@@ -462,7 +462,12 @@ def _publish_and_generate(client: FlaskClient) -> tuple[str, str]:
 
 
 def _offer_data(csrf: str) -> dict[str, str]:
-    return {"csrf_token": csrf, "weekday": "0", "share_bp": "4000", "cap_yen": "32000"}
+    return {
+        "csrf_token": csrf,
+        "weekday": "0",
+        "share_percent": "40",
+        "cap_yen": "32000",
+    }
 
 
 def _ranks(app: Flask) -> list[tuple[int, int, int, list[str]]]:

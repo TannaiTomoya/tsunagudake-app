@@ -68,7 +68,6 @@ def test_guide_uses_local_assets_and_screen_script(
     [
         ("public/index.html", "hero-copy", "ledger-diagram"),
         ("needs/detail.html", "公開する", "翻訳の結果"),
-        ("matching/candidates.html", ">声をかける</button>", "候補の一覧"),
         ("matching/engagement.html", "matching/activity.html", "matching/visits.html"),
         ("auth/talent_home.html", "あなたへの声かけ", "守秘の誓約と研修</h2>"),
     ],
@@ -82,6 +81,16 @@ def test_small_screen_decision_precedes_reference(
         < source.index(first)
         < source.index("reading-pane")
         < source.index(second)
+    )
+
+
+def test_candidates_table_precedes_invitation_controls() -> None:
+    source = Path("app/templates/matching/candidates.html").read_text()
+    assert (
+        source.index("reading-pane")
+        < source.index("候補の一覧")
+        < source.index("decision-pane")
+        < source.index(">声をかける</button>")
     )
 
 

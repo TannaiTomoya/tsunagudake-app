@@ -11,21 +11,25 @@ from flask import (
 )
 from flask_login import current_user, login_required, login_user, logout_user
 from flask_wtf import FlaskForm
-from sqlalchemy import select
+from sqlalchemy import and_, case, select
 from werkzeug.wrappers import Response
 from wtforms import EmailField, PasswordField  # type: ignore[import-untyped]
 from wtforms.validators import InputRequired, Length  # type: ignore[import-untyped]
 
 from app.authz import require_municipality, require_office
 from app.blueprints.matching import talent_activity
-from app.blueprints.needs import STATUSES, WEEKDAYS
+from app.blueprints.needs import STATUSES, WEEKDAYS, weekday_options
 from app.extensions import db
 from app.models import (
+    Engagement,
     Municipality,
     MunicipalityMember,
     Need,
+    NeedStatus,
     Office,
     OfficeMember,
+    Reduction,
+    ReductionStatus,
     Role,
     Talent,
     User,
@@ -117,14 +121,41 @@ def account() -> str:
 @login_required  # type: ignore[untyped-decorator]
 def office_home(office_id: int) -> str:
     office = require_office(office_id)
-    items = db.session.scalars(
-        select(Need).where(Need.office_id == office.id).order_by(Need.id.desc())
+    confirmed_hours = (
+        select(Reduction.id)
+        .where(
+            Reduction.engagement_id == Engagement.id,
+            Reduction.month == today_in_japan().strftime("%Y-%m"),
+            Reduction.status == ReductionStatus.CONFIRMED,
+        )
+        .exists()
+        .label("confirmed_hours")
+    )
+    status_order = case(
+        {
+            NeedStatus.ENGAGED: 0,
+            NeedStatus.PUBLISHED: 1,
+            NeedStatus.DRAFT: 2,
+            NeedStatus.BLOCKED: 3,
+        },
+        value=Need.status,
+        else_=4,
+    )
+    items = db.session.execute(
+        select(Need, Engagement.id, confirmed_hours)
+        .outerjoin(
+            Engagement,
+            and_(Engagement.need_id == Need.id, Engagement.office_id == office.id),
+        )
+        .where(Need.office_id == office.id)
+        .order_by(status_order, confirmed_hours.desc(), Need.id.desc())
     ).all()
     return render_template(
         "needs/office.html",
         heading=office.name,
         office=office,
         items=items,
+        weekday_options=weekday_options,
         statuses=STATUSES,
         can_write=current_user.role == Role.OFFICE,
     )

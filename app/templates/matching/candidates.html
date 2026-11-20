@@ -7,40 +7,6 @@
 <p>声をかける人を選ぶのは代表です。</p>
 {% if error %}<p role="alert">{{ error }}</p>{% endif %}
 <div class="screen-columns">
-<section class="decision-pane">
-<h2>声かけ</h2>
-{% if writable and not pending %}
-<form method="post" action="{{ url_for('matching.run_match', office_id=office.id, need_id=need.id) }}">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <button type="submit">{{ "候補を出し直す" if run else "候補を出す" }}</button>
-</form>
-{% endif %}
-{% if owner and writable %}
-  {% for candidate, talent, name, town in candidates %}
-    {% if candidate.status == "listed" and not pending %}
-    <details>
-      <summary>{{ name }}さんに声をかける</summary>
-      <form method="post" action="{{ url_for('matching.invitation', office_id=office.id, need_id=need.id, candidate_id=candidate.id) }}">
-        {{ offer_form.hidden_tag() }}
-        {{ offer_form.weekday.label }} {{ offer_form.weekday() }}
-        {{ offer_form.share_bp.label }} {{ offer_form.share_bp(min=1, max=4999, required=true) }}
-        {{ offer_form.cap_yen.label }} {{ offer_form.cap_yen(min=0) }}
-        <button type="submit" class="secondary outline">声をかける</button>
-      </form>
-    </details>
-    {% elif candidate.status == "invited" %}
-    <form method="post" action="{{ url_for('matching.cancel_invitation', office_id=office.id, need_id=need.id, candidate_id=candidate.id) }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="secondary outline">{{ name }}さんへの声かけを取り消す</button>
-    </form>
-    {% endif %}
-  {% endfor %}
-{% endif %}
-{% if run and run.excluded_summary %}
-  <h2>条件に合わなかった人</h2>
-  <ul>{% for reason, count in run.excluded_summary.items() %}<li>{{ exclusions[reason] }} {{ count }}人</li>{% endfor %}</ul>
-  {% endif %}
-</section>
 <section class="reading-pane">
 <h2>候補の一覧</h2>
 {% if run %}
@@ -59,6 +25,51 @@
   </table></div>
   {% else %}<p>条件に合う人が、今はいません。来てほしい曜日を見直すか、時間をおいて候補を出し直してください。</p>{% endif %}
 {% else %}<p>まだ候補は出ていません。{% if writable and not pending %}「候補を出す」を押してください。{% endif %}</p>{% endif %}
+</section>
+<section class="decision-pane">
+<h2>声かけ</h2>
+{% if writable and not pending %}
+<form method="post" action="{{ url_for('matching.run_match', office_id=office.id, need_id=need.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit">{{ "候補を出し直す" if run else "候補を出す" }}</button>
+</form>
+{% endif %}
+{% if owner and writable %}
+  {% for candidate, talent, name, town in candidates %}
+    {% if candidate.status == "listed" and not pending %}
+    {% set days = offer_days[candidate.id] %}
+    {% set form = submitted if submitted and selected_candidate_id == candidate.id else offer_form %}
+    <details{% if selected_candidate_id == candidate.id %} open{% endif %}>
+      <summary>{{ name }}さんに声をかける</summary>
+      {% if days %}
+      <form method="post" action="{{ url_for('matching.invitation', office_id=office.id, need_id=need.id, candidate_id=candidate.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="weekday-{{ candidate.id }}">曜日</label>
+        <select id="weekday-{{ candidate.id }}" name="weekday" required>
+          {% set selected_day = form.weekday.data if form.weekday.data in dict(days) else days[0][0] %}
+          {% for day, label in days %}<option value="{{ day }}"{% if day == selected_day %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        <label for="share-{{ candidate.id }}">{{ form.share_percent.label.text }}</label>
+        {{ form.share_percent(id="share-" ~ candidate.id, min=1, max=49, step=1, required=true, **{"aria-describedby": "share-hint-" ~ candidate.id}) }}
+        <small id="share-hint-{{ candidate.id }}">50%未満</small>
+        <label for="cap-{{ candidate.id }}">{{ form.cap_yen.label.text }}</label>
+        {{ form.cap_yen(id="cap-" ~ candidate.id, min=0) }}
+        <button type="submit" class="secondary outline">声をかける</button>
+      </form>
+      {% else %}<p>双方が通える曜日がありません。候補を出し直してください。</p>{% endif %}
+    </details>
+    {% elif candidate.status == "invited" %}
+    <form method="post" action="{{ url_for('matching.cancel_invitation', office_id=office.id, need_id=need.id, candidate_id=candidate.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="secondary outline">{{ name }}さんへの声かけを取り消す</button>
+    </form>
+    {% endif %}
+  {% endfor %}
+{% endif %}
+{% if run and run.excluded_summary %}
+  <h2>条件に合わなかった人</h2>
+  <ul>{% for reason, count in run.excluded_summary.items() %}<li>{{ exclusions[reason] }} {{ count }}人</li>{% endfor %}</ul>
+  {% endif %}
 </section>
 </div>
 {% endblock %}
