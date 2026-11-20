@@ -5,20 +5,21 @@
   --pico-icon-checkbox: url("../icons/check.svg");
   --pico-icon-chevron: url("../icons/chevron.svg");
   --pico-icon-date: url("../icons/calendar.svg");
-  --canvas: #0f1422;
-  --rail: #121a2b;
-  --surface: #172036;
-  --raised: #1e2a44;
-  --line: #2e3d5c;
-  --text: #e9edf5;
-  --muted: #9fadc6;
-  --action: #8ea2ff;
-  --action-hover: #a8b8ff;
-  --on-action: #0b1030;
-  --seal: #ff7a5c;
+  --canvas: #05070f;
+  --rail: #080c18;
+  --surface: #0b1020;
+  --raised: #121a33;
+  --line: #26335c;
+  --text: #eef1fa;
+  --muted: #98a5c8;
+  --action: #3fe9ff;
+  --action-hover: #8af3ff;
+  --on-action: #031318;
+  --seal: #ff6b4a;
   --error: #ffb0a6;
-  --misreg-c: #35d6e8;
+  --misreg-c: #3fe9ff;
   --misreg-m: #ff4fa3;
+  --volt: #7d8dff;
   --pico-font-family:
     "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic",
     "Noto Sans CJK JP", "Meiryo", sans-serif;
@@ -51,7 +52,7 @@
   --pico-table-border-color: var(--line);
   --pico-card-background-color: var(--surface);
   --pico-card-box-shadow: none;
-  --pico-text-selection-color: #2c3e6b;
+  --pico-text-selection-color: #1d3a66;
 }
 
 * {
