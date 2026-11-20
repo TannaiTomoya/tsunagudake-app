@@ -1,0 +1,14 @@
+<svg class="masu" viewBox="0 0 56 56" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <g class="masu-register" fill="none" stroke-width="2">
+    <path class="plate-c" d="M5 7h43v43H5z"/>
+    <path class="plate-m" d="M9 5h43v43H9z"/>
+  </g>
+  <path class="masu-body" d="M7 6h43v43H7z"/>
+  <path class="masu-corners" d="M11 17v-7h7m21 35h7v-7" fill="none"/>
+  <g class="masu-eyes">
+    <path class="eyes-idle" d="M16 23h7v7h-7z M33 23h7v7h-7z"/>
+    <path class="eyes-talk" d="M15 25h9v4h-9z M32 25h9v4h-9z"/>
+    <g class="eyes-think"><rect x="16" y="20" width="7" height="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M33 24h7v7h-7z"/></g>
+    <path class="eyes-happy" d="m14 29 6-8 6 8z m17 0 6-8 6 8z"/>
+  </g>
+</svg>

@@ -4,6 +4,7 @@
 {% set demo_available = config.APP_ENV in ('demo', 'development') %}
 {% set signed_in = session.get('_user_id') %}
 {% set navigation = [('public.index', 'ホーム', 'home'), ('public.how', 'しくみ', 'book')] %}
+{% set guide_lines = guide_scripts.get(guide_endpoint | default(request.endpoint), ()) %}
 <!doctype html>
 <html lang="ja" data-theme="dark">
   <head>
@@ -12,8 +13,9 @@
     <title>{% block title %}ホーム{% endblock %}｜{{ brand }}</title>
     <link rel="preload" as="style" href="{{ url_for('static', filename='vendor/pico.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}">
+    {% if guide_lines %}<script defer src="{{ url_for('static', filename='js/guide.js') }}"></script>{% endif %}
   </head>
-  <body>
+  <body{% if guide_lines %} class="with-guide"{% endif %}>
     <a class="skip-link" href="#main">本文へ移動します</a>
     <div class="shell">
       <header class="rail">
@@ -44,5 +46,6 @@
         <main id="main" tabindex="-1" class="{% block layout %}page{% endblock %}">{% block content %}{% endblock %}</main>
       </div>
     </div>
+    {% if guide_lines %}{% include "guide/masu.html" %}{% endif %}
   </body>
 </html>
