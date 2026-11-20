@@ -15,9 +15,10 @@ from app.models import (
     User,
     Visit,
     VisitStatus,
+    today_in_japan,
 )
 from tsunagu_rules.region import mask_region
-from tsunagu_rules.types import RegionMetrics, RegionRow
+from tsunagu_rules.types import NeedKind, RegionMetrics, RegionRow
 
 
 @dataclass(frozen=True)
@@ -67,7 +68,7 @@ def dashboard_for(
         .subquery()
     )
     saved_hours = Reduction.before_hours - Reduction.after_hours
-    hours = (
+    hours_query = (
         select(
             Office.municipality_id,
             func.sum(case((saved_hours > 0, saved_hours), else_=0)).label("total"),
@@ -80,8 +81,13 @@ def dashboard_for(
             Reduction.status == ReductionStatus.CONFIRMED,
         )
         .group_by(Office.municipality_id)
-        .subquery()
     )
+    if demo:
+        hours_query = hours_query.where(
+            Reduction.category == NeedKind.COLLECT,
+            Reduction.month == today_in_japan().strftime("%Y-%m"),
+        )
+    hours = hours_query.subquery()
     query = (
         select(
             Municipality.code,
