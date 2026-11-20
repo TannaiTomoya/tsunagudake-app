@@ -17,7 +17,7 @@ from app.authz import (
     require_office_engagement,
     require_talent_engagement,
 )
-from app.blueprints.needs import CATEGORIES, WEEKDAYS
+from app.blueprints.needs import CATEGORIES, WEEKDAYS, weekday_options
 from app.blueprints.statements import activity_for
 from app.extensions import db
 from app.models import (
@@ -81,10 +81,10 @@ class OfferForm(FlaskForm):  # type: ignore[misc]
         coerce=int,
         validators=[InputRequired()],
     )
-    share_bp = IntegerField(
-        "料金の割合（1%＝100、40%なら4000・50%未満）",
-        default=4000,
-        validators=[InputRequired(), NumberRange(min=1, max=4999)],
+    share_percent = IntegerField(
+        "料金の割合（％）",
+        default=40,
+        validators=[InputRequired(), NumberRange(min=1, max=49)],
     )
     cap_yen = IntegerField(
         "月の上限（円、省略可）",
@@ -96,7 +96,14 @@ def _actor() -> User:
     return cast(User, current_user)
 
 
-def _candidate_page(office: Office, need_id: int, error: str | None = None) -> str:
+def _candidate_page(
+    office: Office,
+    need_id: int,
+    error: str | None = None,
+    *,
+    candidate_id: int | None = None,
+    submitted: OfferForm | None = None,
+) -> str:
     need = require_need(office, need_id)
     run = latest_run(need)
     candidates = []
@@ -126,6 +133,12 @@ def _candidate_page(office: Office, need_id: int, error: str | None = None) -> s
         writable=user.role == Role.OFFICE and need.status == NeedStatus.PUBLISHED,
         owner=user.role == Role.OFFICE and member_role == MemberRole.OWNER,
         offer_form=OfferForm(formdata=None),
+        submitted=submitted,
+        selected_candidate_id=candidate_id,
+        offer_days={
+            candidate.id: weekday_options(need.weekdays_mask & talent.weekdays_mask)
+            for candidate, talent, _, _ in candidates
+        },
         exclusions=EXCLUSIONS,
         labels=CANDIDATE_LABELS,
         affiliations=AFFILIATIONS,
@@ -161,6 +174,7 @@ def run_match(office_id: int, need_id: int) -> ResponseReturnValue:
 @login_required  # type: ignore[untyped-decorator]
 def invitation(office_id: int, need_id: int, candidate_id: int) -> ResponseReturnValue:
     office = require_need_office(office_id, need_id, owner_only=True)
+    form = None
     try:
         if request.path.endswith("/cancel"):
             cancel(office, need_id, candidate_id, _actor().id)
@@ -168,17 +182,27 @@ def invitation(office_id: int, need_id: int, candidate_id: int) -> ResponseRetur
             form = OfferForm()
             if not form.validate_on_submit():
                 return _candidate_page(
-                    office, need_id, "曜日と料金の条件を確認してください。"
+                    office,
+                    need_id,
+                    "料金の割合は1〜49の整数で入力してください。"
+                    if form.share_percent.errors
+                    else "曜日と月の上限を確認してください。",
+                    candidate_id=candidate_id,
+                    submitted=form,
                 ), 422
             invite(
                 office,
                 need_id,
                 candidate_id,
                 _actor().id,
-                Offer(form.weekday.data, form.share_bp.data, form.cap_yen.data),
+                Offer(
+                    form.weekday.data, form.share_percent.data * 100, form.cap_yen.data
+                ),
             )
     except MatchConflict as exc:
-        return _candidate_page(office, need_id, str(exc)), 409
+        return _candidate_page(
+            office, need_id, str(exc), candidate_id=candidate_id, submitted=form
+        ), 409
     return redirect(
         url_for("matching.candidates", office_id=office_id, need_id=need_id)
     )

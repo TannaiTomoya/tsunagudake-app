@@ -340,6 +340,9 @@ def seed_demo(password: str) -> bool:
         )
         town = east if index == 6 else north if index == 8 else south
         grade = BookkeepingLevel.SECOND if index == 1 else BookkeepingLevel.THIRD
+        weekdays_mask = 0b0011111  # 月曜〜金曜
+        if index > 3:
+            weekdays_mask = 1 if index == 7 else 2
         talent = _add(
             Talent(
                 user_id=user.id,
@@ -347,7 +350,7 @@ def seed_demo(password: str) -> bool:
                 bookkeeping_level=grade,
                 level_verified_at=utc_now() if index < 5 else None,
                 level_verified_by=recorder.id if index < 5 else None,
-                weekdays_mask=1 if index == 7 else 2,
+                weekdays_mask=weekdays_mask,
                 capacity=2,
                 affiliation=TalentAffiliation.KYORYOKUTAI
                 if index <= 5
