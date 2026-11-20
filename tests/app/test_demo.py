@@ -119,6 +119,7 @@ def test_demo_rehearsal_before_and_after_reset(monkeypatch: pytest.MonkeyPatch) 
             ).status_code
             == 302
         )
+        assert 'data-mood="happy"' in office.get(path).get_data(as_text=True)
         match_path = path + "/candidates"
         csrf = token(office, match_path)
         assert office.post(match_path, data={"csrf_token": csrf}).status_code == 302

@@ -1,4 +1,5 @@
 from pathlib import Path
+from xml.etree import ElementTree
 
 import pytest
 from flask import Flask, render_template
@@ -21,7 +22,11 @@ def test_fixed_script_renders_without_javascript(app: Flask, endpoint: str) -> N
     guide = html.split('<details class="masu-guide">', 1)[1].split("</details>", 1)[0]
     assert 'aria-label="案内役のマス。この画面の説明を聞く"' in guide
     assert 'aria-live="polite"' in guide
-    assert html.count("<script") == 1
+    assert html.count("<script") == 2
+    assert (
+        '<script defer src="/static/vendor/animejs/anime-4.1.3.umd.min.js"></script>'
+        in html
+    )
     assert '<script defer src="/static/js/guide.js"></script>' in html
     assert 1 <= len(SCRIPTS[endpoint]) <= 3
     for line in SCRIPTS[endpoint]:
@@ -48,7 +53,11 @@ def test_guide_uses_local_assets_and_screen_script(
         response.headers["Content-Security-Policy"]
         == "default-src 'self'; frame-ancestors 'none'"
     )
-    assert html.count("<script") == 1
+    assert html.count("<script") == 2
+    assert (
+        '<script defer src="/static/vendor/animejs/anime-4.1.3.umd.min.js"></script>'
+        in html
+    )
     assert '<script defer src="/static/js/guide.js"></script>' in html
     assert SCRIPTS[endpoint][0] in html
     assert client.get("/static/js/guide.js").status_code == 200
@@ -89,3 +98,24 @@ def test_visible_cautions_outside_guide() -> None:
         ),
     ]:
         assert text in (root / template).read_text()
+
+
+def test_mascot_parts_and_vendor_files(app: Flask) -> None:
+    with app.test_request_context("/"):
+        drawing = ElementTree.fromstring(render_template("guide/masu.svg"))
+    classes = [e.get("class") for e in drawing.iter()]
+    assert classes.count("eye-open") == 2
+    assert classes.count("eye-glint") == 2
+    assert {"masu-body", "masu-fold", "masu-mouth", "masu-shadow"}.issubset(classes)
+    vendor = Path("app/static/vendor/animejs")
+    assert (vendor / "anime-4.1.3.umd.min.js").stat().st_size > 0
+    assert "MIT" in (vendor / "LICENSE").read_text()
+
+
+def test_mascot_error_state_and_static_fallback(app: Flask) -> None:
+    client = app.test_client()
+    assert 'data-mood="worried"' in client.get("/missing").get_data(as_text=True)
+    home = client.get("/").get_data(as_text=True)
+    assert 'data-mood="idle"' in home
+    assert home.count('<svg class="masu"') == 2
+    assert '<details class="masu-guide">' in home

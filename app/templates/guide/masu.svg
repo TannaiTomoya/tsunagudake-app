@@ -1,14 +1,24 @@
-<svg class="masu" viewBox="0 0 56 56" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
-  <g class="masu-register" fill="none" stroke-width="2">
-    <path class="plate-c" d="M5 7h43v43H5z"/>
-    <path class="plate-m" d="M9 5h43v43H9z"/>
-  </g>
-  <path class="masu-body" d="M7 6h43v43H7z"/>
-  <path class="masu-corners" d="M11 17v-7h7m21 35h7v-7" fill="none"/>
-  <g class="masu-eyes">
-    <path class="eyes-idle" d="M16 23h7v7h-7z M33 23h7v7h-7z"/>
-    <path class="eyes-talk" d="M15 25h9v4h-9z M32 25h9v4h-9z"/>
-    <g class="eyes-think"><rect x="16" y="20" width="7" height="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M33 24h7v7h-7z"/></g>
-    <path class="eyes-happy" d="m14 29 6-8 6 8z m17 0 6-8 6 8z"/>
-  </g>
+{% set outline = "M34 11 Q16 11 15.5 31 L14 62 Q13 83 34 84.5 Q49 86 66 84.5 Q87 83 86 62 L85 33 Q85 28 81 24 L70 14 Q67 11 61 11 Z" %}
+<svg class="masu" viewBox="0 0 100 100" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <ellipse class="masu-shadow" cx="50" cy="92" rx="26" ry="3.2"/>
+  <g class="masu-spring"><g class="masu-breath">
+    <g class="masu-register" fill="none"><path class="plate-c" d="{{ outline }}"/><path class="plate-m" d="{{ outline }}"/></g>
+    <path class="masu-body" d="{{ outline }}"/>
+    <path class="masu-gloss" d="M22 35 Q22 18 37 18 H44" fill="none"/>
+    <path class="masu-fold" d="M65 12 Q68 12 71 15 L81 25 Q83 27 84 30 L72 29 Q65 29 65 22 Z"/>
+    <g class="masu-cheeks"><rect x="20" y="61" width="8" height="4"/><rect x="72" y="61" width="8" height="4"/></g>
+    <g class="masu-eyes">
+      {% for x in (27, 61) %}
+      <g transform="translate({{ x }} 43)"><g class="masu-eye eye-{{ loop.index }}">
+        <g class="eye-open">
+          <rect class="eye-white" width="12.5" height="18" rx="5.8"/>
+          <g class="eye-pupil"><rect x="2" y="3.6" width="8.5" height="12.5" rx="3.8"/><rect class="eye-glint" x="6.5" y="4" width="3.5" height="3.5"/></g>
+        </g>
+        <path class="eye-closed" d="M1 11 Q6 12 12 10"/>
+        <path class="eye-arch" d="M0 13 Q6 -1 13 13"/>
+      </g></g>
+      {% endfor %}
+    </g>
+    <rect class="masu-mouth" x="47" y="64" width="6" height="6" rx=".7"/>
+  </g></g>
 </svg>

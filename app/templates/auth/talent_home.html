@@ -14,7 +14,7 @@
   <ul class="boundary-list">{% for item in boundaries %}<li>{{ item }}</li>{% endfor %}</ul>
   <form method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button type="submit"{% if not loop.first %} class="secondary outline"{% endif %} formaction="{{ url_for('matching.answer_invitation', candidate_id=invitation.id, answer='accept') }}">受ける</button>
+    <button type="submit" data-masu-success{% if not loop.first %} class="secondary outline"{% endif %} formaction="{{ url_for('matching.answer_invitation', candidate_id=invitation.id, answer='accept') }}">受ける</button>
     <button type="submit" class="secondary outline" formaction="{{ url_for('matching.answer_invitation', candidate_id=invitation.id, answer='decline') }}">断る</button>
   </form>
 </article>

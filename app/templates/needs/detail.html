@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% set guide_endpoint = "needs.detail" %}
+{% set guide_mood = 'worried' if need.block_reason else 'happy' if need.status in ('published', 'engaged') else 'idle' %}
 {% block title %}困りごと{% endblock %}
 {% block content %}
 <p><a href="{{ url_for('auth.office_home', office_id=office.id) }}">事務所のホーム</a></p>
@@ -26,7 +27,7 @@
 {% set action = "needs.withdraw" if need.status == "published" else "needs.publish" %}
 <form method="post" action="{{ url_for(action, office_id=office.id, need_id=need.id) }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <button type="submit">{{ "取り下げる" if need.status == "published" else "公開する" }}</button>
+  <button type="submit"{% if need.status == "draft" %} data-masu-success{% endif %}>{{ "取り下げる" if need.status == "published" else "公開する" }}</button>
 </form>
 {% endif %}
 </section>

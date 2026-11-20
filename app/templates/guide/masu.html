@@ -1,7 +1,7 @@
-<footer class="guide-dock">
+{% set has_error = guide_endpoint == "error" or error or failed or (form is defined and form.errors) %}
+<footer class="guide-dock" data-mood="{{ 'worried' if has_error else guide_mood | default('idle') }}">
   <details class="masu-guide">
-    <summary aria-label="案内役のマス。この画面の説明を聞く">
-      <span class="guide-name"><small>案内役</small>マス</span>
+    <summary id="masu-guide-trigger" aria-label="案内役のマス。この画面の説明を聞く">
       {% include "guide/masu.svg" %}
     </summary>
     <div class="guide-bubble">
