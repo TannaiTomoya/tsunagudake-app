@@ -243,3 +243,10 @@ body {
   }
   .candidate-comparison td ul, .candidate-comparison td p { margin-bottom: 0; }
 }
+
+.print-copy { display: none; }
+@media print {
+  body:has(> .print-copy) > :not(.print-copy) { display: none; }
+  body > .print-copy { display: block; margin: 0; box-shadow: none; }
+  .print-button, .guide-dock, .topbar, .demo-notice, .rail { display: none; }
+}

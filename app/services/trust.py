@@ -21,6 +21,7 @@ from app.models import (
     User,
     utc_now,
 )
+from app.services.billing import protect_payout
 from tsunagu_rules.types import NeedKind
 
 
@@ -78,6 +79,8 @@ class ProfileInput:
     is_listed: bool
     tools: frozenset[str]
     strengths: frozenset[NeedKind]
+    payout: str | None = None
+    registration: str | None = None
 
 
 class TrustConflict(Exception):
@@ -116,6 +119,10 @@ def save_profile(user_id: int, data: ProfileInput) -> None:
     if talent.bookkeeping_level != data.grade:
         talent.level_verified_at = None
         talent.level_verified_by = None
+    if data.payout is not None:
+        talent.payout_cipher = protect_payout(data.payout) if data.payout else None
+    if data.registration is not None:
+        talent.invoice_registration = data.registration or None
     talent.bookkeeping_level = data.grade
     talent.municipality_id = data.municipality_id
     talent.weekdays_mask = data.weekdays_mask

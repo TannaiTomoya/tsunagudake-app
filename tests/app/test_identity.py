@@ -772,6 +772,11 @@ def test_t22_t27_finalize_confirmed_hours_once(
     result = database_app.test_cli_runner().invoke(args=["verify-ledger"])
     assert result.exit_code == 0, result.output
 
+    invoice_url = f"/statements/{month}/invoice"
+    invoice = office.get(office_path + invoice_url)
+    assert "32,000円" in invoice.get_data(as_text=True)
+    assert invoice.headers["Cache-Control"] == "no-store"
+    assert "請求書" in talent.get(talent_path + invoice_url).get_data(as_text=True)
     transfer = office_path + f"/statements/{month}/report-transfer"
     receipt = talent_path + f"/statements/{month}/confirm-receipt"
     talent_csrf = token(talent, talent_path)
@@ -1240,3 +1245,30 @@ def test_t42_only_partner_verified_claims_contribute(database_app: Flask) -> Non
     page = talent.get("/t/").get_data(as_text=True)
     assert "資料回収が得意です（10点）" in page
     assert "資料回収（事務所が確認済み）" in page
+
+
+def test_t46_agreement_uses_rate_from_sent_estimate(identity_app: Flask) -> None:
+    _seed_candidates(identity_app)
+    office = identity_app.test_client()
+    talent = identity_app.test_client()
+    sign_in(office, "office@example.org")
+    sign_in(talent, "tsunagite@example.org")
+    _, path = _publish_and_generate(office)
+    first = _ranks(identity_app)[0][0]
+    data = {**_offer_data(token(office, path)), "estimate_hours": "5"}
+    assert office.post(f"{path}/{first}/invite", data=data).status_code == 302
+    assert "8,000円" in talent.get("/t/").get_data(as_text=True)
+    with identity_app.app_context():
+        org = db.session.get(Office, 1)
+        assert org
+        org.hourly_rate_yen = 7000
+        db.session.commit()
+    assert (
+        talent.post(
+            f"/t/invitations/{first}/accept", data={"csrf_token": token(talent, "/t/")}
+        ).status_code
+        == 302
+    )
+    with identity_app.app_context():
+        agreement = db.session.scalar(select(Engagement))
+        assert agreement and agreement.hourly_rate_yen == 4000

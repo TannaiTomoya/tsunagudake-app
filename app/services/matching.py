@@ -41,9 +41,11 @@ from tsunagu_rules.types import (
 from tsunagu_rules.types import (
     Need as RuleNeed,
 )
+from tsunagu_rules.types import Reduction as RuleReduction
 from tsunagu_rules.types import (
     Talent as RuleTalent,
 )
+from tsunagu_rules.value import calc_fee, estimate_value
 
 
 class MatchConflict(Exception):
@@ -55,6 +57,7 @@ class Offer:
     weekday: int
     share_bp: int
     cap_yen: int | None
+    estimate_hours: int | None = None
 
 
 def _days(mask: int) -> frozenset[int]:
@@ -251,6 +254,23 @@ def invite(
     candidate.offer_weekday = offer.weekday
     candidate.offer_fee_share_bp = offer.share_bp
     candidate.offer_fee_cap_yen = offer.cap_yen
+    hours = offer.estimate_hours
+    if hours is None:
+        hours = estimate_value(
+            need.monthly_hours, office.hourly_rate_yen
+        ).projected_hours[1]
+    if not 0 <= hours <= need.monthly_hours:
+        raise MatchConflict(
+            "見込みの時間は、この困りごとの月の時間以内で入力してください。"
+        )
+    candidate.estimate_hours = hours
+    candidate.estimate_hourly_rate = office.hourly_rate_yen
+    candidate.estimate_total = calc_fee(
+        [RuleReduction(hours, 0, True)],
+        office.hourly_rate_yen,
+        offer.share_bp,
+        offer.cap_yen,
+    ).fee_yen
     candidate.invited_by = actor_id
     candidate.invited_at = utc_now()
     append_record(
@@ -262,6 +282,9 @@ def invite(
             "weekday": offer.weekday,
             "fee_share_bp": offer.share_bp,
             "fee_cap_yen": offer.cap_yen,
+            "estimate_hours": hours,
+            "hourly_rate_yen": candidate.estimate_hourly_rate,
+            "estimate_yen": candidate.estimate_total,
         },
     )
     record_audit(
@@ -346,7 +369,9 @@ def respond(candidate_id: int, actor_id: int, *, accept: bool) -> int | None:
         talent_id=talent.id,
         candidate_id=candidate.id,
         weekday=weekday,
-        hourly_rate_yen=office.hourly_rate_yen,
+        hourly_rate_yen=candidate.estimate_hourly_rate
+        if candidate.estimate_hourly_rate is not None
+        else office.hourly_rate_yen,
         fee_share_bp=share,
         fee_cap_yen=candidate.offer_fee_cap_yen,
         trial_ends_on=today + timedelta(days=current_app.config.get("TRIAL_DAYS", 30)),

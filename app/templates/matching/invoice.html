@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}請求書{% endblock %}
+{% block content %}
+<article class="print-document"><h1>請求書</h1>
+<p>{{ office.name }} 御中</p><p>発行者 {{ issuer }}</p>
+<dl>
+  <dt>対象月</dt><dd>{{ bill.month }}</dd>
+  <dt>事務所が確かめた時間</dt><dd>{{ bill.reduced_hours }}時間</dd>
+  <dt>時給と割合</dt><dd>{{ "{:,}円".format(bill.hourly_rate_yen) }} × {{ "%g"|format(bill.fee_share_bp / 100) }}%</dd>
+  <dt>月の上限</dt><dd>{{ "{:,}円".format(bill.fee_cap_yen) if bill.fee_cap_yen is not none else "なし" }}</dd>
+  <dt>請求額</dt><dd><strong>{{ "{:,}円".format(bill.fee_yen) }}</strong></dd>
+  <dt>振込期日</dt><dd>{{ bill.due_on or "個別の取り決めをご確認ください" }}</dd>
+  <dt>振込先</dt><dd>{{ payout or "つなぎ手にご確認ください" }}</dd>
+  <dt>インボイス登録番号</dt><dd>{{ bill.invoice_registration or "登録番号の記載なし" }}</dd>
+</dl>
+<button type="button" class="print-button secondary outline">請求書を印刷する</button></article>
+{% endblock %}

@@ -90,6 +90,9 @@ class OfferForm(FlaskForm):  # type: ignore[misc]
         default=40,
         validators=[InputRequired(), NumberRange(min=1, max=49)],
     )
+    estimate_hours = IntegerField(
+        "減る時間の見込み", validators=[Optional(), NumberRange(0, 400)]
+    )
     cap_yen = IntegerField(
         "月の上限（円、省略可）",
         validators=[Optional(), NumberRange(min=0, max=2147483647)],
@@ -200,7 +203,10 @@ def invitation(office_id: int, need_id: int, candidate_id: int) -> ResponseRetur
                 candidate_id,
                 _actor().id,
                 Offer(
-                    form.weekday.data, form.share_percent.data * 100, form.cap_yen.data
+                    form.weekday.data,
+                    form.share_percent.data * 100,
+                    form.cap_yen.data,
+                    form.estimate_hours.data,
                 ),
             )
     except MatchConflict as exc:

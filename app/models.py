@@ -295,6 +295,8 @@ class Talent(Created, Base):
         ),
         default=BookkeepingLevel.NONE,
     )
+    payout_cipher: Mapped[str | None] = mapped_column(Text)
+    invoice_registration: Mapped[str | None] = mapped_column(String(14))
     translation_verified_at: Mapped[datetime | None]
     translation_verified_by: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
@@ -399,6 +401,9 @@ class MatchCandidate(Created, Base):
     status: Mapped[CandidateStatus] = mapped_column(
         stored_enum(CandidateStatus), default=CandidateStatus.LISTED
     )
+    estimate_hours: Mapped[int | None]
+    estimate_hourly_rate: Mapped[int | None]
+    estimate_total: Mapped[int | None]
     offer_weekday: Mapped[int | None]
     offer_fee_share_bp: Mapped[int | None]
     offer_fee_cap_yen: Mapped[int | None]
@@ -541,6 +546,9 @@ class Statement(Created, Base):
     finalized_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     finalized_at: Mapped[datetime | None]
     returned_to: Mapped[str | None] = mapped_column(String(100))
+    due_on: Mapped[date | None]
+    payout_cipher: Mapped[str | None] = mapped_column(Text)
+    invoice_registration: Mapped[str | None] = mapped_column(String(14))
     transfer_reported_at: Mapped[datetime | None]
     receipt_confirmed_at: Mapped[datetime | None]
 

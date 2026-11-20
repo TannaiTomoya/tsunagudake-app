@@ -13,6 +13,7 @@
   <h3>{{ office_name }}</h3>
   <p>業務の型：{{ categories | join("・") }}／曜日：{{ weekday_names[invitation.offer_weekday] }}／料金の割合：{{ "%g"|format(invitation.offer_fee_share_bp / 100) }}%</p>
   <p>月の上限：{{ "{:,}円".format(invitation.offer_fee_cap_yen) if invitation.offer_fee_cap_yen is not none else "なし" }}</p>
+  {% include "matching/estimate.html" %}
   <p>合意してもしないこと</p>
   <ul class="boundary-list">{% for item in boundaries %}<li>{{ item }}</li>{% endfor %}</ul>
   <form method="post">

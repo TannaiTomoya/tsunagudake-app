@@ -20,6 +20,12 @@
   {% endfor %}
   {{ form.affiliation.label }} {{ form.affiliation() }}
   {{ form.capacity.label }} {{ form.capacity(min=1, max=5, required=true) }}
+  <details><summary>請求書の振込先と登録番号</summary>
+    <p>振込先は確定後の請求書で、担当事務所の代表とご本人だけが確認できます。空欄のまま保存すると今の振込先を引き継ぎます。</p>
+    {{ form.payout.label }} {{ form.payout(maxlength=200, autocomplete="off") }}
+    <label>{{ form.clear_payout() }} {{ form.clear_payout.label.text }}</label>
+    {{ form.registration.label }} {{ form.registration(maxlength=14, pattern="T[0-9]{13}") }}
+  </details>
   <label>{{ form.listed() }} {{ form.listed.label.text }}</label>
   <button type="submit">保存する</button>
 </form>

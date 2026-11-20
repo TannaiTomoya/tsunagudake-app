@@ -133,6 +133,8 @@
 
 本番の全利用者はパスワードの後に認証アプリまたは使い切り予備コードが必要です。登録途中・旧セッションは業務データにアクセスできません。デモ環境では架空利用者が発表用の入口を利用できます。
 
+請求書の振込先は担当事務所の代表と担当つなぎ手だけが表示・印刷できます。職員と運営には表示しません。
+
 ### 実装済みルート一覧
 
 | 入口 | メソッド | 権限表 |
@@ -187,3 +189,5 @@
 | `/o/<int:office_id>/engagements/<int:engagement_id>/skills/<int:skill_id>/verify` | POST | §5 |
 | `/account/today` | GET | §2 |
 | `/login/second-factor` | GET, POST | §2 |
+| `/o/<int:office_id>/engagements/<int:engagement_id>/statements/<month>/invoice` | GET | §5 |
+| `/t/engagements/<int:engagement_id>/statements/<month>/invoice` | GET | §5 |

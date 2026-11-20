@@ -15,6 +15,7 @@ from app.models import (
     ReductionStatus,
     Statement,
     StatementStatus,
+    Talent,
     Visit,
     VisitStatus,
     today_in_japan,
@@ -268,7 +269,12 @@ def fee_preview(engagement: Engagement, rows: list[Reduction]) -> Fee:
 
 
 def finalize(
-    engagement: Engagement, month: str, actor: int, *, returned_to: str = ""
+    engagement: Engagement,
+    month: str,
+    actor: int,
+    *,
+    returned_to: str = "",
+    due_date: str = "",
 ) -> None:
     need = _lock(engagement)
     statement = find_statement(engagement, month, lock=True)
@@ -295,6 +301,14 @@ def finalize(
     statement.fee_cap_yen = engagement.fee_cap_yen
     statement.rules_version = RULES_VERSION
     statement.status = StatementStatus.FINALIZED
+    try:
+        statement.due_on = date.fromisoformat(due_date) if due_date else None
+    except ValueError:
+        raise StatementConflict("振込期日の日付をご確認ください。") from None
+    talent = db.session.get(Talent, engagement.talent_id)
+    if talent:
+        statement.payout_cipher = talent.payout_cipher
+        statement.invoice_registration = talent.invoice_registration
     statement.returned_to = returned_to or None
     statement.finalized_by = actor
     statement.finalized_at = utc_now()
@@ -308,6 +322,7 @@ def finalize(
             "value_yen": fee.value_yen,
             "fee_yen": fee.fee_yen,
             "waived": fee.waived,
+            "due_on": due_date or None,
         },
     )
     record_audit(

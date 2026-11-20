@@ -168,6 +168,19 @@ ROUTES = (
         ("staff", "assigned", "admin"),
     ),
     Route(
+        "office-invoice",
+        "GET",
+        "{engagement}/statements/{month}/invoice",
+        ("other_office", "other_staff", "unrelated", "municipality"),
+        ("staff", "assigned", "admin"),
+    ),
+    Route(
+        "talent-invoice",
+        "GET",
+        "{talent_engagement}/statements/{month}/invoice",
+        (*TALENT_ACTORS, "admin"),
+    ),
+    Route(
         "transfer",
         "POST",
         "{engagement}/statements/{month}/report-transfer",

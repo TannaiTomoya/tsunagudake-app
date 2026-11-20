@@ -53,13 +53,17 @@
         <label for="share-{{ candidate.id }}">{{ form.share_percent.label.text }}</label>
         {{ form.share_percent(id="share-" ~ candidate.id, min=1, max=49, step=1, required=true, **{"aria-describedby": "share-hint-" ~ candidate.id}) }}
         <small id="share-hint-{{ candidate.id }}">50%未満</small>
+        <label for="hours-{{ candidate.id }}">減る時間の見込み（月）</label>
+        {{ form.estimate_hours(id="hours-" ~ candidate.id, min=0, max=need.monthly_hours, placeholder=(need.monthly_hours * 35 // 100)) }}
+        <small>空欄なら今かかる時間の35%で見積もります。料金は事務所が実際に確かめた時間で決まります。</small>
         <label for="cap-{{ candidate.id }}">{{ form.cap_yen.label.text }}</label>
         {{ form.cap_yen(id="cap-" ~ candidate.id, min=0) }}
-        <button type="submit" class="secondary outline">声をかける</button>
+        <button type="submit" class="secondary outline">見積書を添えて声をかける</button>
       </form>
       {% else %}<p>双方が通える曜日がありません。候補を出し直してください。</p>{% endif %}
     </details>
     {% elif candidate.status == "invited" %}
+    {% with invitation=candidate %}{% include "matching/estimate.html" %}{% endwith %}
     <form method="post" action="{{ url_for('matching.cancel_invitation', office_id=office.id, need_id=need.id, candidate_id=candidate.id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="secondary outline">{{ name }}さんへの声かけを取り消す</button>
