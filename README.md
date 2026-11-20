@@ -52,7 +52,7 @@
 | [docs/02-technical-spec.md](docs/02-technical-spec.md) | 技術仕様書：技術の選び方と理由、構成、フォルダ、設定と起動時の検査、安全、見た目、AI、検査、公開、開発の道具 |
 | [docs/03-detailed-design.md](docs/03-detailed-design.md) | 詳細設計書：テーブル、規則（式と例）、状態と遷移、同時の操作への備え、ルート、テスト T01〜T35、デモのデータ、**作る順番（§12）** |
 | [docs/authorization.md](docs/authorization.md) | 権限表（正本）。誰が・何を・できるか。拒否のマスごとにテストを書く |
-| [docs/runbook.md](docs/runbook.md) | 公開の手順（Xserver VPS・Ubuntu 24.04・MySQL・nginx・gunicorn・HTTPS・バックアップ） |
+| [docs/runbook.md](docs/runbook.md) | 公開の手順（Xserver VPS・Ubuntu 26.04・MySQL・nginx・gunicorn・HTTPS・バックアップ） |
 | [AGENTS.md](AGENTS.md) | AI エージェント（Claude Code など）が従う決まり |
 
 ## 構成
@@ -65,7 +65,7 @@
 | 規則 | `tsunagu_rules/`（Flask も DB も知らない純粋な関数。翻訳・価値・マッチング・料金・台帳・地域） |
 | 見た目 | Pico CSS 2 ＋ `theme.css`（紙・墨・藍の3色。外からの読み込みなし） |
 | 検査 | Ruff・mypy・pytest（`make check`）・GitHub Actions |
-| 公開 | VPS（Ubuntu 24.04）・nginx・gunicorn・systemd・Let's Encrypt |
+| 公開 | VPS（Ubuntu 26.04）・nginx・gunicorn・systemd・Let's Encrypt |
 
 ```
 app/            Flask のアプリ（blueprints・models・services・templates・static）
@@ -135,7 +135,7 @@ make check                       # 整形 → 静的解析 → 型 → 全テス
 
 ## 公開
 
-Xserver VPS（Ubuntu 24.04）に、nginx ＋ gunicorn ＋ MySQL ＋ HTTPS で置く。手順は [docs/runbook.md](docs/runbook.md)。
+Xserver VPS（Ubuntu 26.04）に、nginx ＋ gunicorn ＋ MySQL ＋ HTTPS で置く。手順は [docs/runbook.md](docs/runbook.md)。
 共用のレンタルサーバーでは、この構成は動かない。サーバーの操作は本人がする（AI エージェントは本番に SSH しない）。
 
 ## 進め方

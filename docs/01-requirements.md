@@ -16,7 +16,7 @@
 |---|---|---|---|
 | 発表で見せるもの | Streamlit の4画面（別物のデモ） | **本番と同じアプリ**を `APP_ENV=demo` で動かす | 見せたものが、そのまま使われるものになる。作り直しをなくす |
 | フレームワーク | Django | **Flask**（＋ Flask-Login・Flask-WTF・Flask-SQLAlchemy・Flask-Migrate） | キャンプで学んだ型と、公開の手順がそのまま使える（02 §2） |
-| 公開 | 未定 | VPS（Ubuntu 24.04）＋ nginx ＋ gunicorn ＋ MySQL ＋ HTTPS | [runbook.md](runbook.md) |
+| 公開 | 未定 | VPS（Ubuntu 26.04）＋ nginx ＋ gunicorn ＋ MySQL ＋ HTTPS | [runbook.md](runbook.md) |
 | 会員登録 | 招待制 | 招待制のまま。**発表までは運営がコマンドで作る**（画面は発表のあと） | 一本道を先に通す |
 | 2段階認証 | 最初から必須 | **実際の事務所が使う前に必須**（発表は架空のデータだけ） | 同上 |
 | 簿記の合格証 | 画像を預かり90日で消す | **画像を預からない**。運営が目で確かめ、確かめた記録だけを残す | 置かないものは漏れない |
