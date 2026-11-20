@@ -163,7 +163,8 @@ def test_demo_rehearsal_before_and_after_reset(monkeypatch: pytest.MonkeyPatch) 
             assert excluded in page
         ranks = _ranks(app)
         assert [row[2] for row in ranks] == [84, 36, 36]
-        assert "資料回収が得意です" in page
+        assert "資料回収が得意です（10点）" in page
+        assert "簿記2級：会計の言葉が通じます（30点）" in page
         assert "所属：地域おこし協力隊" in page
         candidate = ranks[0][0]
         selected = re.findall(r'<option value="(\d)" selected>', page)

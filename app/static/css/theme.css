@@ -1352,3 +1352,48 @@ body.with-guide {
   .masu[data-face="sleepy"]:not([data-face="worried"]) .masu-breath { animation-name: masu-doze; animation-duration: 4.6s; }
   .masu[data-face="talk"] .masu-mouth { transform-origin: 50px 67px; animation: masu-speak .42s steps(2, end) infinite; }
 }
+
+/* お金の流れ：誰が誰に、何に対して払うか。色は変数だけ。 */
+.money-section { margin-block: 1.5rem; }
+.money-flow { margin: 1.25rem 0; padding: 1rem; border: 1px solid var(--line); background: var(--surface); }
+.money-flow-title { margin-bottom: .75rem; font-weight: 800; font-size: 1.05rem; color: var(--text); }
+.money-route { display: grid; grid-template-columns: 1fr; gap: .5rem; align-items: stretch; }
+.money-node,
+.money-pay { display: flex; flex-direction: column; gap: .2rem; padding: .75rem; line-height: 1.5; }
+.money-node { border: 1px solid var(--line); background: var(--raised); }
+.money-node strong { font-size: 1.05rem; }
+.money-node span,
+.money-pay span { color: var(--muted); font-size: .92rem; }
+.money-pay { align-items: center; text-align: center; }
+.money-pay strong { color: var(--action); }
+.money-pay .money-example { color: var(--text); font-variant-numeric: tabular-nums; }
+.money-arrow { position: relative; width: 2px; height: 1.5rem; background: var(--action); }
+.money-arrow::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--action);
+  border-bottom-width: 0;
+}
+.money-notes { margin: .75rem 0 0; padding-inline-start: 1.25rem; color: var(--muted); font-size: .92rem; line-height: 1.6; }
+.money-notes li + li { margin-top: .25rem; }
+@media (min-width: 768px) {
+  .money-route { grid-template-columns: 1fr minmax(12rem, 1.3fr) 1fr; align-items: center; }
+  .money-arrow { width: 100%; height: 2px; order: 2; margin-top: .4rem; }
+  .money-arrow::after {
+    left: auto;
+    right: -2px;
+    bottom: auto;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 6px solid transparent;
+    border-left-color: var(--action);
+    border-right-width: 0;
+  }
+  .money-pay strong { order: 0; }
+  .money-pay span:not(.money-arrow) { order: 1; }
+  .money-pay .money-example { order: 3; }
+}

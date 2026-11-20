@@ -100,8 +100,14 @@ FAQS: tuple[Faq, ...] = (
     Faq(
         "score",
         "点数は、何で決まりますか",
-        "簿記の級・会計ソフト・得意な業務・移動時間・確かめられた訪問・曜日です。点数は目安です。",
+        "簿記の級・会計ソフト・得意な業務・移動時間・確かめられた訪問・曜日です。理由ごとの点数は候補の表に出ます。",
         ("点数", "スコア", "順位"),
+    ),
+    Faq(
+        "operator",
+        "運営は、どこでお金を得ていますか",
+        "今は取っていません。道具の月額か、自治体からの委託かを確かめています。",
+        ("運営", "手数料", "取り分", "儲", "収益", "稼"),
     ),
     Faq(
         "excluded",
@@ -193,7 +199,7 @@ BY_KEY = {faq.key: faq for faq in FAQS}
 DEFAULT_KEYS = ("what", "zero", "tax")
 SCREEN_KEYS: dict[str, tuple[str, ...]] = {
     "public.index": ("what", "zero", "tax"),
-    "public.how": ("fee", "score", "ledger"),
+    "public.how": ("fee", "operator", "score"),
     "demo.enter": ("demo", "what", "zero"),
     "auth.office_home": ("write", "who", "zero"),
     "needs.new": ("write", "names", "blocked"),

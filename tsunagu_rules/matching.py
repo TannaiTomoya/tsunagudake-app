@@ -66,7 +66,7 @@ def _score(need: Need, talent: Talent, minutes: int) -> Candidate:
         sum(points for points, _ in components),
         minutes,
         visits,
-        tuple(reason for points, reason in components if points),
+        tuple(f"{reason}（{points}点）" for points, reason in components if points),
     )
 
 

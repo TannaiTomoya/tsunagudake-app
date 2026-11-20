@@ -150,7 +150,7 @@ def _example(
             talent_id=talent.id,
             rank=1,
             score=85,
-            reasons=["車で15分：毎週通える距離です"],
+            reasons=["車で15分：毎週通える距離です（15点）"],
             status=CandidateStatus.ACCEPTED,
             offer_weekday=1,
             offer_fee_share_bp=4000,

@@ -1,0 +1,25 @@
+{# お金の流れ。誰が誰に、何に対して払うか。運営の取り分は、決まるまで「検討中」と書く。 #}
+<figure class="money-flow" aria-labelledby="money-flow-title">
+  <figcaption id="money-flow-title" class="money-flow-title">お金の流れ</figcaption>
+  <div class="money-route">
+    <div class="money-node">
+      <strong>会計事務所</strong>
+      <span>減った時間を確かめ、月の明細を確定する</span>
+    </div>
+    <div class="money-pay">
+      <span class="money-arrow" aria-hidden="true"></span>
+      <strong>料金を振込</strong>
+      <span>減った時間 × 時給 × 割合（50%未満）</span>
+      {% if money_example %}<span class="money-example">試算例：20時間 × 4,000円 × 40% ＝ 32,000円</span>{% endif %}
+    </div>
+    <div class="money-node">
+      <strong>つなぎ手</strong>
+      <span>毎週来て、資料回収を仕組みにする</span>
+    </div>
+  </div>
+  <ul class="money-notes">
+    <li>減らなければ、つなぎ手への料金は0円です。</li>
+    <li>アプリはお金を預かりません。支払いは、事務所からつなぎ手への振込です。</li>
+    <li>運営の取り分は検討中です。道具の月額か、自治体からの委託かを確かめています。</li>
+  </ul>
+</figure>
