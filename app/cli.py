@@ -69,6 +69,46 @@ def init_cli(app: Flask) -> None:
             raise click.ClickException("台帳の不一致: " + "、".join(failures))
         click.echo("台帳の検証が完了しました。")
 
+    @app.cli.command("anchor-ledger")
+    def anchor_ledger_command() -> None:
+        """全部の鎖を検証し、鎖の最後のハッシュを DB の外に控える（毎日）。"""
+        from pathlib import Path
+
+        from sqlalchemy.exc import SQLAlchemyError
+
+        from app.models import today_in_japan
+        from app.services.anchor import anchor_ledger
+
+        directory = Path(
+            app.config["LEDGER_ANCHOR_DIR"]
+            or Path(app.instance_path) / "ledger-anchors"
+        )
+        try:
+            result = anchor_ledger(directory, today_in_japan())
+        except OSError:
+            db.session.rollback()
+            raise click.ClickException(
+                "控えのフォルダに書けませんでした。LEDGER_ANCHOR_DIR をご確認ください。"
+            ) from None
+        except SQLAlchemyError:
+            db.session.rollback()
+            raise click.ClickException(
+                "控えを保存できませんでした。マイグレーションをご確認ください。"
+            ) from None
+        click.echo(
+            f"鎖{result.chains}本・{result.entries}行を確かめました。"
+            + (
+                "控えを保存しました。"
+                if result.created
+                else "今日の控えは保存済みです。"
+            )
+        )
+        click.echo(f"まとめた印: {result.digest}")
+        if result.problems:
+            raise click.ClickException(
+                "台帳の不一致（運営に知らせました）: " + "、".join(result.problems)
+            )
+
     def run_demo(*, reset: bool) -> None:
         from sqlalchemy.exc import SQLAlchemyError
 

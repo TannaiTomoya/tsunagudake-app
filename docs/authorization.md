@@ -143,7 +143,7 @@
 |---|---|---|
 | `/admin/…` | ○ | 404（本人が自分の級を確かめる・研修を記録する操作は §6 のとおり403） |
 | アカウントの停止 | 運営以外のアカウントを停止できる | 404 |
-| `flask create-user`・`verify-ledger`・`sync-municipalities`・`prune-audit` | サーバーに入れる人だけ（`create-user --municipality-code` は実在の町だけ。`sync-municipalities` は `deploy.sh` も呼ぶ。市町村の無い行を足すだけで、直さない・消さない） | — |
+| `flask create-user`・`verify-ledger`・`sync-municipalities`・`prune-audit`・`anchor-ledger` | サーバーに入れる人だけ（`create-user --municipality-code` は実在の町だけ。`sync-municipalities` は `deploy.sh` も呼ぶ。市町村の無い行を足すだけで、直さない・消さない） | — |
 | `GET /how`・`GET /privacy`・`GET /terms` | 全員 | 全員 |
 | デモで入る（`GET /demo/enter`・`POST /demo/enter`） | demo・development では合言葉を知っている人。**production ではルートが無い（404）** | 同じ |
 | `seed-demo`・`reset-demo` | demo・development だけ。production では、動かずにエラー | — |

@@ -477,6 +477,25 @@ class LedgerRecord(Created, Base):
     actor_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
 
 
+class LedgerAnchor(Created, Base):
+    """毎日の、鎖の最後のハッシュの控え（同じ中身を DB の外のファイルにも置く）。"""
+
+    __tablename__ = "ledger_anchors"
+    __table_args__ = (
+        CheckConstraint(
+            "chains >= 0 AND entries >= chains AND problems >= 0",
+            name="ledger_anchor_counts",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    anchored_on: Mapped[date] = mapped_column(unique=True)
+    chains: Mapped[int]
+    entries: Mapped[int]
+    digest: Mapped[str] = mapped_column(String(64))
+    problems: Mapped[int]
+
+
 class VisitStatus(StrEnum):
     RECORDED = "recorded"
     CONFIRMED = "confirmed"

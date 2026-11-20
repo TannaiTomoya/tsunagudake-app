@@ -206,6 +206,20 @@ def test_t15_agreement_requires_boundaries() -> None:
     assert not ledger.verify([StoredEntry(entry, ledger.GENESIS_HASH, digest)]).valid
 
 
+def test_t55_anchor_digest_and_rewritten_chains() -> None:
+    tips = [(1, 3, "a" * 64), (2, 1, "b" * 64)]
+    digest = ledger.anchor_digest(tips)
+    assert digest == ledger.anchor_digest(reversed(tips)) and len(digest) == 64
+    assert digest != ledger.anchor_digest([(1, 3, "a" * 64), (2, 1, "c" * 64)])
+    assert digest != ledger.anchor_digest(tips[:1])
+    current = {(1, 3): "a" * 64, (1, 4): "d" * 64, (2, 1): "b" * 64}
+    # 鎖が伸びただけなら、控えた行は同じまま。
+    assert ledger.rewritten_chains(tips, current) == []
+    assert ledger.rewritten_chains(tips, {**current, (2, 1): "c" * 64}) == [2]
+    # 控えた行が無くなっても見つかる。
+    assert ledger.rewritten_chains(tips, {(2, 1): "b" * 64}) == [1]
+
+
 def test_t16_t17_region_threshold_and_total() -> None:
     rows = [RegionRow("架空町", 4, 7, 0, 9, 12), RegionRow("架空市", 5, 2, 0, 8, 10)]
     result = mask_region(rows, 5)

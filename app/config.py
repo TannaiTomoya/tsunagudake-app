@@ -132,6 +132,8 @@ def load_config(environ: Mapping[str, str]) -> dict[str, Any]:
         "PROXY_FIX": boolean(environ, "PROXY_FIX", False),
         "DEMO_PASSWORD": environ.get("DEMO_PASSWORD", ""),
         "AI_DRIVER": environ.get("AI_DRIVER") or ("fake" if mode == "test" else "off"),
+        # 台帳の控えを置くフォルダ（DB の外）。空なら instance/ledger-anchors。
+        "LEDGER_ANCHOR_DIR": environ.get("LEDGER_ANCHOR_DIR", "").strip(),
         "MAX_CONTENT_LENGTH": 1024 * 1024,
     }
 

@@ -28,6 +28,7 @@ Cursor・Claude Code など、どの AI エージェントもこのファイル�
 - #66 の戻った先の選択肢（`statements.returned_kind`）と、地域の画面のグラフ4つ（直近6か月。もとになった事務所が5未満のマスは伏せる）を実装。顧問先の数（`offices.client_count`、`/o/<office_id>/profile`。直せるのは代表だけ。町の画面には合計だけ、入力した事務所が5未満なら伏せ、事務所の数は出さない）を実装。
 - #72 の市町村の一覧（総務省のコード1,741件。`flask sync-municipalities` が無い行だけを足す）、都道府県 → 市町村の2段の選び方、確かめた経路（`office_routes`、`/o/<office_id>/routes`。登録は代表だけ）を実装。通常の事務所の候補は `office_routes` だけ、デモは `travel_times` のまま。デモの人は架空の町だけ、通常の人は実在の町だけを選べる。本番での取り込みは未確認。
 - #24 の退会（`/account/withdraw`。行は残し、名前とメールアドレスを消す）、伴走を終える（代表と担当つなぎ手。理由は選択肢だけで、台帳に `ended`）、規約とポリシーの**案**（`/terms`・`/privacy`）、`flask prune-audit` を実装。専門家への確認と、運営者の名前・連絡先の記載は未了。
+- #23 の台帳の毎日の検証と控え（`flask anchor-ledger`。鎖の最後のハッシュを `ledger_anchors` と DB の外のファイルに控え、前の日の控えと比べる。合わなければ運営にメール）を実装。本番のタイマー（`deploy/tsunagudake-daily.*`）は未設定。
 - 1段階ずつ進める。終えたら、この節を書き直す
 
 ## コードの決まり
@@ -71,7 +72,7 @@ Cursor・Claude Code など、どの AI エージェントもこのファイル�
 - 検査（コミットの前に毎回）：`make check`（ruff format --check → ruff check → mypy → pytest）
 - 規則だけ：`uv run pytest tests/rules -q`
 - DB：`uv run flask db migrate -m "…"` → 中身を読む → `uv run flask db upgrade`
-- デモ：`uv run flask seed-demo`／`uv run flask reset-demo --yes`　台帳：`uv run flask verify-ledger`　監査記録：`uv run flask prune-audit`（180日たった接続元の印を消す）
+- デモ：`uv run flask seed-demo`／`uv run flask reset-demo --yes`　台帳：`uv run flask verify-ledger`（毎日の検証と控えは `uv run flask anchor-ledger`）　監査記録：`uv run flask prune-audit`（180日たった接続元の印を消す）
 - 市町村：`uv run flask sync-municipalities`（無い行を足すだけ）。一覧の作り直しは `python scripts/build_municipalities.py 総務省の.xlsx`
 - パッケージを足す：`uv add 名前`（開発用は `uv add --dev 名前`）。足す前に 02 §2・§3 を直す
 

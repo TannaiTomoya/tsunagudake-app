@@ -1,0 +1,10 @@
+[Unit]
+Description=Run the tsunagudake daily checks at 03:10 JST, before the backup
+
+[Timer]
+OnCalendar=*-*-* 03:10:00 Asia/Tokyo
+Persistent=true
+Unit=tsunagudake-daily.service
+
+[Install]
+WantedBy=timers.target

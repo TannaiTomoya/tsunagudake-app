@@ -34,6 +34,7 @@ from app.models import (
     utc_now,
 )
 from app.services.accounts import AccountError, Invite, issue_invitation
+from app.services.anchor import latest_anchor
 from app.services.ledger import ledger_failures
 from app.services.mail import MailError, mail_body
 from app.services.municipalities import chosen_prefecture, prefectures, towns_in
@@ -184,7 +185,14 @@ def suspend(user_id: int) -> ResponseReturnValue:
 @login_required  # type: ignore[untyped-decorator]
 def ledger() -> str:
     _admin()
-    return render_template("admin/ledger.html", failures=ledger_failures())
+    anchor = latest_anchor()
+    day = None
+    if anchor is not None:
+        on = anchor.anchored_on
+        day = f"{on.month}月{on.day}日({'月火水木金土日'[on.weekday()]})"
+    return render_template(
+        "admin/ledger.html", failures=ledger_failures(), anchor=anchor, anchor_day=day
+    )
 
 
 class InviteForm(FlaskForm):  # type: ignore[misc]
