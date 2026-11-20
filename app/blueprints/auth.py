@@ -11,6 +11,7 @@ from flask import (
     session,
     url_for,
 )
+from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required, login_user, logout_user
 from flask_wtf import FlaskForm
 from sqlalchemy import and_, case, select
@@ -29,6 +30,7 @@ from app.models import (
     Engagement,
     MatchCandidate,
     MatchRun,
+    MemberRole,
     Municipality,
     MunicipalityMember,
     Need,
@@ -45,6 +47,11 @@ from app.models import (
 )
 from app.services import second_factor
 from app.services.auth import authenticate, requires_second_factor
+from app.services.office import (
+    OfficeNotFound,
+    OfficeProfileError,
+    save_client_count,
+)
 from app.services.region import dashboard_for
 from app.services.statement import confirmed_visits, expected_income
 from app.services.tasks import tasks_for
@@ -218,6 +225,47 @@ def office_home(office_id: int) -> str:
         weekday_options=weekday_options,
         statuses=STATUSES,
         can_write=current_user.role == Role.OFFICE,
+    )
+
+
+@bp.route("/o/<int:office_id>/profile", methods=["GET", "POST"])
+@login_required  # type: ignore[untyped-decorator]
+def office_profile(office_id: int) -> ResponseReturnValue:
+    user = cast(User, current_user)
+    error = None
+    if request.method == "POST":
+        # 直せるのは代表だけ。事務所は URL の所属から決め、画面からは数だけを受け取る。
+        office = require_office(office_id, owner_only=True)
+        try:
+            save_client_count(office.id, user.id, request.form.get("client_count"))
+        except OfficeNotFound:
+            abort(404)
+        except OfficeProfileError as exc:
+            error = str(exc)
+        else:
+            return redirect(url_for("auth.office_profile", office_id=office.id))
+    else:
+        office = require_office(office_id)
+    owner = (
+        db.session.scalar(
+            select(OfficeMember.member_role).where(
+                OfficeMember.office_id == office.id, OfficeMember.user_id == user.id
+            )
+        )
+        == MemberRole.OWNER
+    )
+    town = db.session.get(Municipality, office.municipality_id)
+    return (
+        render_template(
+            "auth/office_profile.html",
+            heading=office.name,
+            office=office,
+            town=town.name if town else "",
+            owner=owner,
+            error=error,
+            entered=request.form.get("client_count", "") if error else None,
+        ),
+        422 if error else 200,
     )
 
 

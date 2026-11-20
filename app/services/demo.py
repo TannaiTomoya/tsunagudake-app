@@ -332,6 +332,8 @@ def seed_demo(password: str) -> bool:
                 name=f"架空会計事務所 {index + 1}",
                 municipality_id=south.id if index < 6 else north.id,
                 software="excel",
+                # 架空の顧問先の数。
+                client_count=(42, 57, 33, 48, 61, 36, 28, 45)[index],
                 is_demo=True,
             )
         )

@@ -1,0 +1,24 @@
+{% extends "auth/home.html" %}
+{% block title %}事務所のプロフィール{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('auth.office_home', office_id=office.id) }}">事務所のホームに戻る</a></p>
+<h1>事務所のプロフィール</h1>
+<p>{{ heading }}（{{ town }}）</p>
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+{% if owner %}
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label for="client_count">顧問先の数（任意）</label>
+  <input id="client_count" name="client_count" type="number" inputmode="numeric" min="0" max="100000" step="1" value="{{ entered if entered is not none else (office.client_count if office.client_count is not none else '') }}" aria-describedby="client-count-note">
+  <small id="client-count-note">町の画面には、町の事務所の合計だけが出ます。入力した事務所が少ない町では、合計も伏せます。空にすると「入力していない」に戻ります。</small>
+  <button type="submit">保存する</button>
+</form>
+{% else %}
+<div class="overflow-auto statement-table" role="region" aria-label="事務所のプロフィール" tabindex="0"><table>
+  <tbody>
+    <tr><th scope="row">顧問先の数</th><td data-numeric>{% if office.client_count is none %}入力していません{% else %}{{ "{:,}".format(office.client_count) }}社{% endif %}</td></tr>
+  </tbody>
+</table></div>
+<p>顧問先の数を直せるのは、事務所の代表だけです。</p>
+{% endif %}
+{% endblock %}

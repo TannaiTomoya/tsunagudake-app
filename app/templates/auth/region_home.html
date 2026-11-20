@@ -58,6 +58,16 @@
   </tfoot>
 </table>
 </div>
+{% if figures is not none %}
+<h2>町の会計事務所が支える会社</h2>
+{% if dashboard.clients is none %}
+<p>顧問先の数を入力した事務所が少ないため、表示しません。</p>
+{% elif dashboard.client_offices == 0 %}
+<p>顧問先の数を入力した事務所は、まだありません。</p>
+{% else %}
+<p class="region-summary">この町の会計事務所は、合わせて{{ "{:,}".format(dashboard.clients) }}社を支えています。顧問先の数を入力した事務所の合計です（5事務所以上のときに出します）。</p>
+{% endif %}
+{% endif %}
 <h2>直近6か月のグラフ</h2>
 {% if figures is none %}
 <p>参加事務所が少ないため、グラフは表示しません。</p>
