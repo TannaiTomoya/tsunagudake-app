@@ -222,3 +222,24 @@ body {
   .work-steps { gap: .15rem; }
   .work-steps li { padding: .3rem 0; font-size: .85rem; }
 }
+
+@media (max-width: 767px) {
+  .candidate-comparison, .candidate-comparison tbody,
+  .candidate-comparison tr, .candidate-comparison td { display: block; }
+  .candidate-comparison thead {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .candidate-comparison tbody { display: grid; gap: 1rem; }
+  .candidate-comparison tbody tr {
+    border: 1px solid var(--line); background: var(--surface); padding: .5rem;
+  }
+  .candidate-comparison tbody td {
+    text-align: start; white-space: normal; overflow-wrap: anywhere;
+    padding: .4rem .5rem; border: 0;
+  }
+  .candidate-comparison td::before {
+    content: attr(data-label); display: block; color: var(--muted); font-weight: 600;
+  }
+  .candidate-comparison td ul, .candidate-comparison td p { margin-bottom: 0; }
+}

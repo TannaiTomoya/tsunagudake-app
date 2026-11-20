@@ -161,6 +161,9 @@ def test_demo_rehearsal_before_and_after_reset(monkeypatch: pytest.MonkeyPatch) 
             "受け持ち上限 1人",
         ):
             assert excluded in page
+        assert 'class="candidate-comparison"' in page
+        for label in ("順位", "表示名・所属", "簿記", "理由", "点数", "状態"):
+            assert page.count(f'data-label="{label}"') == 3
         ranks = _ranks(app)
         assert [row[2] for row in ranks] == [84, 36, 36]
         assert "資料回収が得意です（10点）" in page
@@ -342,7 +345,7 @@ def test_demo_weekdays_and_candidate_specific_choices(
     for day in range(5):
         page = generate_for([day])
         assert [r[2] for r in _ranks(app)] == [84, 36, 36]
-        assert re.findall(r"<td>架空つなぎ手 (\d+)（", page) == ["1", "2", "3"]
+        assert re.findall(r"<td[^>]*>架空つなぎ手 (\d+)（", page) == ["1", "2", "3"]
         assert re.findall(r'<option value="(\d)" selected>', page) == [str(day)] * 3
     page = generate_for([6])
     assert not _ranks(app)
