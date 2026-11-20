@@ -10,11 +10,8 @@ function enableGuide() {
   const voiceControl = guide.querySelector(".guide-voice");
   const voiceSelect = voiceControl.querySelector("select");
   const synth = window.speechSynthesis;
-  const presets = {
-    calm: { rate: 0.9, pitch: 0.9, index: 0 },
-    clear: { rate: 1.1, pitch: 1.1, index: 1 },
-    slow: { rate: 0.75, pitch: 1, index: 2 },
-  };
+  const tones = window.masuVoice;
+  const legacyVoices = ["calm", "clear", "slow"];
   const preferenceKey = "tsunagudake.guide.voice";
   let voices = [];
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -33,25 +30,33 @@ function enableGuide() {
   let looking = false;
   let stroking = null;
   let current = 0;
+  let currentText = "";
+  let answerMood = null;
+  let waiting = false;
+  const answerLine = document.createElement("p");
+  answerLine.className = "guide-answer";
+  answerLine.hidden = true;
+  guide.querySelector(".guide-lines").append(answerLine);
 
   function refreshVoices() {
     const local = synth.getVoices().filter((voice) => voice.localService);
     const japanese = local.filter((voice) => /^ja/i.test(voice.lang));
     voices = japanese.length ? japanese : local.slice(0, 1);
-    voiceControl.hidden = !voices.length;
+    voiceSelect.querySelector('option[value="read"]').hidden = !voices.length;
+    if (!voices.length && voiceSelect.value === "read") voiceSelect.value = "off";
   }
 
+  // 「読み上げ」を選んだときだけ、端末の声で言葉を読む。
   function readLine() {
     if (!synth || !window.SpeechSynthesisUtterance) return;
     speaking = null;
     synth.cancel();
-    const preset = presets[voiceSelect.value];
-    if (!preset || !voices.length) return;
-    const utterance = new SpeechSynthesisUtterance(lines[current].textContent);
-    utterance.voice = voices[preset.index % voices.length];
+    if (voiceSelect.value !== "read" || !voices.length) return;
+    const utterance = new SpeechSynthesisUtterance(currentText);
+    utterance.voice = voices[0];
     utterance.lang = "ja-JP";
-    utterance.rate = preset.rate;
-    utterance.pitch = preset.pitch;
+    utterance.rate = 0.9;
+    utterance.pitch = 0.9;
     speaking = utterance;
     utterance.onend = utterance.onerror = () => {
       if (speaking === utterance) {
@@ -65,9 +70,9 @@ function enableGuide() {
   function updateFaces() {
     const thinking = document.activeElement?.matches(".workspace input:not([type=hidden]), .workspace textarea, .workspace select");
     for (const svg of portraits) {
-      let face = dock.dataset.mood;
+      let face = answerMood || dock.dataset.mood;
       if (sleepy) face = "sleepy";
-      else if (thinking) face = "think";
+      else if (thinking || waiting) face = "think";
       else if (looking && face === "idle") face = "gaze";
       if (guide.open && (revealTimer !== null || speaking || reduced.matches)) face = "talk";
       if (svg === stroking) face = "happy";
@@ -76,40 +81,80 @@ function enableGuide() {
   }
 
   function finishLine() {
-    clearInterval(revealTimer);
+    clearTimeout(revealTimer);
     revealTimer = null;
-    visualLine.textContent = lines[current].textContent;
-    next.hidden = lines.length === 1;
-    next.textContent = current === lines.length - 1 ? "最初の一言" : "次の一言";
+    visualLine.textContent = currentText;
+    if (!answerLine.hidden) {
+      next.hidden = false;
+      next.textContent = "画面の案内";
+    } else {
+      next.hidden = lines.length === 1;
+      next.textContent = current === lines.length - 1 ? "最初の一言" : "次の一言";
+    }
     updateFaces();
   }
 
-  function showLine(index) {
-    current = index;
-    lines.forEach((line, position) => { line.hidden = position !== current; });
-    count.textContent = (current + 1) + " / " + lines.length;
+  // 文字を1つずつ出し、選んだ声の音を文字に合わせて鳴らす。
+  function present(text) {
+    currentText = text;
     guide.open = true;
-    clearInterval(revealTimer);
-    const letters = Array.from(lines[index].textContent);
+    clearTimeout(revealTimer);
+    revealTimer = null;
+    const letters = Array.from(text);
+    const mode = voiceSelect.value;
+    const question = /[？?]$/.test(text);
     visualLine.textContent = "";
     next.hidden = false;
     next.textContent = "全文を表示";
-    if (reduced.matches) {
+    if (reduced.matches || !letters.length) {
+      tones.tick(mode, letters[0] || "", { last: true, question });
       finishLine();
     } else {
       let length = 0;
-      revealTimer = setInterval(() => {
-        visualLine.textContent += letters[length++];
-        if (length === letters.length) finishLine();
-      }, 30);
+      const step = () => {
+        const letter = letters[length++];
+        visualLine.textContent += letter;
+        const last = length === letters.length;
+        tones.tick(mode, last ? letters.findLast(item => !/[。？！?!]/.test(item)) || letter : letter, { last, question });
+        if (last) finishLine();
+        else revealTimer = setTimeout(step, tones.pause(mode, letter));
+      };
+      revealTimer = setTimeout(step, 30);
     }
     readLine();
     updateFaces();
   }
 
+  function showLine(index) {
+    current = index;
+    answerMood = null;
+    answerLine.hidden = true;
+    lines.forEach((line, position) => { line.hidden = position !== current; });
+    count.textContent = (current + 1) + " / " + lines.length;
+    present(lines[index].textContent);
+  }
+
+  // 質問への答えを話す。mood は "worried"（答えが無い）か null。
+  function say(text, mood = null) {
+    waiting = false;
+    answerMood = mood;
+    lines.forEach(line => { line.hidden = true; });
+    answerLine.textContent = text;
+    answerLine.hidden = false;
+    count.textContent = "答え";
+    guide.querySelector(".guide-bubble").scrollTop = 0;
+    if (mood) tones.cue(voiceSelect.value, mood);
+    present(text);
+  }
+
+  function setWaiting(value) {
+    waiting = value;
+    updateFaces();
+  }
+
   function advance() {
     if (revealTimer !== null) finishLine();
-    else showLine(guide.open ? (current + 1) % lines.length : 0);
+    else showLine(guide.open && answerLine.hidden ? (current + 1) % lines.length : guide.open ? current : 0);
   }
 
   function dismiss() {
@@ -121,20 +166,31 @@ function enableGuide() {
     guideOpener.focus({ preventScroll: true });
   }
 
-  if (synth && window.SpeechSynthesisUtterance) {
+  const canRead = Boolean(synth && window.SpeechSynthesisUtterance);
+  for (const option of voiceSelect.options) {
+    if (tones.has(option.value)) option.hidden = !tones.available;
+    if (option.value === "read") option.hidden = !canRead;
+  }
+  voiceControl.hidden = !tones.available && !canRead;
+  try {
+    // 以前の3つの読み上げは、いまの「読み上げ」として引き継ぐ。
+    const saved = localStorage.getItem(preferenceKey);
+    const choice = legacyVoices.includes(saved) ? "read" : saved;
+    const option = [...voiceSelect.options].find(item => item.value === choice);
+    if (option && !option.hidden) voiceSelect.value = choice;
+  } catch { /* 端末に保存できなくても、この画面では選択できる。 */ }
+  if (canRead) {
     refreshVoices();
     synth.addEventListener("voiceschanged", refreshVoices);
-    try {
-      const saved = localStorage.getItem(preferenceKey);
-      if (Object.hasOwn(presets, saved)) voiceSelect.value = saved;
-    } catch { /* 端末に保存できなくても、この画面では選択できる。 */ }
-    voiceSelect.addEventListener("change", () => {
-      try { localStorage.setItem(preferenceKey, voiceSelect.value); } catch {}
-      readLine();
-      updateFaces();
-    });
     window.addEventListener("pagehide", () => synth.cancel());
   }
+  voiceSelect.addEventListener("change", () => {
+    try { localStorage.setItem(preferenceKey, voiceSelect.value); } catch {}
+    // 選んだ操作をきっかけに音を出せるようにし、選んだ声を1音だけ聞かせる。
+    if (tones.has(voiceSelect.value) && tones.unlock()) tones.cue(voiceSelect.value, "tap");
+    readLine();
+    updateFaces();
+  });
 
   // Animate numeric values and write only SVG transform attributes. Layout stays in CSS.
   const springs = new WeakMap();
@@ -263,6 +319,7 @@ function enableGuide() {
       lastX = event.clientX;
       direction = 0;
       stroked = false;
+      if (tones.has(voiceSelect.value) && tones.unlock()) tones.cue(voiceSelect.value, "tap");
       svg.toggleAttribute("data-pressed", true);
       spring(svg, "press");
     });
@@ -284,6 +341,7 @@ function enableGuide() {
       event.preventDefault();
       if (stroked && event.detail) { stroked = false; return; }
       if (!guide.open) guideOpener = button;
+      if (tones.has(voiceSelect.value)) tones.unlock();
       wake();
       makeContact();
       if (!event.detail) spring(svg, "release");
@@ -338,6 +396,10 @@ function enableGuide() {
     sessionStorage.removeItem(successKey);
     if (Date.now() - submitted < 30000 && dock.dataset.mood === "happy") spring(trigger.querySelector(".masu"), "celebrate");
   } catch { /* The static expression also conveys success. */ }
+
+  // 質問のやりとり（guide-ask.js）が、マスに答えを話させるための口。
+  window.masuGuide = { say, setWaiting };
+  document.dispatchEvent(new Event("masu:ready"));
 }
 
 if (window.anime?.animate) enableGuide();

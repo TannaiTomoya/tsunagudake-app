@@ -13,14 +13,20 @@
         <label class="guide-voice" hidden>声
           <select aria-label="案内役の声">
             <option value="off">なし</option>
-            <option value="calm">落ち着き</option>
-            <option value="clear">はきはき</option>
-            <option value="slow">ゆっくり</option>
+            <option value="poko">ぽこぽこ</option>
+            <option value="piko">ぴこぴこ</option>
+            <option value="koto">ことこと</option>
+            <option value="read">読み上げ</option>
           </select>
         </label>
         <button type="button" class="guide-next secondary outline">次の一言</button>
         <button type="button" class="guide-close secondary outline">閉じる</button>
       </div>
+      <details class="guide-ask">
+        <summary>質問する</summary>
+        {% set ask_screen = guide_endpoint | default(request.endpoint) %}
+        {% include "guide/ask_form.html" %}
+      </details>
     </div>
   </details>
 </footer>

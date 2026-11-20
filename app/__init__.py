@@ -52,5 +52,10 @@ def create_app(config: Mapping[str, Any] | None = None) -> Flask:
     app.register_blueprint(accounts_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(talent_bp)
+    from app.blueprints.guide import bp as guide_bp
+    from app.blueprints.guide import suggestions
+
+    app.register_blueprint(guide_bp)
+    app.jinja_env.globals["guide_questions"] = suggestions
     init_cli(app)
     return app

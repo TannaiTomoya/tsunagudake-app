@@ -22,7 +22,7 @@ def test_fixed_script_renders_without_javascript(app: Flask, endpoint: str) -> N
     guide = html.split('<details class="masu-guide">', 1)[1].split("</details>", 1)[0]
     assert 'aria-label="案内役のマス。この画面の説明を聞く"' in guide
     assert 'aria-live="polite"' in guide
-    assert html.count("<script") == 2
+    assert html.count("<script") == 4
     assert (
         '<script defer src="/static/vendor/animejs/anime-4.1.3.umd.min.js"></script>'
         in html
@@ -53,7 +53,7 @@ def test_guide_uses_local_assets_and_screen_script(
         response.headers["Content-Security-Policy"]
         == "default-src 'self'; frame-ancestors 'none'"
     )
-    assert html.count("<script") == 2
+    assert html.count("<script") == 4
     assert (
         '<script defer src="/static/vendor/animejs/anime-4.1.3.umd.min.js"></script>'
         in html

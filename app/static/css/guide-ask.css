@@ -1,0 +1,39 @@
+/* 案内役マスへの質問。色と文字は theme.css の変数だけを使う。 */
+.guide-ask { margin-top: .6rem; padding-top: .5rem; border-top: 1px solid var(--line); }
+.guide-ask > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 .2rem;
+  color: var(--action);
+  font-size: .9rem;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+.guide-ask > summary::-webkit-details-marker { display: none; }
+.guide-ask > summary::after { content: none; }
+.guide-ask[open] > summary { color: var(--muted); }
+.guide-ask-form { margin: .4rem 0 0; }
+.guide-ask-choices { display: grid; gap: .4rem; margin-bottom: .7rem; }
+.guide-ask-choices input { display: none; }
+.guide-ask-choices button {
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: .45rem .7rem;
+  font-size: .92rem;
+  line-height: 1.45;
+  text-align: start;
+  white-space: normal;
+}
+.guide-ask-free label { display: block; margin: 0; font-size: .88rem; color: var(--muted); }
+.guide-ask-row { display: flex; gap: .4rem; margin-top: .25rem; }
+.guide-ask-row input { flex: 1; min-width: 0; min-height: 44px; margin: 0; font-size: 1rem; }
+.guide-ask-row button { width: auto; min-height: 44px; margin: 0; padding: 0 1rem; white-space: nowrap; }
+.guide-ask-form small { display: block; margin-top: .35rem; color: var(--muted); line-height: 1.5; }
+.guide-answer { margin: .55rem 0; line-height: 1.6; }
+.guide-asked { color: var(--muted); }
+.guide-reply { padding: 1rem; border: 1px solid var(--line); border-inline-start: 3px double var(--muted); background: var(--surface); }
+.guide-ask-page { max-width: 36rem; }
+.masu-guide .guide-bubble:has(.guide-ask[open]) { max-height: 62vh; max-height: 62dvh; }

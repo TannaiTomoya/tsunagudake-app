@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}案内役の答え{% endblock %}
+{% block content %}
+<h1>案内役の答え</h1>
+{% if asked %}<p class="guide-asked">質問：{{ asked }}</p>{% endif %}
+<p class="guide-reply" data-kind="{{ reply.kind }}">{{ reply.answer }}</p>
+<section class="guide-ask-page" aria-labelledby="guide-more">
+  <h2 id="guide-more">ほかの質問</h2>
+  {% include "guide/ask_form.html" %}
+</section>
+<p><a href="{{ url_for('public.how') }}">しくみを読む</a></p>
+{% endblock %}
