@@ -113,7 +113,7 @@ def save_visit(
     )
     if visit and visit.status != VisitStatus.RECORDED:
         raise StatementConflict(
-            "確認済み、または「違う」が付いた訪問は変更できません。"
+            "確認済み、または「相違あり」になった訪問は変更できません。"
         )
     if visit is None:
         visit = Visit(engagement_id=engagement.id)
@@ -265,11 +265,16 @@ def fee_preview(engagement: Engagement, rows: list[Reduction]) -> Fee:
     )
 
 
-def finalize(engagement: Engagement, month: str, actor: int) -> None:
+def finalize(
+    engagement: Engagement, month: str, actor: int, *, returned_to: str = ""
+) -> None:
     need = _lock(engagement)
     statement = find_statement(engagement, month, lock=True)
     if statement and statement.status == StatementStatus.FINALIZED:
         return
+    returned_to = returned_to.strip()
+    if len(returned_to) > 100:
+        raise StatementConflict("時間の戻った先は100文字以内で入力してください。")
     rows = month_reductions(engagement, month, lock=True)
     if not rows:
         raise StatementConflict("確かめる時間の記録を入力してから確定してください。")
@@ -288,6 +293,7 @@ def finalize(engagement: Engagement, month: str, actor: int) -> None:
     statement.fee_cap_yen = engagement.fee_cap_yen
     statement.rules_version = RULES_VERSION
     statement.status = StatementStatus.FINALIZED
+    statement.returned_to = returned_to or None
     statement.finalized_by = actor
     statement.finalized_at = utc_now()
     append_record(

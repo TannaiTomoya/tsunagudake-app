@@ -1,7 +1,9 @@
 {% extends "base.html" %}
-{% block title %}デモで入る｜つなぐだけ{% endblock %}
+{% block title %}デモで入る{% endblock %}
+{% block layout %}page entry{% endblock %}
 {% block content %}
 <h1>デモで入る</h1>
+<p>数字と名前はすべて架空です。合言葉を入力して、体験する立場を選んでください。</p>
 {% if failed %}<p role="alert">発表用の合言葉と立場をご確認ください。</p>{% endif %}
 <form method="post">
   {{ form.hidden_tag() }}

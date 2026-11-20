@@ -8,6 +8,7 @@ from flask import Flask
 from app.cli import init_cli
 from app.config import load_config, validate_config
 from app.extensions import csrf, db, login_manager, migrate
+from app.guide import SCRIPTS
 from app.security import init_security
 
 
@@ -23,6 +24,7 @@ def create_app(config: Mapping[str, Any] | None = None) -> Flask:
     login_manager.init_app(app, add_context_processor=False)
     csrf.init_app(app)
     init_security(app)
+    app.jinja_env.globals["guide_scripts"] = SCRIPTS
 
     from app.blueprints.auth import bp as auth_bp
     from app.blueprints.needs import bp as needs_bp

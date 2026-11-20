@@ -57,7 +57,8 @@ ACCOUNTS = {
     Role.MUNICIPALITY: "region@tsunagu.example",
 }
 SCRIPT_BODY = (
-    "顧問先の資料が月末まで集まらない。試算表を過去と見比べるのに、毎月30時間かかる"
+    "顧問先の紙の帳簿を、毎月こちらから取りに行っている。持ち帰ってパソコンに打ち直す。"
+    "写真で受け取りたいが、仕組みがない。資料回収に毎月30時間かかる"
 )
 
 
@@ -247,6 +248,7 @@ def _example(
                 waived=fee.waived,
                 rules_version=RULES_VERSION,
                 status=StatementStatus.FINALIZED,
+                returned_to="顧問先の相談に戻った",
                 finalized_by=owner.id,
                 finalized_at=utc_now(),
             )
@@ -361,6 +363,14 @@ def seed_demo(password: str) -> bool:
                 tag="excel" if index == 1 else "sheets",
             )
         )
+        if index == 1:
+            db.session.add(
+                TalentSkill(
+                    talent_id=talent.id,
+                    kind=TalentSkillKind.STRENGTH,
+                    tag=NeedKind.COLLECT,
+                )
+            )
         for kind in TrustKind:
             expires = (
                 today - timedelta(days=1)
