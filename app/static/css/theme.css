@@ -1352,6 +1352,20 @@ body.with-guide {
   transform: rotate(45deg);
   pointer-events: none;
 }
+/* マスを左下に動かしたとき。吹き出しは、マスの右に開く。 */
+.masu-guide > summary { position: relative; touch-action: none; }
+.guide-dock[data-side="left"] .masu-guide,
+.guide-dock[data-side="left"] .masu-guide > summary { margin: 0 auto 0 0; }
+.guide-dock[data-side="left"] .masu-guide > summary { justify-content: flex-start; }
+.guide-dock[data-side="left"] .masu-guide[open] > summary { right: auto; left: 0; }
+.guide-dock[data-side="left"] .masu-guide[open] {
+  padding: 0 0 0 calc(var(--masu-size, 72px) + var(--masu-tail-gap));
+}
+.guide-dock[data-side="left"] .masu-guide[open]::after {
+  right: auto;
+  left: calc(var(--masu-size, 72px) + 1px);
+  transform: rotate(225deg);
+}
 .guide-bubble { margin: 0; }
 .guide-sr { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; }
 @keyframes masu-breathe { 50% { transform: scale(1.008, 1.02); } }

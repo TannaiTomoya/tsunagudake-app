@@ -128,3 +128,42 @@ def test_mascot_error_state_and_static_fallback(app: Flask) -> None:
     assert 'data-mood="idle"' in home
     assert home.count('<svg class="masu"') == 2
     assert '<details class="masu-guide">' in home
+
+
+def test_t63_mascot_moves_only_when_asked_and_letter_is_a_mark(app: Flask) -> None:
+    # JavaScript が無いときは、動かす操作と封筒を出さない。
+    html = app.test_client().get("/").get_data(as_text=True)
+    home = '<button type="button" class="guide-home secondary outline" hidden>'
+    assert home in html
+    assert '<span class="masu-letter" aria-hidden="true" hidden><svg' in html
+    assert 'id="masu-guide-move" class="guide-sr" hidden>' in html
+    assert "元の場所に戻す" in html
+
+    script = Path("app/static/js/guide.js").read_text()
+    # 場所は端末に覚える。覚えられなくても動く。サーバーには送らない。
+    assert 'const sideKey = "tsunagudake.guide.side";' in script
+    assert "fetch(" not in script and "XMLHttpRequest" not in script
+    # 矢印キーと「元の場所に戻す」。
+    assert '"ArrowLeft"' in script and '"ArrowRight"' in script
+    assert 'home.addEventListener("click"' in script
+    # 動きを減らす設定では、封筒の印がつくだけ。
+    carry = script.split("function carryLetter(sent) {", 1)[1].split("\n  }\n", 1)[0]
+    assert carry.index("letter.hidden = false;") < carry.index(
+        "if (reduced.matches) return;"
+    )
+    assert carry.index("if (reduced.matches) return;") < carry.index("anime.animate")
+    # 勝手には動かない。手紙は、送ったとき・届いているときの印がある画面でだけ。
+    assert "setInterval" not in script
+    assert script.count("carryLetter(") == 3
+    assert 'document.querySelector("[data-letter-sent]")' in script
+    assert 'document.querySelector("[data-letter-arrived]")' in script
+
+    # 封筒とマスの置き方は、変数の色だけを使う。
+    for name, first, last in (
+        ("kidou.css", ".masu-letter {", ".guide-dock[data-dragging]"),
+        ("theme.css", "/* マスを左下に", ".guide-bubble { margin: 0; }"),
+    ):
+        block = Path("app/static/css", name).read_text().split(first, 1)[1]
+        assert last in block
+        block = block.split(last, 1)[0]
+        assert "var(--" in block and "#" not in block and "rgb(" not in block

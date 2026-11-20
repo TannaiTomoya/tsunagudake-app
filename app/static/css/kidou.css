@@ -207,6 +207,18 @@ body {
 .hero-masu .masu { filter: drop-shadow(0 0 18px color-mix(in srgb, var(--action) 45%, transparent)); }
 .guide-dock .masu { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--action) 40%, transparent)); }
 .guide-ask > summary { color: var(--action); }
+/* 手紙の印：メッセージを送ったとき・届いているときだけ、マスが封筒を持つ。 */
+.masu-letter {
+  position: absolute;
+  left: -6px;
+  bottom: 6px;
+  width: 26px;
+  height: 20px;
+  pointer-events: none;
+}
+.masu-letter[hidden] { display: none; }
+.masu-letter svg { display: block; width: 100%; height: 100%; fill: var(--raised); stroke: var(--text); stroke-width: 1.5; }
+.guide-dock[data-dragging] .masu-guide > summary { cursor: grabbing; }
 
 
 .work-steps, .role-outcomes { display: grid; gap: .4rem; padding: 0; margin: 0 0 1.25rem; }
