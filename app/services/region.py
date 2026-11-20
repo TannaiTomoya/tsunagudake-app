@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import date
 
 from sqlalchemy import case, func, select
 
@@ -9,26 +10,147 @@ from app.models import (
     Office,
     Reduction,
     ReductionStatus,
+    ReturnedKind,
     Role,
+    Statement,
+    StatementStatus,
     Talent,
     TalentAffiliation,
     User,
     Visit,
     VisitStatus,
-    today_in_japan,
 )
-from tsunagu_rules.region import mask_region
-from tsunagu_rules.types import NeedKind, RegionMetrics, RegionRow
+from tsunagu_rules.region import (
+    mask_breakdown,
+    mask_cells,
+    mask_region,
+    recent_months,
+)
+from tsunagu_rules.types import (
+    MaskedCells,
+    NeedKind,
+    RegionCell,
+    RegionMetrics,
+    RegionRow,
+)
+
+CHART_MONTHS = 6
+# 戻った先の並び。最後の None は、選ばずに確定した明細。
+RETURNED_ORDER: tuple[ReturnedKind | None, ...] = (*ReturnedKind, None)
+
+
+@dataclass(frozen=True)
+class Charts:
+    months: tuple[str, ...]
+    hours: MaskedCells
+    value_yen: tuple[int | None, ...]
+    value_total: int | None
+    returned: MaskedCells
+    # 協力隊・修了生・そのほか。1つでも伏せるなら None。
+    affiliations: tuple[int, ...] | None
 
 
 @dataclass(frozen=True)
 class Dashboard:
     town: RegionMetrics
     total: RegionMetrics | None
+    # 町そのものを伏せるときは None。
+    charts: Charts | None
+
+
+def _charts(
+    municipality: Municipality, threshold: int, today: date, demo: bool
+) -> Charts:
+    months = recent_months(today, CHART_MONTHS)
+    in_town = (
+        Office.municipality_id == municipality.id,
+        Office.is_active.is_(True),
+        Office.is_demo.is_(demo),
+    )
+    saved = Reduction.before_hours - Reduction.after_hours
+    gained = case((saved > 0, saved), else_=0)
+    monthly_query = (
+        select(
+            Reduction.month,
+            func.count(func.distinct(case((saved > 0, Office.id)))),
+            func.sum(gained),
+            func.sum(gained * Engagement.hourly_rate_yen),
+        )
+        .join(Engagement, Engagement.id == Reduction.engagement_id)
+        .join(Office, Office.id == Engagement.office_id)
+        .where(
+            *in_town,
+            Reduction.status == ReductionStatus.CONFIRMED,
+            Reduction.month.in_(months),
+        )
+        .group_by(Reduction.month)
+    )
+    if demo:
+        monthly_query = monthly_query.where(Reduction.category == NeedKind.COLLECT)
+    monthly = {
+        month: (int(offices), int(hours), int(yen))
+        for month, offices, hours, yen in db.session.execute(monthly_query)
+    }
+    hours = mask_cells(
+        [RegionCell(*monthly.get(month, (0, 0, 0))[:2]) for month in months],
+        threshold,
+    )
+    yen = [monthly.get(month, (0, 0, 0))[2] for month in months]
+    # The free-text note (returned_to) is never selected here.
+    by_kind = {
+        kind: RegionCell(int(offices), int(total))
+        for kind, offices, total in db.session.execute(
+            select(
+                Statement.returned_kind,
+                func.count(
+                    func.distinct(case((Statement.reduced_hours > 0, Office.id)))
+                ),
+                func.sum(Statement.reduced_hours),
+            )
+            .join(Engagement, Engagement.id == Statement.engagement_id)
+            .join(Office, Office.id == Engagement.office_id)
+            .where(
+                *in_town,
+                Statement.status == StatementStatus.FINALIZED,
+                Statement.month.in_(months),
+            )
+            .group_by(Statement.returned_kind)
+        )
+    }
+    people = {
+        affiliation: int(count)
+        for affiliation, count in db.session.execute(
+            select(Talent.affiliation, func.count())
+            .join(User, User.id == Talent.user_id)
+            .where(
+                Talent.municipality_id == municipality.id,
+                User.is_active.is_(True),
+                User.is_demo.is_(demo),
+                User.role == Role.TSUNAGITE,
+            )
+            .group_by(Talent.affiliation)
+        )
+    }
+    corps = people.pop(TalentAffiliation.KYORYOKUTAI, 0)
+    graduates = people.pop(TalentAffiliation.GRADUATE, 0)
+    return Charts(
+        months,
+        hours,
+        tuple(
+            None if cell is None else amount
+            for cell, amount in zip(hours.values, yen, strict=True)
+        ),
+        None if hours.total is None else sum(yen),
+        mask_cells(
+            [by_kind.get(kind, RegionCell(0, 0)) for kind in RETURNED_ORDER],
+            threshold,
+        ),
+        mask_breakdown([corps, graduates, sum(people.values())], threshold),
+    )
 
 
 def dashboard_for(
-    municipality: Municipality, threshold: int, *, demo: bool = False
+    municipality: Municipality, threshold: int, today: date, *, demo: bool = False
 ) -> Dashboard:
     # Aggregate each fact table before joining, so multiple visits and reductions
     # on the same engagement cannot multiply one another.
@@ -85,7 +207,7 @@ def dashboard_for(
     if demo:
         hours_query = hours_query.where(
             Reduction.category == NeedKind.COLLECT,
-            Reduction.month == today_in_japan().strftime("%Y-%m"),
+            Reduction.month == today.strftime("%Y-%m"),
         )
     hours = hours_query.subquery()
     query = (
@@ -122,4 +244,7 @@ def dashboard_for(
     town = next(
         row.metrics for row in view.rows if row.municipality == municipality.code
     )
-    return Dashboard(town, view.total)
+    charts = (
+        None if town.offices is None else _charts(municipality, threshold, today, demo)
+    )
+    return Dashboard(town, view.total, charts)

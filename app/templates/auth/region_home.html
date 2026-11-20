@@ -12,6 +12,27 @@
   <td data-numeric>{{ metric(metrics.reduced_hours, "時間") }}</td>
 </tr>
 {% endmacro %}
+{% macro fill_rect(pattern, x, width, height) %}
+  {% if pattern == "solid" %}<rect class="chart-solid" x="{{ x }}" width="{{ width }}" height="{{ height }}"/>
+  {% else %}<rect fill="url(#chart-{{ pattern }})" x="{{ x }}" width="{{ width }}" height="{{ height }}"/>{% endif %}
+{% endmacro %}
+{% macro bar_table(bars, total, unit, head, value_head, total_label, label) %}
+<div class="overflow-auto" role="region" aria-label="{{ label }}" tabindex="0"><table>
+  <thead><tr><th scope="col" class="chart-cell">{{ head }}</th><th scope="col" data-numeric>{{ value_head }}</th></tr></thead>
+  <tbody>{% for bar in bars %}
+  <tr>
+    <th scope="row" class="chart-cell">{{ bar.label }}
+      <svg class="chart-bar" width="100%" height="14" aria-hidden="true" focusable="false">
+        <rect class="chart-track" width="100%" height="14"/>
+        {% if bar.value %}<rect class="chart-solid" width="{{ bar.percent }}%" height="14"/>{% endif %}
+      </svg>
+    </th>
+    <td data-numeric>{{ metric(bar.value, unit) }}</td>
+  </tr>
+  {% endfor %}</tbody>
+  <tfoot><tr><th scope="row">{{ total_label }}</th><td data-numeric>{{ metric(total, unit) }}</td></tr></tfoot>
+</table></div>
+{% endmacro %}
 {% block content %}
 <h1>{{ heading }}の地域ダッシュボード</h1>
 {% if demo_region and dashboard.town.reduced_hours is not none %}
@@ -37,6 +58,68 @@
   </tfoot>
 </table>
 </div>
+<h2>直近6か月のグラフ</h2>
+{% if figures is none %}
+<p>参加事務所が少ないため、グラフは表示しません。</p>
+{% else %}
+<p>グラフは、もとになった事務所が少ないマスを伏せます。伏せたマスが1つだけのときは、引き算で分からないよう、もう1つ伏せます。</p>
+<svg class="chart-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs>
+  <pattern id="chart-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="chart-mark" width="2" height="6"/></pattern>
+  <pattern id="chart-dots" width="6" height="6" patternUnits="userSpaceOnUse"><circle class="chart-mark" cx="3" cy="3" r="1.5"/></pattern>
+</defs></svg>
+<figure class="chart" aria-labelledby="chart-trend">
+  <figcaption id="chart-trend">減った時間の推移（左が古い月）</figcaption>
+  {% set trend = figures.trend %}
+  <svg class="chart-line" viewBox="0 0 600 200" aria-hidden="true" focusable="false">
+    <line class="chart-axis" x1="{{ trend.ticks | first }}" y1="{{ trend.baseline }}" x2="{{ trend.ticks | last }}" y2="{{ trend.baseline }}"/>
+    {% for x in trend.ticks %}<line class="chart-axis" x1="{{ x }}" y1="{{ trend.baseline }}" x2="{{ x }}" y2="{{ trend.baseline + 6 }}"/>{% endfor %}
+    {% for x in trend.gaps %}<line class="chart-gap" x1="{{ x }}" y1="16" x2="{{ x }}" y2="{{ trend.baseline }}"/>{% endfor %}
+    {% for path in trend.paths %}<polyline class="chart-path" points="{{ path }}"/>{% endfor %}
+    {% for x, y in trend.points %}<circle class="chart-point" cx="{{ x }}" cy="{{ y }}" r="5"/>{% endfor %}
+  </svg>
+  {% if trend.gaps %}<p>点線の月は、数字を伏せています。</p>{% endif %}
+  {% if figures.hours_total == 0 %}<p>確かめた時間の記録は、まだありません。</p>{% endif %}
+  <div class="overflow-auto" role="region" aria-label="月ごとの減った時間" tabindex="0"><table>
+    <thead><tr><th scope="col">月</th><th scope="col" data-numeric>減った時間（確認済み）</th></tr></thead>
+    <tbody>{% for bar in figures.hours %}
+    <tr><th scope="row">{{ bar.label }}</th><td data-numeric>{{ metric(bar.value, "時間") }}</td></tr>
+    {% endfor %}</tbody>
+    <tfoot><tr><th scope="row">6か月の合計</th><td data-numeric>{{ metric(figures.hours_total, "時間") }}</td></tr></tfoot>
+  </table></div>
+</figure>
+<figure class="chart" aria-labelledby="chart-returned">
+  <figcaption id="chart-returned">戻った先の内訳</figcaption>
+  <p>確定した明細で、代表が選んだ戻った先です。</p>
+  {{ bar_table(figures.returned, figures.returned_total, "時間", "戻った先", "時間", "合計", "戻った先ごとの時間") }}
+</figure>
+<figure class="chart" aria-labelledby="chart-people">
+  <figcaption id="chart-people">つなぎ手の内訳</figcaption>
+  {% if figures.people is none %}
+  <p>人数が少ない所属があるため、内訳は表示しません。{% if dashboard.town.talents is not none %}つなぎ手は合わせて{{ "{:,}".format(dashboard.town.talents) }}人です。{% endif %}</p>
+  {% else %}
+  <svg class="chart-stack" width="100%" height="24" aria-hidden="true" focusable="false">
+    {% for part in figures.people %}{{ fill_rect(part.pattern, part.start ~ "%", part.width ~ "%", 24) }}{% endfor %}
+    <rect class="chart-outline" width="100%" height="24"/>
+  </svg>
+  <div class="overflow-auto" role="region" aria-label="所属ごとの人数" tabindex="0"><table>
+    <thead><tr><th scope="col">模様</th><th scope="col">所属</th><th scope="col" data-numeric>人数</th></tr></thead>
+    <tbody>{% for part in figures.people %}
+    <tr>
+      <td><svg class="chart-key" width="28" height="14" aria-hidden="true" focusable="false">{{ fill_rect(part.pattern, 0, 28, 14) }}<rect class="chart-outline" width="28" height="14"/></svg></td>
+      <th scope="row">{{ part.label }}</th>
+      <td data-numeric>{{ metric(part.value, "人") }}</td>
+    </tr>
+    {% endfor %}</tbody>
+    <tfoot><tr><th scope="row" colspan="2">合計</th><td data-numeric>{{ metric(dashboard.town.talents, "人") }}</td></tr></tfoot>
+  </table></div>
+  {% endif %}
+</figure>
+<figure class="chart" aria-labelledby="chart-value">
+  <figcaption id="chart-value">価値の換算（推計）</figcaption>
+  <p>減った時間に、その伴走で合意した時給を掛けた推計です。支払われた金額ではありません。</p>
+  {{ bar_table(figures.value, figures.value_total, "円", "月", "推計の金額", "6か月の合計", "月ごとの価値の推計") }}
+</figure>
+{% endif %}
 <form method="post" action="{{ url_for('auth.logout') }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <button type="submit" class="secondary outline">ログアウトする</button>
