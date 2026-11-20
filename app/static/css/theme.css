@@ -1233,6 +1233,8 @@ body.with-guide {
 .guide-voice { display: flex; align-items: center; gap: .4rem; margin: 0 auto 0 0; }
 .masu-guide [hidden] { display: none; }
 .masu-guide :focus-visible { outline: 2px solid var(--action); outline-offset: 2px; }
+/* 都道府県 → 市町村の1段目。次の入力欄との間をあける。 */
+.prefecture-form { margin-block-end: 1.5rem; }
 .screen-columns { display: grid; gap: 1.5rem; align-items: start; }
 .screen-columns > * { min-width: 0; margin-block: 0; }
 .screen-columns h2:first-child { margin-top: 0; }

@@ -30,6 +30,7 @@ from app.models import (
     Need,
     Office,
     OfficeMember,
+    OfficeRoute,
     RateLimitEvent,
     Reduction,
     ReductionStatus,
@@ -40,7 +41,6 @@ from app.models import (
     TalentAffiliation,
     TalentSkill,
     TalentSkillKind,
-    TravelTime,
     TrustItem,
     TrustKind,
     User,
@@ -73,13 +73,16 @@ def _seed_identity(app: Flask) -> None:
             )
             user.set_password(PASSWORD)
             db.session.add(user)
+        # 通常のアカウントの土台。実在しないコード（00 で始まる）を、
+        # 通常の町の代わりに使う。
+        # 9 で始まる架空の町は、デモのアカウントだけが使う。
         db.session.add_all(
             [
                 Municipality(
-                    id=1, code="90001", name="架空市", region_group="架空広域"
+                    id=1, code="00001", name="架空市", region_group="架空広域"
                 ),
                 Municipality(
-                    id=2, code="90002", name="架空町", region_group="架空広域"
+                    id=2, code="00002", name="架空町", region_group="架空広域"
                 ),
             ]
         )
@@ -118,7 +121,7 @@ def sign_in(client: FlaskClient, email: str, password: str = PASSWORD) -> int:
     ).status_code
 
 
-@pytest.mark.parametrize("path", ["/o/1/", "/t/", "/r/90001/"])
+@pytest.mark.parametrize("path", ["/o/1/", "/t/", "/r/00001/"])
 def test_t20_anonymous_redirect(identity_app: Flask, path: str) -> None:
     response = identity_app.test_client().get(path)
     assert response.status_code == 302 and response.headers["Location"].startswith(
@@ -133,12 +136,12 @@ def test_t20_anonymous_redirect(identity_app: Flask, path: str) -> None:
         (Role.OFFICE, "/o/2/", 404),
         (Role.OFFICE, "/o/999/", 404),
         (Role.OFFICE, "/t/", 404),
-        (Role.OFFICE, "/r/90001/", 404),
+        (Role.OFFICE, "/r/00001/", 404),
         (Role.TSUNAGITE, "/o/1/", 404),
         (Role.TSUNAGITE, "/t/", 200),
         (Role.MUNICIPALITY, "/o/1/", 404),
-        (Role.MUNICIPALITY, "/r/90001/", 200),
-        (Role.MUNICIPALITY, "/r/90002/", 404),
+        (Role.MUNICIPALITY, "/r/00001/", 200),
+        (Role.MUNICIPALITY, "/r/00002/", 404),
         (Role.MUNICIPALITY, "/r/99999/", 404),
         (Role.ADMIN, "/o/1/", 200),
     ],
@@ -390,7 +393,7 @@ def test_create_talent_profile_with_registered_municipality(
             "--role",
             "tsunagite",
             "--municipality-code",
-            "90001",
+            "00001",
         ],
         input=f"{PASSWORD}\n{PASSWORD}\n",
     )
@@ -402,11 +405,19 @@ def test_create_talent_profile_with_registered_municipality(
     assert "候補に出る設定が無効です。" in page
 
 
-def _seed_candidates(app: Flask) -> None:
+def _seed_candidates(app: Flask, *, routes: bool = True) -> None:
     today = datetime.now(ZoneInfo("Asia/Tokyo")).date()
     with app.app_context():
-        db.session.add(
-            TravelTime(from_municipality_id=2, to_municipality_id=1, minutes=70)
+        # 通常の事務所は、自分で確かめた経路だけを使う（同じ町も登録する）。
+        db.session.add_all(
+            OfficeRoute(
+                office_id=1,
+                from_municipality_id=town,
+                minutes=minutes,
+                confirmed_by=1,
+            )
+            for town, minutes in ((1, 15), (2, 70))
+            if routes
         )
         for index in range(6):
             if index == 0:
@@ -884,7 +895,7 @@ def test_t47_returned_kind_is_one_of_the_fixed_choices(database_app: Flask) -> N
     # 町の画面には、代表が書いた1行は出ない。
     town = database_app.test_client()
     assert sign_in(town, "municipality@example.org") == 302
-    region = town.get("/r/90001/").get_data(as_text=True)
+    region = town.get("/r/00001/").get_data(as_text=True)
     assert region.count('<figure class="chart"') == 4
     assert "新しい顧問先の対応" in region
     assert "非公開のひとこと" not in region and "書き換え" not in region
@@ -945,7 +956,7 @@ def test_t16_t17_t24_region_dashboard(database_app: Flask) -> None:
 
     town = database_app.test_client()
     assert sign_in(town, "municipality@example.org") == 302
-    response = town.get("/r/90001/")
+    response = town.get("/r/00001/")
     assert response.status_code == 200
     page = response.get_data(as_text=True)
     own_row = page.split("<tbody>")[1].split("</tbody>")[0]
@@ -967,15 +978,15 @@ def test_t16_t17_t24_region_dashboard(database_app: Flask) -> None:
         "非公開の架空メモ",
     ):
         assert private not in page
-    assert town.get("/r/90002/").status_code == 404
+    assert town.get("/r/00002/").status_code == 404
     for account in ("office", "tsunagite"):
         outsider = database_app.test_client()
         assert sign_in(outsider, f"{account}@example.org") == 302
-        assert outsider.get("/r/90001/").status_code == 404
+        assert outsider.get("/r/00001/").status_code == 404
 
     admin = database_app.test_client()
     assert sign_in(admin, "admin@example.org") == 302
-    response = admin.get("/r/90002/")
+    response = admin.get("/r/00002/")
     assert response.status_code == 200
     page = response.get_data(as_text=True)
     assert (
@@ -992,7 +1003,7 @@ def test_t16_t17_t24_region_dashboard(database_app: Flask) -> None:
             for number in range(3)
         )
         db.session.commit()
-    page = town.get("/r/90001/").get_data(as_text=True)
+    page = town.get("/r/00001/").get_data(as_text=True)
     total = page.split("<tfoot>")[1].split("</tfoot>")[0]
     assert "架空広域の合計" in total
     assert ">11<" in total.strip().replace(" ", "").replace("\n", "")

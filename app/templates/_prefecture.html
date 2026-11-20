@@ -1,0 +1,15 @@
+{# 都道府県 → 市町村の1段目。JavaScript を使わず、選び直すと画面を開き直す。 #}
+{% macro prefecture_form(prefectures, selected, label, note) %}
+{% if prefectures|length > 1 %}
+<form method="get" class="prefecture-form">
+  <label for="prefecture">{{ label }}</label>
+  <select id="prefecture" name="prefecture" required aria-describedby="prefecture-note">
+    <option value=""{% if not selected %} selected{% endif %}>選択してください</option>
+    {% for item in prefectures %}<option value="{{ item.key }}"{% if item.key == selected %} selected{% endif %}>{{ item.name }}</option>
+    {% endfor %}
+  </select>
+  <small id="prefecture-note">{{ note }}</small>
+  <button class="secondary outline" type="submit">市町村を表示する</button>
+</form>
+{% endif %}
+{% endmacro %}

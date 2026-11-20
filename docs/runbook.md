@@ -245,6 +245,7 @@ chmod 600 .env
 ## 7. DB を作る
 ```bash
 uv run --frozen --no-dev flask db upgrade     # 出力に MySQLImpl と出ること（SQLiteImpl なら DATABASE_URL が効いていない）
+uv run --frozen --no-dev flask sync-municipalities   # 市町村の一覧から、無い行だけを足す（何度動かしても同じ）
 uv run --frozen --no-dev flask seed-demo     # 発表用のデモ環境で架空のデータを入れる
 # 手で起動して確かめる
 uv run --frozen --no-dev --env-file .env gunicorn -c deploy/gunicorn.conf.py "app:create_app()"
@@ -407,7 +408,7 @@ cd /var/www/tsunagudake-app
 bash deploy/deploy.sh https://tsunagudake.example.jp
 ```
 
-更新前に DB の gzip を保存し、`main` を対象コミットへ早送りして、`uv sync --frozen --no-dev`、`flask db upgrade`、再起動を行います。公開 `/healthz` が HTTP 200 を返さなければ Actions に失敗が残ります。自動実行では Actions 側と VPS 側で `main` を照合し、進んでいた場合は反映を見送ります。
+更新前に DB の gzip を保存し、`main` を対象コミットへ早送りして、`uv sync --frozen --no-dev`、`flask db upgrade`、`flask sync-municipalities`（市町村の無い行を足すだけ）、再起動を行います。公開 `/healthz` が HTTP 200 を返さなければ Actions に失敗が残ります。自動実行では Actions 側と VPS 側で `main` を照合し、進んでいた場合は反映を見送ります。
 
 更新用の控えは `~/.local/state/tsunagudake/backups/` に保存されます。変更は GitHub の PR で行い、VPS 上では手順どおりに取り込みます。
 

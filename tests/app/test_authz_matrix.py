@@ -61,6 +61,14 @@ class Route:
 ROUTES = (
     Route("office-list", "GET", "/o/1/", OFFICE_ACTORS),
     Route("office-profile", "GET", "/o/1/profile", OFFICE_ACTORS),
+    Route("office-routes", "GET", "/o/1/routes", OFFICE_ACTORS),
+    Route(
+        "office-routes-save",
+        "POST",
+        "/o/1/routes",
+        OFFICE_ACTORS,
+        ("staff", "admin"),
+    ),
     Route(
         "office-profile-save",
         "POST",
@@ -235,7 +243,7 @@ ROUTES = (
     Route(
         "region",
         "GET",
-        "/r/90002/",
+        "/r/00002/",
         (
             "other_office",
             "other_staff",
@@ -381,6 +389,7 @@ def test_denial_matrix(
                 "day": today_in_japan().isoformat(),
                 "grade": "2",
                 "client_count": "12",
+                "municipality": "2",
             },
         )
     else:

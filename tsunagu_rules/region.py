@@ -11,6 +11,11 @@ from .types import (
 )
 
 
+def is_fictional(code: str) -> bool:
+    """コードが 9 で始まる町だけを、架空とする（総務省のコードは 01〜47 で始まる）。"""
+    return code.startswith("9")
+
+
 def _values(row: RegionRow) -> tuple[int, int, int, int, int]:
     return row.offices, row.talents, row.corps_talents, row.visits, row.reduced_hours
 

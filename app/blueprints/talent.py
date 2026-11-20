@@ -20,7 +20,6 @@ from app.blueprints.needs import CATEGORIES, WEEKDAYS
 from app.extensions import db
 from app.models import (
     BookkeepingLevel,
-    Municipality,
     Role,
     Talent,
     TalentAffiliation,
@@ -30,6 +29,7 @@ from app.models import (
     User,
     today_in_japan,
 )
+from app.services.municipalities import chosen_prefecture, prefectures, towns_in
 from app.services.trust import (
     PLEDGE_TERMS,
     PLEDGE_VERSION,
@@ -159,13 +159,27 @@ def profile() -> ResponseReturnValue:
             ],
         }
     )
+    # 都道府県 → 市町村の順に選ぶ。デモの人は架空の町だけ、通常の人は実在の町だけ。
+    groups = prefectures(demo=user.is_demo)
+    prefecture = chosen_prefecture(
+        groups,
+        request.args.get("prefecture"),
+        talent.municipality_id if talent else None,
+    )
     form.municipality.choices = [
-        SelectChoice(str(town.id), town.name)
-        for town in db.session.scalars(select(Municipality).order_by(Municipality.code))
+        SelectChoice("0", "選択してください"),
+        *(
+            SelectChoice(str(town.id), town.name)
+            for town in towns_in(prefecture, demo=user.is_demo)
+        ),
     ]
+    if request.method == "GET" and form.municipality.data not in {
+        int(choice.value) for choice in form.municipality.choices
+    }:
+        form.municipality.data = 0
     error = None
     status = 200
-    if form.validate_on_submit():
+    if form.validate_on_submit() and form.municipality.data:
         try:
             save_profile(
                 user.id,
@@ -191,7 +205,13 @@ def profile() -> ResponseReturnValue:
             error, status = str(exc), 409
     elif form.is_submitted():
         error, status = "市町村と選択項目、受け持ち件数（1〜5）をご確認ください。", 422
-    return render_template("auth/talent_profile.html", form=form, error=error), status
+    return render_template(
+        "auth/talent_profile.html",
+        form=form,
+        error=error,
+        prefectures=groups,
+        prefecture=prefecture,
+    ), status
 
 
 @bp.route("/pledge", methods=["GET", "POST"])

@@ -23,7 +23,6 @@ from app.extensions import db
 from app.models import (
     BookkeepingLevel,
     MemberRole,
-    Municipality,
     Office,
     OutboxMail,
     Role,
@@ -37,6 +36,7 @@ from app.models import (
 from app.services.accounts import AccountError, Invite, issue_invitation
 from app.services.ledger import ledger_failures
 from app.services.mail import MailError, mail_body
+from app.services.municipalities import chosen_prefecture, prefectures, towns_in
 from app.services.trust import (
     TRANSLATION_CRITERIA,
     TrustConflict,
@@ -226,10 +226,15 @@ def invite_account() -> ResponseReturnValue:
         SelectChoice("0", "選択してください"),
         *(SelectChoice(str(office.id), office.name) for office in offices),
     ]
-    towns = db.session.scalars(select(Municipality).order_by(Municipality.code))
+    # 担当する市町村は、都道府県 → 市町村の順に選ぶ。demo は架空の町だけ。
+    groups = prefectures(demo=demo)
+    prefecture = chosen_prefecture(groups, request.args.get("prefecture"))
     form.municipality.choices = [
         SelectChoice("0", "選択してください"),
-        *(SelectChoice(str(town.id), town.name) for town in towns),
+        *(
+            SelectChoice(str(town.id), town.name)
+            for town in towns_in(prefecture, demo=demo)
+        ),
     ]
     error = None
     if form.validate_on_submit():
@@ -250,7 +255,11 @@ def invite_account() -> ResponseReturnValue:
     elif form.is_submitted():
         error = "招待先の入力を確認してください。"
     return render_template(
-        "admin/invite.html", form=form, error=error
+        "admin/invite.html",
+        form=form,
+        error=error,
+        prefectures=groups,
+        prefecture=prefecture,
     ), 422 if error else 200
 
 

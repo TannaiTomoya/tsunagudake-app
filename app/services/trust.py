@@ -11,6 +11,7 @@ from app.extensions import db
 from app.models import (
     BookkeepingLevel,
     Engagement,
+    Municipality,
     Role,
     Talent,
     TalentAffiliation,
@@ -22,6 +23,7 @@ from app.models import (
     utc_now,
 )
 from app.services.billing import protect_payout
+from app.services.municipalities import allowed
 from tsunagu_rules.types import NeedKind
 
 
@@ -113,6 +115,12 @@ def save_profile(user_id: int, data: ProfileInput) -> None:
         .with_for_update()
         .execution_options(populate_existing=True)
     )
+    # デモの人は架空の町だけ、通常の人は実在の町だけ（画面の選択肢に頼らない）。
+    if not allowed(
+        db.session.get(Municipality, data.municipality_id), demo=user.is_demo
+    ):
+        db.session.rollback()
+        raise TrustConflict("住む市町村を選び直してください。")
     if talent is None:
         talent = Talent(user_id=user_id)
         db.session.add(talent)

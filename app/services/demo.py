@@ -47,7 +47,7 @@ from app.models import (
 from app.services.ledger import append_record
 from app.services.needs import DICTIONARY
 from tsunagu_rules import RULES_VERSION
-from tsunagu_rules.region import recent_months
+from tsunagu_rules.region import is_fictional, recent_months
 from tsunagu_rules.translation import translate
 from tsunagu_rules.types import JsonValue, NeedKind
 from tsunagu_rules.types import Reduction as RuleReduction
@@ -92,6 +92,8 @@ def _add[T](row: T) -> T:
 
 
 def _town(code: str, name: str) -> Municipality:
+    if not is_fictional(code):
+        raise DemoError("デモの町は、9 で始まる架空のコードだけです。")
     town = db.session.scalar(select(Municipality).where(Municipality.code == code))
     if town is None:
         return _add(Municipality(code=code, name=name, region_group="架空広域"))

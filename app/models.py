@@ -143,6 +143,23 @@ class Office(Created, Base):
     updated_at: Mapped[datetime] = mapped_column(default=utc_now, onupdate=utc_now)
 
 
+class OfficeRoute(Created, Base):
+    """通常の事務所が、自分で確かめた経路。追記と、分の修正だけ。"""
+
+    __tablename__ = "office_routes"
+    __table_args__ = (
+        UniqueConstraint("office_id", "from_municipality_id"),
+        CheckConstraint("minutes BETWEEN 1 AND 300", name="office_route_minutes_range"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    office_id: Mapped[int] = mapped_column(ForeignKey("offices.id"))
+    from_municipality_id: Mapped[int] = mapped_column(ForeignKey("municipalities.id"))
+    minutes: Mapped[int]
+    confirmed_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    confirmed_at: Mapped[datetime] = mapped_column(default=utc_now)
+
+
 class OfficeMember(Created, Base):
     __tablename__ = "office_members"
 

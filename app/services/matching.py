@@ -17,6 +17,7 @@ from app.models import (
     Need,
     NeedStatus,
     Office,
+    OfficeRoute,
     Talent,
     TalentSkill,
     TalentSkillKind,
@@ -92,15 +93,25 @@ def _rank(
         office.software or "",
         frozenset(declined),
     )
-    routes = {
-        (str(row.from_municipality_id), str(row.to_municipality_id)): row.minutes
-        for row in db.session.scalars(
-            select(TravelTime).where(
-                TravelTime.to_municipality_id == office.municipality_id
+    if office.is_demo:
+        # デモは架空の表。同じ町は15分として扱う。
+        routes = {
+            (str(row.from_municipality_id), str(row.to_municipality_id)): row.minutes
+            for row in db.session.scalars(
+                select(TravelTime).where(
+                    TravelTime.to_municipality_id == office.municipality_id
+                )
             )
-        )
-    }
-    routes[request.municipality, request.municipality] = 15
+        }
+        routes[request.municipality, request.municipality] = 15
+    else:
+        # 通常の事務所は、自分で確かめた経路だけ。登録の無い町は「分からない」。
+        routes = {
+            (str(row.from_municipality_id), request.municipality): row.minutes
+            for row in db.session.scalars(
+                select(OfficeRoute).where(OfficeRoute.office_id == office.id)
+            )
+        }
     query = (
         select(Talent, User)
         .join(User, User.id == Talent.user_id)
