@@ -1,0 +1,209 @@
+/* 「起動する升目」：帳簿の升目が起動して、光り、ずれ、重なる。
+   色は theme.css の変数だけを使う。主役は、案内役マスと見出しのグリッチの2つ。
+   発光は、主の操作と今いる所だけ。動きは決めた場所だけで、reduced-motion では止める。 */
+
+/* ---- 地：ほぼ黒の藍に、うすい升目 ---- */
+body {
+  background-color: var(--canvas);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--line) 34%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--line) 34%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+  background-attachment: fixed;
+}
+.rail { background-color: color-mix(in srgb, var(--rail) 92%, transparent); }
+.topbar { background-color: color-mix(in srgb, var(--canvas) 86%, transparent); }
+
+/* ---- 形：四隅のかぎ括弧（枠の角だけを光らせる） ---- */
+.hero,
+.page .decision-pane,
+.ledger-strip,
+.guide-bubble {
+  --corner: var(--action);
+  border-color: var(--line);
+  background-image:
+    linear-gradient(var(--corner), var(--corner)), linear-gradient(var(--corner), var(--corner)),
+    linear-gradient(var(--corner), var(--corner)), linear-gradient(var(--corner), var(--corner)),
+    linear-gradient(var(--corner), var(--corner)), linear-gradient(var(--corner), var(--corner)),
+    linear-gradient(var(--corner), var(--corner)), linear-gradient(var(--corner), var(--corner));
+  background-repeat: no-repeat;
+  background-size: 16px 2px, 2px 16px, 16px 2px, 2px 16px, 16px 2px, 2px 16px, 16px 2px, 2px 16px;
+  background-position:
+    left top, left top, right top, right top,
+    left bottom, left bottom, right bottom, right bottom;
+}
+.page .decision-pane { --corner: var(--volt); }
+.guide-bubble { --corner: var(--misreg-m); border-inline-start: 1px solid var(--line); }
+
+/* ---- トップ：3色の面が重なる ---- */
+.hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-color: var(--surface);
+}
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 1;
+  background:
+    linear-gradient(color-mix(in srgb, var(--action) 26%, transparent), color-mix(in srgb, var(--action) 26%, transparent))
+      right 6% top 14% / min(38%, 220px) 46% no-repeat,
+    linear-gradient(color-mix(in srgb, var(--misreg-m) 24%, transparent), color-mix(in srgb, var(--misreg-m) 24%, transparent))
+      right 16% top 34% / min(34%, 200px) 44% no-repeat,
+    linear-gradient(color-mix(in srgb, var(--volt) 30%, transparent), color-mix(in srgb, var(--volt) 30%, transparent))
+      right -2% top 52% / min(30%, 180px) 40% no-repeat;
+  mix-blend-mode: screen;
+}
+/* 走査線と細かい升目 */
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 1;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 3px, color-mix(in srgb, var(--canvas) 55%, transparent) 3px 4px),
+    linear-gradient(color-mix(in srgb, var(--action) 9%, transparent) 1px, transparent 1px) 0 0 / 16px 16px,
+    linear-gradient(90deg, color-mix(in srgb, var(--action) 9%, transparent) 1px, transparent 1px) 0 0 / 16px 16px;
+  pointer-events: none;
+}
+.hero .audience { letter-spacing: 0.04em; }
+
+/* ---- 見出し：大きく、起動の瞬間だけ帯がずれる ---- */
+.hero h1 {
+  position: relative;
+  font-size: clamp(2.5rem, 10.5vw, 5rem);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  text-shadow: none;
+  animation: none;
+}
+.hero h1[data-text]::before,
+.hero h1[data-text]::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  white-space: pre-line;
+  pointer-events: none;
+  opacity: 0;
+}
+.hero h1[data-text]::before { color: var(--action); }
+.hero h1[data-text]::after { color: var(--misreg-m); }
+.page h1,
+.overview h2 {
+  text-shadow:
+    -1px 0 0 color-mix(in srgb, var(--action) 55%, transparent),
+    1px 0 0 color-mix(in srgb, var(--misreg-m) 55%, transparent);
+}
+
+@keyframes kidou-band-c {
+  0% { opacity: .9; clip-path: inset(8% 0 62% 0); transform: translate(-8px, 0); }
+  22% { clip-path: inset(54% 0 18% 0); transform: translate(6px, 0); }
+  44% { clip-path: inset(30% 0 44% 0); transform: translate(-5px, 0); }
+  66% { clip-path: inset(72% 0 6% 0); transform: translate(4px, 0); }
+  88% { opacity: .9; clip-path: inset(12% 0 70% 0); transform: translate(-2px, 0); }
+  100% { opacity: 0; clip-path: inset(0); transform: none; }
+}
+@keyframes kidou-band-m {
+  0% { opacity: .9; clip-path: inset(58% 0 12% 0); transform: translate(8px, 0); }
+  22% { clip-path: inset(10% 0 66% 0); transform: translate(-6px, 0); }
+  44% { clip-path: inset(66% 0 10% 0); transform: translate(5px, 0); }
+  66% { clip-path: inset(24% 0 52% 0); transform: translate(-4px, 0); }
+  88% { opacity: .9; clip-path: inset(46% 0 30% 0); transform: translate(2px, 0); }
+  100% { opacity: 0; clip-path: inset(0); transform: none; }
+}
+@keyframes kidou-boot {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  100% { opacity: 1; }
+}
+@keyframes kidou-title {
+  0% { text-shadow: -5px 0 0 var(--action), 5px 0 0 var(--misreg-m); }
+  40% { text-shadow: 4px 0 0 var(--action), -4px 0 0 var(--misreg-m); }
+  70% { text-shadow: -2px 0 0 var(--action), 2px 0 0 var(--misreg-m); }
+  100% {
+    text-shadow:
+      -1px 0 0 color-mix(in srgb, var(--action) 55%, transparent),
+      1px 0 0 color-mix(in srgb, var(--misreg-m) 55%, transparent);
+  }
+}
+@keyframes kidou-stamp {
+  0% { transform: scale(1.5); opacity: 0; }
+  60% { transform: scale(.94); opacity: 1; }
+  100% { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero h1 { animation: kidou-boot .9s steps(6, end) both; }
+  .hero h1[data-text]::before { animation: kidou-band-c .9s steps(1, end) both; }
+  .hero h1[data-text]::after { animation: kidou-band-m .9s steps(1, end) both; }
+  .page h1 { animation: kidou-title .45s steps(4, end) both; }
+  .guide-dock[data-mood="happy"] ~ * .seal,
+  body:has(.guide-dock[data-mood="happy"]) .seal { animation: kidou-stamp .28s ease-out both; }
+}
+
+/* ---- 主の操作：角を切り、光らせる ---- */
+.action:not(.quiet),
+.page [role="button"]:not(.secondary):not([aria-disabled="true"]),
+.page button[type="submit"]:not(.secondary):not(:disabled),
+.page form > button:not(.secondary):not([type="button"]):not(:disabled) {
+  border-color: transparent;
+  background:
+    linear-gradient(135deg, transparent 9px, var(--action) 9.5px) left / 51% 100% no-repeat,
+    linear-gradient(-45deg, transparent 9px, var(--action) 9.5px) right / 51% 100% no-repeat;
+  color: var(--on-action);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--action) 55%, transparent));
+}
+.action:not(.quiet):hover,
+.page [role="button"]:not(.secondary):not([aria-disabled="true"]):hover,
+.page button[type="submit"]:not(.secondary):not(:disabled):hover,
+.page form > button:not(.secondary):not([type="button"]):not(:disabled):hover {
+  background:
+    linear-gradient(135deg, transparent 9px, var(--action-hover) 9.5px) left / 51% 100% no-repeat,
+    linear-gradient(-45deg, transparent 9px, var(--action-hover) 9.5px) right / 51% 100% no-repeat;
+  filter: drop-shadow(0 0 16px color-mix(in srgb, var(--action) 75%, transparent));
+}
+.action.quiet,
+.page .secondary.outline,
+.account-link {
+  border-color: var(--line);
+  background-color: color-mix(in srgb, var(--surface) 80%, transparent);
+}
+.action.quiet:hover,
+.page .secondary.outline:hover,
+.account-link:hover { border-color: var(--action); color: var(--action); }
+
+/* ---- 今いる所：光る ---- */
+.rail nav a[aria-current="page"] {
+  color: var(--action);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--action) 70%, transparent);
+  border-color: var(--action);
+}
+.brand-mark { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--action) 45%, transparent)); }
+
+/* ---- 表：見出しの行にだけ色を置く ---- */
+.page table thead th {
+  background-color: color-mix(in srgb, var(--volt) 14%, var(--surface));
+  color: var(--text);
+  letter-spacing: 0.03em;
+}
+.ledger-cell .cell-value.is-numeric,
+.page td[data-numeric],
+.page th[data-numeric] { font-variant-numeric: tabular-nums; }
+.step-num { border-color: var(--volt); }
+
+/* ---- 入力：選んでいる欄だけ光る ---- */
+.page :is(input, textarea, select):focus-visible,
+.guide-ask-row input:focus-visible {
+  border-color: var(--action);
+  box-shadow: 0 0 0 1px var(--action), 0 0 14px color-mix(in srgb, var(--action) 35%, transparent);
+}
+
+/* ---- 案内役マス：主役として少しだけ光る ---- */
+.hero-masu .masu { filter: drop-shadow(0 0 18px color-mix(in srgb, var(--action) 45%, transparent)); }
+.guide-dock .masu { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--action) 40%, transparent)); }
+.guide-ask > summary { color: var(--action); }
