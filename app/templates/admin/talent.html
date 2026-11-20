@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block content %}
+<p><a href="{{ url_for('admin.index') }}">運営に戻る</a></p>
+<h1>{{ account.display_name }}の信用台帳</h1>
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+<dl>
+  <dt>通える曜日</dt><dd>{{ weekdays | join("・") or "未設定" }}</dd>
+  <dt>所属</dt><dd>{{ affiliations[profile.affiliation] }}</dd>
+  <dt>上限</dt><dd>{{ profile.capacity }}件</dd>
+  <dt>候補への掲載</dt><dd>{{ "掲載する" if profile.is_listed else "掲載しない" }}</dd>
+  <dt>道具と得意な業務</dt><dd>{% for skill in skills %}{{ (tools if skill.kind == "tool" else categories)[skill.tag] }}{% if not loop.last %}・{% endif %}{% else %}未設定{% endfor %}</dd>
+</dl>
+<h2>簿記の級</h2>
+{% if profile.bookkeeping_level == "none" %}<p>級の申告がありません。</p>
+{% else %}
+<p>簿記{{ profile.bookkeeping_level }}級。{{ "確認済み" if profile.level_verified_at else "未確認" }}</p>
+{% if not profile.level_verified_at %}
+<form method="post" action="{{ url_for('admin.grade', talent_id=profile.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="grade" value="{{ profile.bookkeeping_level }}">
+  <button type="submit">合格証を目で確認した</button>
+</form>
+{% endif %}
+{% endif %}
+<h2>守秘の誓約と研修</h2>
+<ul>{% for item in statuses %}
+  <li>{{ "守秘の誓約" if item.kind == "pledge" else "研修" }}。期限 {{ item.expires_on or "記録なし" }}</li>
+{% endfor %}</ul>
+<form method="post" action="{{ url_for('admin.training', talent_id=profile.id) }}">
+  {{ training.hidden_tag() }}
+  {{ training.day.label }} {{ training.day(required=true) }}
+  <button type="submit" class="secondary outline">研修を記録する</button>
+</form>
+{% endblock %}

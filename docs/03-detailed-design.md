@@ -176,7 +176,8 @@ erDiagram
 | talent_id | 整数 | ○ | |
 | kind | 文字列(20) | ○ | `pledge`（守秘の誓約）／`training`（研修） |
 | valid_from・expires_on | 日付 | ○ | `expires_on` ＝ `valid_from` ＋ 365日。**今日が期間の中にある行が1つも無ければ、候補に出ない** |
-| recorded_by | 整数 | ○ | 記録した人（P0 は運営。署名の画面は P1） |
+| recorded_by | 整数 | ○ | 記録した人（署名は本人。研修の確認は運営） |
+| pledge_version | 文字列(20) | － | 本人が署名した守秘の誓約の版。署名画面の導入前の記録と研修では空 |
 
 実績（F22）は列に持たない。**確かめた訪問（`visits.status = confirmed`）と、確定した明細から、その場で数える**（自己申告を数えない）。
 

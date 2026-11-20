@@ -37,6 +37,7 @@ from app.models import (
     Statement,
     Talent,
     TalentAffiliation,
+    TalentSkill,
     TravelTime,
     TrustItem,
     TrustKind,
@@ -971,3 +972,148 @@ def test_t34_parallel_attempts_cannot_exceed_limit(
 
     with ThreadPoolExecutor(max_workers=6) as pool:
         assert sorted(pool.map(attempt, range(6))) == [401] * 5 + [429]
+
+
+def test_talent_profile_pledge_and_admin_review(database_app: Flask) -> None:
+    from app.services.trust import PLEDGE_VERSION
+
+    talent = database_app.test_client()
+    admin = database_app.test_client()
+    assert sign_in(talent, "tsunagite@example.org") == 302
+    assert sign_in(admin, "admin@example.org") == 302
+    profile = {
+        "csrf_token": token(talent, "/t/profile"),
+        "municipality": "1",
+        "grade": "2",
+        "weekdays": ["1", "3"],
+        "affiliation": "graduate",
+        "capacity": "3",
+        "listed": "y",
+        "tools": ["excel", "python"],
+        "strengths": ["collect", "check"],
+        "level_verified_at": "2030-01-01",
+        "user_id": "4",
+        "role": "admin",
+    }
+    assert talent.post("/t/profile", data=profile).status_code == 302
+    with database_app.app_context():
+        row = db.session.scalar(select(Talent).where(Talent.user_id == 2))
+        assert row is not None
+        assert row.level_verified_at is None
+        assert row.capacity == 3 and row.weekdays_mask == 10 and row.is_listed
+        assert sorted(db.session.scalars(select(TalentSkill.tag)).all()) == [
+            "check",
+            "collect",
+            "excel",
+            "python",
+        ]
+        profile_id = row.id
+    review = f"/admin/talents/{profile_id}"
+    grade = review + "/verify-grade"
+    training = review + "/training"
+    assert (
+        talent.post(
+            grade, data={"csrf_token": profile["csrf_token"], "grade": "2"}
+        ).status_code
+        == 403
+    )
+    assert (
+        talent.post(training, data={"csrf_token": profile["csrf_token"]}).status_code
+        == 403
+    )
+    assert talent.get(review).status_code == 404
+    assert admin.get("/t/profile").status_code == 404
+    csrf = token(admin, review)
+    assert admin.post(grade, data={"csrf_token": csrf, "grade": "1"}).status_code == 409
+    assert admin.post(grade, data={"csrf_token": csrf, "grade": "2"}).status_code == 302
+    assert "運営が確認済みです" in talent.get("/t/").get_data(as_text=True)
+    today = today_in_japan()
+    assert (
+        admin.post(
+            training, data={"csrf_token": csrf, "day": today.isoformat()}
+        ).status_code
+        == 302
+    )
+    assert (
+        admin.post(
+            training,
+            data={
+                "csrf_token": csrf,
+                "day": (today + timedelta(days=1)).isoformat(),
+            },
+        ).status_code
+        == 422
+    )
+
+    pledge = "/t/pledge"
+    assert "顧問先の生データ" in talent.get(pledge).get_data(as_text=True)
+    form = {"csrf_token": token(talent, pledge), "version": PLEDGE_VERSION}
+    assert talent.post(pledge, data=form).status_code == 422
+    assert (
+        talent.post(pledge, data={**form, "agree": "y", "version": "old"}).status_code
+        == 422
+    )
+    for _ in range(2):
+        assert talent.post(pledge, data={**form, "agree": "y"}).status_code == 302
+    assert talent.post("/t/profile", data={**profile, "grade": "3"}).status_code == 302
+    with database_app.app_context():
+        row = db.session.get(Talent, profile_id)
+        assert (
+            row is not None
+            and row.level_verified_at is None
+            and row.level_verified_by is None
+        )
+        items = {item.kind: item for item in db.session.scalars(select(TrustItem))}
+        assert len(db.session.scalars(select(TrustItem)).all()) == 2
+        assert items[TrustKind.PLEDGE].pledge_version == PLEDGE_VERSION
+        assert items[TrustKind.PLEDGE].recorded_by == 2
+        assert items[TrustKind.TRAINING].recorded_by == 4
+        assert items[TrustKind.PLEDGE].expires_on == today + timedelta(days=365)
+
+
+@pytest.mark.parametrize("role", [Role.OFFICE, Role.MUNICIPALITY])
+def test_profile_and_admin_reject_other_roles(identity_app: Flask, role: Role) -> None:
+    client = identity_app.test_client()
+    assert sign_in(client, f"{role}@example.org") == 302
+    for path in (
+        "/t/profile",
+        "/t/pledge",
+        "/admin/",
+        "/admin/ledger",
+        "/admin/talents/1",
+    ):
+        assert client.get(path).status_code == 404
+
+
+def test_admin_audits_office_view_and_revokes_account(database_app: Flask) -> None:
+    office, talent, _, _ = _agree(database_app)
+    admin = database_app.test_client()
+    assert sign_in(admin, "admin@example.org") == 302
+    assert office.get("/admin/ledger").status_code == 404
+    assert admin.get("/o/1/").status_code == 200
+    assert "台帳の検証が完了しました" in admin.get("/admin/ledger").get_data(
+        as_text=True
+    )
+    csrf = token(admin, "/admin/")
+    assert (
+        admin.post("/admin/users/4/suspend", data={"csrf_token": csrf}).status_code
+        == 403
+    )
+    assert (
+        admin.post("/admin/users/2/suspend", data={"csrf_token": csrf}).status_code
+        == 302
+    )
+    assert talent.get("/t/").status_code == 302
+    assert sign_in(talent, "tsunagite@example.org") == 401
+    with database_app.app_context():
+        row = db.session.scalar(
+            select(AuditLog).where(AuditLog.action == "admin_viewed_office")
+        )
+        assert row and row.actor_user_id == 4 and row.office_id == 1
+        record = db.session.scalar(
+            select(LedgerRecord).where(LedgerRecord.kind == "agreed")
+        )
+        assert record is not None
+        record.entry_hash = "0" * 64
+        db.session.commit()
+    assert "記録が一致しません" in admin.get("/admin/ledger").get_data(as_text=True)

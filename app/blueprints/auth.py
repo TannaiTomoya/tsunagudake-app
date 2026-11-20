@@ -68,6 +68,8 @@ def _destination(user: User) -> str:
         )
         if code is not None:
             return url_for("auth.region_home", code=code)
+    if user.role == Role.ADMIN:
+        return url_for("admin.index")
     return url_for("auth.account")
 
 

@@ -1,10 +1,26 @@
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
+from secrets import token_hex
 
+from flask import abort, current_app
 from sqlalchemy import select
+from sqlalchemy.exc import DataError, IntegrityError, OperationalError
 
+from app.audit import record_audit
 from app.extensions import db
-from app.models import Talent, TrustItem, TrustKind
+from app.models import (
+    BookkeepingLevel,
+    Role,
+    Talent,
+    TalentAffiliation,
+    TalentSkill,
+    TalentSkillKind,
+    TrustItem,
+    TrustKind,
+    User,
+    utc_now,
+)
+from tsunagu_rules.types import NeedKind
 
 
 @dataclass(frozen=True)
@@ -49,3 +65,175 @@ def trust_statuses(talent: Talent, today: date) -> tuple[TrustStatus, ...]:
         else:
             statuses.append(TrustStatus(kind))
     return tuple(statuses)
+
+
+@dataclass(frozen=True)
+class ProfileInput:
+    municipality_id: int
+    grade: BookkeepingLevel
+    weekdays_mask: int
+    affiliation: TalentAffiliation
+    capacity: int
+    is_listed: bool
+    tools: frozenset[str]
+    strengths: frozenset[NeedKind]
+
+
+class TrustConflict(Exception):
+    pass
+
+
+PLEDGE_VERSION = "1.0"
+PLEDGE_TERMS = (
+    "業務で知った事務所や顧問先の秘密を第三者に漏らしません。",
+    "顧問先の生データを事務所の外へ持ち出しません。",
+    "税務代理・税務書類の作成・税務相談は行いません。",
+)
+
+
+def _commit() -> None:
+    try:
+        db.session.commit()
+    except DataError, IntegrityError, OperationalError:
+        db.session.rollback()
+        raise TrustConflict("保存できませんでした。内容をご確認ください。") from None
+
+
+def save_profile(user_id: int, data: ProfileInput) -> None:
+    user = db.session.get(User, user_id, with_for_update=True, populate_existing=True)
+    if user is None or not user.is_active or user.role != Role.TSUNAGITE:
+        abort(404)
+    talent = db.session.scalar(
+        select(Talent)
+        .where(Talent.user_id == user_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if talent is None:
+        talent = Talent(user_id=user_id)
+        db.session.add(talent)
+    if talent.bookkeeping_level != data.grade:
+        talent.level_verified_at = None
+        talent.level_verified_by = None
+    talent.bookkeeping_level = data.grade
+    talent.municipality_id = data.municipality_id
+    talent.weekdays_mask = data.weekdays_mask
+    talent.affiliation = data.affiliation
+    talent.capacity = data.capacity
+    talent.is_listed = data.is_listed
+    requested = {
+        *((TalentSkillKind.TOOL, tool) for tool in data.tools),
+        *((TalentSkillKind.STRENGTH, kind.value) for kind in data.strengths),
+    }
+    if talent.id is None:
+        try:
+            db.session.flush()
+        except DataError, IntegrityError, OperationalError:
+            db.session.rollback()
+            raise TrustConflict("プロフィールを保存できませんでした。") from None
+        retained: set[tuple[TalentSkillKind, str]] = set()
+    else:
+        retained = set()
+        with db.session.no_autoflush:
+            for skill in db.session.scalars(
+                select(TalentSkill)
+                .where(TalentSkill.talent_id == talent.id)
+                .with_for_update()
+            ):
+                pair = (skill.kind, skill.tag)
+                if pair in requested:
+                    retained.add(pair)
+                else:
+                    db.session.delete(skill)
+    db.session.add_all(
+        TalentSkill(talent_id=talent.id, kind=kind, tag=tag)
+        for kind, tag in sorted(requested - retained)
+    )
+    record_audit(
+        "talent_profile_saved",
+        actor_id=user_id,
+        target_type="talent",
+        target_id=talent.id,
+    )
+    _commit()
+
+
+def _locked_talent(talent_id: int) -> Talent:
+    talent = db.session.get(
+        Talent, talent_id, with_for_update=True, populate_existing=True
+    )
+    if talent is None:
+        abort(404)
+    return talent
+
+
+def add_trust_record(talent_id: int, kind: TrustKind, actor_id: int, day: date) -> None:
+    talent = _locked_talent(talent_id)
+    if kind == TrustKind.PLEDGE and talent.user_id != actor_id:
+        abort(404)
+    version = PLEDGE_VERSION if kind == TrustKind.PLEDGE else None
+    exists = db.session.scalar(
+        select(TrustItem.id)
+        .where(
+            TrustItem.talent_id == talent_id,
+            TrustItem.kind == kind,
+            TrustItem.valid_from == day,
+            TrustItem.pledge_version == version,
+        )
+        .limit(1)
+        .with_for_update()
+    )
+    if exists is not None:
+        return
+    db.session.add(
+        TrustItem(
+            talent_id=talent_id,
+            kind=kind,
+            valid_from=day,
+            expires_on=day + timedelta(days=current_app.config["PLEDGE_VALID_DAYS"]),
+            recorded_by=actor_id,
+            pledge_version=version,
+        )
+    )
+    record_audit(
+        "pledge_signed" if kind == TrustKind.PLEDGE else "training_recorded",
+        actor_id=actor_id,
+        target_type="talent",
+        target_id=talent_id,
+    )
+    _commit()
+
+
+def verify_grade(talent_id: int, expected: BookkeepingLevel, actor_id: int) -> None:
+    talent = _locked_talent(talent_id)
+    if expected == BookkeepingLevel.NONE or talent.bookkeeping_level != expected:
+        raise TrustConflict(
+            "表示後に簿記の級が変わりました。現在の内容をご確認ください。"
+        )
+    if talent.level_verified_at is not None:
+        return
+    talent.level_verified_at = utc_now()
+    talent.level_verified_by = actor_id
+    record_audit(
+        "bookkeeping_verified",
+        actor_id=actor_id,
+        target_type="talent",
+        target_id=talent_id,
+    )
+    _commit()
+
+
+def suspend_user(user_id: int, actor_id: int) -> None:
+    user = db.session.get(User, user_id, with_for_update=True, populate_existing=True)
+    if user is None:
+        abort(404)
+    if user.role == Role.ADMIN:
+        abort(403)
+    if not user.is_active:
+        return
+    user.is_active = False
+    user.session_nonce = token_hex(16)
+    record_audit(
+        "user_suspended", actor_id=actor_id, target_type="user", target_id=user_id
+    )
+    _commit()
