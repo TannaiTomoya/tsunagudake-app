@@ -4,11 +4,14 @@ from app.audit import record_audit
 from app.extensions import db
 from app.models import Office
 
+# 事務所が記帳・申告に使うソフト（顧問先が使うソフトは、ここでは扱わない）。
 ACCOUNTING_SOFTWARE = {
+    "jdl": "JDL",
+    "tkc": "TKC",
+    "mjs": "MJS（ミロク）",
+    "yayoi": "弥生会計",
     "freee": "freee会計",
     "mf": "マネーフォワード クラウド会計",
-    "yayoi": "弥生会計",
-    "jdl": "JDL",
     "excel": "Excel",
     "sheets": "Google スプレッドシート",
 }

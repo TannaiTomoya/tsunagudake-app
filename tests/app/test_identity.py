@@ -1097,10 +1097,11 @@ def test_t34_parallel_attempts_cannot_exceed_limit(
         assert sorted(pool.map(attempt, range(6))) == [401] * 5 + [429]
 
 
-def test_talent_can_claim_jdl_as_a_tool(database_app: Flask) -> None:
+def test_talent_can_claim_office_side_software_as_tools(database_app: Flask) -> None:
     talent = database_app.test_client()
     assert sign_in(talent, "tsunagite@example.org") == 302
-    assert 'value="jdl"' in talent.get("/t/profile").get_data(as_text=True)
+    page = talent.get("/t/profile").get_data(as_text=True)
+    assert all(f'value="{tag}"' in page for tag in ("jdl", "tkc", "mjs"))
     profile = {
         "csrf_token": token(talent, "/t/profile"),
         "municipality": "1",
@@ -1108,11 +1109,12 @@ def test_talent_can_claim_jdl_as_a_tool(database_app: Flask) -> None:
         "weekdays": ["1"],
         "affiliation": "none",
         "capacity": "1",
-        "tools": ["jdl"],
+        "tools": ["jdl", "tkc", "mjs"],
     }
     assert talent.post("/t/profile", data=profile).status_code == 302
     with database_app.app_context():
-        assert db.session.scalars(select(TalentSkill.tag)).all() == ["jdl"]
+        tags = db.session.scalars(select(TalentSkill.tag)).all()
+        assert sorted(tags) == ["jdl", "mjs", "tkc"]
 
 
 def test_talent_profile_pledge_and_admin_review(database_app: Flask) -> None:

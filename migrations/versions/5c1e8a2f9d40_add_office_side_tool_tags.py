@@ -1,4 +1,4 @@
-"""Allow JDL as an accounting software a connector can claim."""
+"""Allow JDL, TKC and MJS as accounting software a connector can claim."""
 
 from alembic import op
 
@@ -9,7 +9,7 @@ depends_on = None
 
 STRENGTHS = "('collect', 'check', 'entry', 'report', 'tooling', 'teaching')"
 OLD_TOOLS = "('freee', 'mf', 'yayoi', 'excel', 'sheets', 'python', 'other')"
-NEW_TOOLS = "('freee', 'mf', 'yayoi', 'jdl', 'excel', 'sheets', 'python', 'other')"
+NEW_TOOLS = "('freee', 'mf', 'yayoi', 'jdl', 'tkc', 'mjs', 'excel', 'sheets', 'python', 'other')"
 
 
 def _rule(tools: str) -> str:
@@ -26,7 +26,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # 'jdl' の行が残っていると戻せない（行は消さない）。先に人が確かめる。
+    # 'jdl'・'tkc'・'mjs' の行が残っていると戻せない（行は消さない）。先に人が確かめる。
     with op.batch_alter_table("talent_skills") as batch:
         batch.drop_constraint("talent_skill_valid_tag", type_="check")
         batch.create_check_constraint("talent_skill_valid_tag", _rule(OLD_TOOLS))

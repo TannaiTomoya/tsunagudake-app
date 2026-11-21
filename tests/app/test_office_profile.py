@@ -213,17 +213,25 @@ def test_software_is_owner_scoped_and_saved_independently(profile_app: Flask) ->
         assert office and office.software == "freee"
 
 
-def test_jdl_is_an_accounting_software_choice(profile_app: Flask) -> None:
+@pytest.mark.parametrize(
+    ("software", "label"), [("jdl", "JDL"), ("tkc", "TKC"), ("mjs", "MJS（ミロク）")]
+)
+def test_office_side_software_is_a_choice(
+    profile_app: Flask, software: str, label: str
+) -> None:
     owner = profile_app.test_client()
     sign_in(owner, "office@example.org")
-    assert '<option value="jdl"' in owner.get(PROFILE).get_data(as_text=True)
+    page = owner.get(PROFILE).get_data(as_text=True)
+    assert f'<option value="{software}"' in page
+    # 顧問先のソフトではなく、事務所のソフトを選ぶ欄だと、その場で読める。
+    assert "事務所が記帳・申告に使うソフト" in page
     data = {
         "csrf_token": token(owner, PROFILE),
         "action": "software",
-        "software": "jdl",
+        "software": software,
     }
     assert owner.post(PROFILE, data=data).status_code == 302
-    assert "JDL" in owner.get("/o/1/").get_data(as_text=True)
+    assert label in owner.get("/o/1/").get_data(as_text=True)
     with profile_app.app_context():
         office = db.session.get(Office, 1)
-        assert office and office.software == "jdl"
+        assert office and office.software == software
