@@ -206,6 +206,23 @@ def test_t61_other_members_and_limits(identity_app: Flask) -> None:
         as_text=True
     )
     assert town.get(office_path + "/messages").status_code == 404
+    # ほかの事務所の人の一覧には、この伴走の相手が出ない。
+    with app.app_context():
+        outsider = User(
+            email="outside@example.org", role=Role.OFFICE, display_name="架空の外の人"
+        )
+        outsider.set_password(PASSWORD)
+        db.session.add(outsider)
+        db.session.flush()
+        db.session.add(
+            OfficeMember(user_id=outsider.id, office_id=2, member_role=MemberRole.OWNER)
+        )
+        db.session.commit()
+    other = app.test_client()
+    assert sign_in(other, "outside@example.org") == 302
+    inbox = other.get("/account/messages").get_data(as_text=True)
+    assert "送れる相手はいません" in inbox and "架空候補0" not in inbox
+    assert other.get(office_path + "/messages").status_code == 404
 
     # 24時間で送れる数には上限がある（数えるのは、その人の、その伴走の分だけ）。
     with app.app_context():

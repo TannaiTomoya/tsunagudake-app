@@ -542,3 +542,32 @@ def test_child_lookup_is_restricted_to_the_members_office(
     assert client.get("/o/2/").status_code == 200
     path = paths[item].replace("/o/1/", "/o/2/") + suffix
     assert client.get(path).status_code == 404
+
+
+@pytest.mark.parametrize(
+    ("method", "suffix"),
+    [
+        ("GET", "/messages"),
+        ("POST", "/messages"),
+        ("POST", "/end"),
+        ("POST", "/ideas/summary"),
+        ("POST", "/visits/1/adopt-idea"),
+    ],
+)
+def test_engagement_children_are_restricted_to_the_members_office(
+    matrix: tuple[Flask, dict[str, str], dict[str, str]],
+    method: str,
+    suffix: str,
+) -> None:
+    # 自分の事務所の道から、ほかの事務所の伴走の番号を指しても、届かない。
+    app, paths, identities = matrix
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session["_user_id"] = identities[EMAILS["other_office"]]
+    assert client.get("/o/2/").status_code == 200
+    path = paths["engagement"].replace("/o/1/", "/o/2/") + suffix
+    if method == "GET":
+        assert client.get(path).status_code == 404
+    else:
+        form = {"csrf_token": token(client, "/login")}
+        assert client.post(path, data=form).status_code == 404

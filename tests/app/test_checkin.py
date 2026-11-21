@@ -21,6 +21,7 @@ from app.models import (
     User,
     today_in_japan,
 )
+from app.services.checkin import HEADING_MAIL_GAP, head_out
 from app.services.mail import mail_body
 
 ADDRESS = "架空市架空町1-1"
@@ -166,6 +167,17 @@ def test_t62_arrival_keeps_only_the_fact_and_the_time(database_app: Flask) -> No
         rows = db.session.scalars(select(Checkin)).all()
         assert len(rows) == 1 and rows[0].eta_at and rows[0].heading_at
         assert rows[0].eta_at - rows[0].heading_at == timedelta(minutes=60)
+        # すぐの押し直しでは、メールを増やさない。10分たてば、もう1通。
+        heading = OutboxMail.subject.contains("向かっています")
+        assert len(db.session.scalars(select(OutboxMail).where(heading)).all()) == 1
+        engagement = db.session.scalar(select(Engagement))
+        assert engagement is not None
+        early = rows[0].heading_at + HEADING_MAIL_GAP - timedelta(seconds=1)
+        for moment, mails in ((early, 1), (early + HEADING_MAIL_GAP, 2)):
+            head_out(engagement, 2, "15", today_in_japan(), moment)
+            sent = db.session.scalars(select(OutboxMail).where(heading)).all()
+            assert len(sent) == mails
+        assert len(db.session.scalars(select(Checkin)).all()) == 1
 
     # 「着きました」：同意と位置がそろい、200m以内のときだけ残る。
     for fields in (

@@ -27,6 +27,8 @@ from tsunagu_rules.distance import (
 
 # 着くまでの時間は、選択肢だけ（分）。
 ETA_CHOICES = (15, 30, 45, 60, 90, 120)
+# 押し直しのメールは、前に押してから10分たってから（仮の数字）。画面の予定は毎回変わる。
+HEADING_MAIL_GAP = timedelta(minutes=10)
 ADDRESS_MAX = 200
 LOCATION_ERROR = (
     "緯度は -90〜90、経度は -180〜180 の数で、両方を入力してください。"
@@ -172,6 +174,7 @@ def head_out(
     if row.arrived_at is not None:
         db.session.rollback()
         raise CheckinConflict("今日は、もう「着きました」を押しています。")
+    notify = row.heading_at is None or now - row.heading_at >= HEADING_MAIL_GAP
     row.heading_at = now
     row.eta_at = now + timedelta(minutes=int(text))
     body = (
@@ -179,12 +182,17 @@ def head_out(
         "伴走の画面でも確かめられます。"
     )
     # すぐに知らせる（翌朝のまとめでは遅い）。
-    for member in db.session.scalars(
-        select(User)
-        .join(OfficeMember, OfficeMember.user_id == User.id)
-        .where(OfficeMember.office_id == office.id, User.is_active.is_(True))
-        .order_by(User.id)
-    ):
+    members = (
+        db.session.scalars(
+            select(User)
+            .join(OfficeMember, OfficeMember.user_id == User.id)
+            .where(OfficeMember.office_id == office.id, User.is_active.is_(True))
+            .order_by(User.id)
+        )
+        if notify
+        else ()
+    )
+    for member in members:
         enqueue(
             member.email,
             "つなぐだけ：つなぎ手が向かっています",
