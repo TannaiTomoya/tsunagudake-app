@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from secrets import token_urlsafe
 
 from sqlalchemy import and_, select
@@ -109,8 +110,44 @@ def _sole_owner_office(user: User) -> Office | None:
     return office if others is None else None
 
 
-def blockers(user: User) -> list[str]:
-    """退会できない理由。空なら退会できる。"""
+@dataclass(frozen=True)
+class _Held:
+    """ロックして読み直した、つなぎ手の候補と伴走（今の値）。"""
+
+    candidates: list[MatchCandidate]
+    engagements: list[Engagement]
+
+
+def _hold_talent_rows(user_id: int) -> _Held | None:
+    """声かけ・返事と同じく、候補を先にロックし、候補と伴走の今の値を読む。
+
+    人（users）の行は、この後でロックする。先に人をロックすると、声かけの最後の
+    通知と待ち合う。ロックなしの読み取りは、MySQL では処理の始めの時点の値なので、
+    直前に保存された声かけ・合意を見落とす。
+    """
+    talent_id = db.session.scalar(select(Talent.id).where(Talent.user_id == user_id))
+    if talent_id is None:
+        return None
+    candidates = db.session.scalars(
+        select(MatchCandidate)
+        .where(MatchCandidate.talent_id == talent_id)
+        .order_by(MatchCandidate.id)
+        .with_for_update()
+    ).all()
+    engagements = db.session.scalars(
+        select(Engagement)
+        .where(Engagement.talent_id == talent_id)
+        .order_by(Engagement.id)
+        .with_for_update()
+    ).all()
+    return _Held(list(candidates), list(engagements))
+
+
+def blockers(user: User, held: _Held | None = None) -> list[str]:
+    """退会できない理由。空なら退会できる。
+
+    `held` は、退会の処理がロックして読み直した行。画面に出すだけのときは渡さない。
+    """
     if user.role == Role.ADMIN:
         return ["運営のアカウントは、この画面から退会できません。"]
     if user.is_demo:
@@ -120,21 +157,33 @@ def blockers(user: User) -> list[str]:
         talent = db.session.scalar(select(Talent).where(Talent.user_id == user.id))
         if talent is not None:
             mine = Engagement.talent_id == talent.id
-            if _open_engagements(mine):
+            if held is None:
+                engaged = _open_engagements(mine)
+                invited = (
+                    db.session.scalar(
+                        select(MatchCandidate.id)
+                        .where(
+                            MatchCandidate.talent_id == talent.id,
+                            MatchCandidate.status == CandidateStatus.INVITED,
+                        )
+                        .limit(1)
+                    )
+                    is not None
+                )
+            else:
+                engaged = any(
+                    row.status != EngagementStatus.ENDED for row in held.engagements
+                )
+                invited = any(
+                    row.status == CandidateStatus.INVITED for row in held.candidates
+                )
+            if engaged:
                 reasons.append("進行中の伴走があります。先に、伴走を終えてください。")
             if _open_months(mine):
                 reasons.append(
                     "確定していない明細があります。事務所の確定を待ってください。"
                 )
-            invited = db.session.scalar(
-                select(MatchCandidate.id)
-                .where(
-                    MatchCandidate.talent_id == talent.id,
-                    MatchCandidate.status == CandidateStatus.INVITED,
-                )
-                .limit(1)
-            )
-            if invited is not None:
+            if invited:
                 reasons.append(
                     "返事を待っている声かけがあります。受けるか断るかを選んでください。"
                 )
@@ -176,7 +225,7 @@ def closes_office(user: User) -> bool:
     return user.role == Role.OFFICE and _sole_owner_office(user) is not None
 
 
-def _erase_talent(user: User) -> None:
+def _erase_talent(user: User, held: _Held) -> None:
     talent = db.session.scalar(
         select(Talent)
         .where(Talent.user_id == user.id)
@@ -189,10 +238,8 @@ def _erase_talent(user: User) -> None:
     for kind in (TalentSkill, TrustItem):
         for row in db.session.scalars(select(kind).where(kind.talent_id == talent.id)):
             db.session.delete(row)
-    candidates = db.session.scalars(
-        select(MatchCandidate).where(MatchCandidate.talent_id == talent.id)
-    ).all()
-    for candidate in candidates:
+    # ロックして読み直した行を使う（直前に出し直された候補も、終了にする）。
+    for candidate in held.candidates:
         if candidate.status == CandidateStatus.LISTED:
             candidate.status = CandidateStatus.CLOSED
     statements = db.session.scalars(
@@ -204,13 +251,7 @@ def _erase_talent(user: User) -> None:
         # 金額・月・状態は相手の記録でもあるので残す。振込先と登録番号だけを消す。
         statement.payout_cipher = None
         statement.invoice_registration = None
-    referenced = bool(candidates) or (
-        db.session.scalar(
-            select(Engagement.id).where(Engagement.talent_id == talent.id).limit(1)
-        )
-        is not None
-    )
-    if not referenced:
+    if not held.candidates and not held.engagements:
         db.session.flush()
         db.session.delete(talent)
         return
@@ -276,6 +317,7 @@ def withdraw(user_id: int, password: str, *, confirmed: bool) -> None:
 def _withdraw(
     user_id: int, password: str, confirmed: bool, buckets: tuple[Bucket, ...]
 ) -> None:
+    held = _hold_talent_rows(user_id)
     user = db.session.scalar(
         select(User)
         .where(User.id == user_id)
@@ -291,14 +333,14 @@ def _withdraw(
         raise WithdrawalError(
             "パスワードと、「元に戻せないことを確かめました」の印をご確認ください。"
         )
-    reasons = blockers(user)
+    reasons = blockers(user, held)
     if reasons:
         db.session.rollback()
         raise WithdrawalBlocked(reasons)
     office = _sole_owner_office(user) if user.role == Role.OFFICE else None
 
-    if user.role == Role.TSUNAGITE:
-        _erase_talent(user)
+    if user.role == Role.TSUNAGITE and held is not None:
+        _erase_talent(user, held)
     if office is not None:
         _close_office(office.id)
         erase_for_office(office.id)
@@ -311,8 +353,9 @@ def _withdraw(
         db.session.delete(factor)
     anonymous = f"withdrawn-{user.id}@withdrawn.invalid"
     # 送る前のメールは、本文を消すと送られない。
+    # 直前に積まれた通知も見落とさないよう、ロックして今の行を読む。
     for mail in db.session.scalars(
-        select(OutboxMail).where(OutboxMail.recipient == user.email)
+        select(OutboxMail).where(OutboxMail.recipient == user.email).with_for_update()
     ):
         mail.recipient = anonymous
         mail.body_encrypted = None
