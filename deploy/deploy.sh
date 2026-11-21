@@ -50,7 +50,12 @@ gzip -t -- "$pending_backup"
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 mv -- "$pending_backup" "$backup_dir/${stamp}-${pending_backup##*.}.sql.gz"
 
+# 控えを取り終えたら umask を戻す。077 のまま早送りすると、書き換わった見た目のファイルが
+# 本人だけ読める形になり、nginx が /static/ を 403 で返す（runbook 注意12）。
+umask 022
 git merge --ff-only "$target_sha"
+# 前の反映で読めなくなったものも直す。見た目のファイルだけで、.env には触らない。
+find app/static -type d -exec chmod 755 {} + && find app/static -type f -exec chmod 644 {} +
 uv sync --frozen --no-dev
 uv run --frozen --no-dev flask db upgrade
 # 市町村の一覧から、無い行だけを足す（直さない・消さない）。
