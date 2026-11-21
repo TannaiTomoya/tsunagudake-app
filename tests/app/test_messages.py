@@ -57,7 +57,7 @@ def test_t61_messages_stay_between_the_office_and_the_assigned_talent(
     assert "まだメッセージはありません" in page
     assert "顧問先の名前と金額は書かないでください" in page
     # 1画面に主のボタンは1つ。
-    assert page.count('name="action" value=') == 1
+    assert page.count('<button type="submit" name="action" value=') == 1
     for key, (label, text) in TEMPLATES.items():
         assert f"?template={key}" in page and label in page
         chosen = office.get(f"{office_path}/messages?template={key}")
@@ -160,6 +160,7 @@ def test_t61_messages_stay_between_the_office_and_the_assigned_talent(
     for client, path in ((office, office_path), (talent, talent_path)):
         assert _post(client, path, "send", TEXT) == 409
         assert _post(client, path, "confirm", TEXT) == 409
+        assert _post(client, path, "draft", TEXT) == 409
         closed = client.get(path + "/messages").get_data(as_text=True)
         assert "新しいメッセージは送れません" in closed and "<textarea" not in closed
         assert "架空の返事" in closed

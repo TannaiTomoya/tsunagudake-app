@@ -18,7 +18,9 @@ class Faq:
 
 @dataclass(frozen=True)
 class Reply:
-    kind: str  # "faq"（用意した答え）・"boundary"（税理士の仕事）・"none"（答えが無い）
+    # "faq"（用意した答え）・"boundary"（税理士の仕事）・"none"（答えが無い）・
+    # "auto"（外の AI が有効のときだけ。自動で作った答え）
+    kind: str
     answer: str
     key: str | None = None
 
@@ -242,6 +244,28 @@ def answer_key(key: str) -> Reply:
     if faq is None:
         return Reply("none", NO_ANSWER)
     return Reply("faq", faq.answer, faq.key)
+
+
+# 税務の話かもしれない言葉。これがある質問は、外の AI に送らない。
+TAX_HINTS = ("税", "申告", "控除", "経費", "仕訳")
+
+
+def nearest(question: str, count: int = 3) -> tuple[Faq, ...]:
+    """質問に近い、用意した質問と答えを、近い順に返す。"""
+    pairs = _pairs(_normalize(question[:QUESTION_LIMIT]))
+
+    def score(faq: Faq) -> float:
+        target = _pairs(_normalize(faq.question))
+        return len(pairs & target) / (len(pairs) + len(target) or 1)
+
+    return tuple(sorted(FAQS, key=score, reverse=True)[:count])
+
+
+def may_send_out(question: str, taxwork: tuple[str, ...] = ()) -> bool:
+    """外の AI に送ってよい質問か。税務の言葉がある質問は、送らない。"""
+    text = _normalize(question[:QUESTION_LIMIT])
+    words = (*TAX_HINTS, *taxwork)
+    return bool(text) and not any(_normalize(word) in text for word in words)
 
 
 def answer_text(question: str, taxwork: tuple[str, ...] = ()) -> Reply:

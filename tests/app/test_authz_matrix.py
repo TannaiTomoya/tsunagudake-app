@@ -178,6 +178,13 @@ ROUTES = (
         ("assigned", "admin"),
     ),
     Route(
+        "idea-summary",
+        "POST",
+        "{engagement}/ideas/summary",
+        ("other_office", "other_staff", "unrelated", "municipality"),
+        ("assigned", "admin"),
+    ),
+    Route(
         "reduction-save",
         "POST",
         "{engagement}/reductions",

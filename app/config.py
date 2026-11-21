@@ -149,6 +149,10 @@ def load_config(environ: Mapping[str, str]) -> dict[str, Any]:
         "AI_MONTHLY_LIMIT_YEN": whole_number(
             environ, "AI_MONTHLY_LIMIT_YEN", maximum=1_000_000
         ),
+        # 1つの事務所が月に使える分。0 は、全体の上限だけで止める。
+        "AI_OFFICE_MONTHLY_LIMIT_YEN": whole_number(
+            environ, "AI_OFFICE_MONTHLY_LIMIT_YEN", maximum=1_000_000
+        ),
         "AI_INPUT_YEN_PER_MTOK": whole_number(
             environ, "AI_INPUT_YEN_PER_MTOK", maximum=1_000_000
         ),

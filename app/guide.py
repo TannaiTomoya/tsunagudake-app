@@ -93,6 +93,11 @@ SCRIPTS = {
         "今の伴走の相手に、メッセージを送れます。",
         "文は、ひな形から選べます。送る前に確かめられます。",
     ),
+    "drafts.idea_summary": (
+        "今月のメモを、短くまとめた下書きです。",
+        "保存はされません。",
+        "やってみるかは、事務所が決めます。",
+    ),
     "messages.office_thread": THREAD,
     "messages.talent_thread": THREAD,
     "statements.visit_form": (

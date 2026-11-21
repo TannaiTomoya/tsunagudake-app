@@ -299,14 +299,20 @@ def test_t64_only_the_ai_module_reaches_out() -> None:
             continue
         for word in ("urllib.request", "http.client", "anthropic", "httpx"):
             assert word not in source, f"{path}: {word}"
-    # ai を読み込むのは、困りごとの型の候補だけ。
-    # 候補探し・料金・明細・台帳・規則は読み込まない。
+    # ai を読み込むのは、型の候補と、下書き（メッセージ・質問・まとめ）の入口だけ。
+    # 候補探し・料金・見積・請求・明細・通知・台帳・規則は読み込まない。
     users = {
         str(path)
         for path in Path("app").rglob("*.py")
         if "services import ai" in path.read_text() or "services.ai" in path.read_text()
     }
-    assert users == {"app/services/needs.py", "app/blueprints/needs.py"}
+    assert users == {
+        "app/services/needs.py",
+        "app/blueprints/needs.py",
+        "app/blueprints/messages.py",
+        "app/blueprints/guide.py",
+        "app/blueprints/drafts.py",
+    }
     for path in Path("tsunagu_rules").rglob("*.py"):
         assert (
             "import app" not in path.read_text() and "from app" not in path.read_text()

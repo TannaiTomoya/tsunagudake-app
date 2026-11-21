@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app.authz import require_office_engagement, require_talent_engagement
 from app.extensions import db
 from app.models import Engagement, EngagementStatus, Office, Talent, User
+from app.services import ai
 from app.services.messages import (
     BODY_MAX,
     TEMPLATES,
@@ -72,6 +73,7 @@ def _page(
     confirming: bool = False,
     sent: bool = False,
     arrived: int = 0,
+    auto_draft: bool = False,
 ) -> str:
     here, back = _urls(engagement, office_side=office_side)
     return render_template(
@@ -94,6 +96,8 @@ def _page(
         sent=sent,
         arrived=arrived,
         ended=engagement.status == EngagementStatus.ENDED,
+        auto_draft=auto_draft,
+        can_draft=ai.available(engagement.office_id),
     )
 
 
@@ -118,11 +122,35 @@ def _handle(engagement: Engagement, *, office_side: bool) -> ResponseReturnValue
         return _page(
             engagement, office_side=office_side, draft=shown, template=template
         )
-    if action not in {"confirm", "send"}:
+    if action not in {"confirm", "send", "draft"}:
         abort(400)
     if engagement.status == EngagementStatus.ENDED:
         message = "終わった伴走には、メッセージを送れません。これまでの分は読めます。"
         return render_template("error.html", message=message), 409
+    if action == "draft":
+        # 入力欄のメモから下書きを作るだけ。送らない。送るのは人。
+        written = ai.draft_message(
+            engagement,
+            _actor().id,
+            raw[:BODY_MAX],
+            TEMPLATES[template][0] if template in TEMPLATES else "",
+        )
+        if written is None:
+            page = _page(
+                engagement,
+                office_side=office_side,
+                draft=shown,
+                template=template,
+                error="今は、下書きを作れません。ひな形から始めるか、そのまま書いてください。",
+            )
+            return page, 409
+        return _page(
+            engagement,
+            office_side=office_side,
+            draft=written,
+            template=template,
+            auto_draft=True,
+        )
     try:
         if action == "confirm":
             return _page(

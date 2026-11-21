@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% set progress_step = 4 %}
+{% block title %}メモのまとめ{% endblock %}
+{% block content %}
+<p><a href="{{ back }}">伴走に戻る</a></p>
+<h1>メモのまとめ</h1>
+{% if summary %}
+<p>{{ month[:4] | int }}年{{ month[5:] | int }}月のメモ {{ ideas | length }}件から、自動で作った下書きです。保存されません。やってみるかは、事務所が決めます。</p>
+<p class="message-body" data-auto-draft>{{ summary }}</p>
+{% elif ideas %}
+<p role="alert">今は、まとめの下書きを作れません。メモは、伴走の画面でそのまま読めます。</p>
+{% else %}
+<p role="alert">この月のメモはありません。</p>
+{% endif %}
+{% endblock %}

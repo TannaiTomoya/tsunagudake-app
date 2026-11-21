@@ -58,6 +58,9 @@ def create_app(config: Mapping[str, Any] | None = None) -> Flask:
     from app.blueprints.messages import bp as messages_bp
 
     app.register_blueprint(messages_bp)
+    from app.blueprints.drafts import bp as drafts_bp
+
+    app.register_blueprint(drafts_bp)
     from app.blueprints.guide import bp as guide_bp
     from app.blueprints.guide import suggestions
 
