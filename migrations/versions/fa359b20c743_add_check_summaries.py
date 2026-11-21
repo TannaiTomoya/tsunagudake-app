@@ -37,5 +37,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_check_summaries_engagement_month", table_name="check_summaries")
+    # 索引は、表と一緒に消える（MySQL では、外部キーが使う索引を先に消せない）。
     op.drop_table("check_summaries")
