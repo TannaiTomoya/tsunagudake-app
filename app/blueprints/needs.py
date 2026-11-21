@@ -1,7 +1,7 @@
 import json
 from typing import cast
 
-from flask import Blueprint, redirect, render_template, url_for
+from flask import Blueprint, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required
 from flask_wtf import FlaskForm
@@ -21,12 +21,15 @@ from app.models import (
     Role,
     User,
 )
+from app.services import ai
 from app.services.ledger import records_for_need
 from app.services.needs import (
     EDITABLE,
     NeedConflict,
     NeedInput,
+    accept_suggestion,
     publish_need,
+    request_suggestion,
     save_need,
     translations,
     withdraw_need,
@@ -141,10 +144,19 @@ def _detail(office: Office, need_id: int, error: str | None = None) -> str:
         if need.value_yen_month is None
         else need.value_yen_month // need.monthly_hours
     )
+    # 型の候補（F91）は、規則で訳せなかった下書きにだけ、代表にだけ出す。
+    asking = (
+        owner and need.status == NeedStatus.DRAFT and not rows and not need.block_reason
+    )
+    suggested = ai.suggestion_for(need) if asking else None
     return render_template(
         "needs/detail.html",
         need=need,
         rows=rows,
+        suggested=suggested
+        if suggested is None
+        else [(kind.value, CATEGORIES[kind]) for kind in suggested],
+        can_suggest=asking and suggested is None and ai.available(),
         ledger=[
             (row, json.loads(row.payload)["data"]) for row in records_for_need(need)
         ],
@@ -236,6 +248,30 @@ def withdraw(office_id: int, need_id: int) -> ResponseReturnValue:
     office = require_need_office(office_id, need_id, owner_only=True)
     try:
         withdraw_need(office, need_id, cast(User, current_user).id)
+    except NeedConflict as exc:
+        return _detail(office, need_id, str(exc)), 409
+    return redirect(_location(office_id, need_id))
+
+
+@bp.post("/<int:need_id>/suggest")
+@login_required  # type: ignore[untyped-decorator]
+def suggest(office_id: int, need_id: int) -> ResponseReturnValue:
+    office = require_need_office(office_id, need_id, owner_only=True)
+    try:
+        request_suggestion(office, need_id, cast(User, current_user).id)
+    except NeedConflict as exc:
+        return _detail(office, need_id, str(exc)), 409
+    return redirect(_location(office_id, need_id))
+
+
+@bp.post("/<int:need_id>/accept-kind")
+@login_required  # type: ignore[untyped-decorator]
+def accept_kind(office_id: int, need_id: int) -> ResponseReturnValue:
+    office = require_need_office(office_id, need_id, owner_only=True)
+    try:
+        accept_suggestion(
+            office, need_id, cast(User, current_user).id, request.form.get("kind", "")
+        )
     except NeedConflict as exc:
         return _detail(office, need_id, str(exc)), 409
     return redirect(_location(office_id, need_id))

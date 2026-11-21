@@ -52,6 +52,27 @@
 </table></div>
 {% else %}
 <p>規則では訳せませんでした。「型を選ぶ・書き直す」から選んでください。</p>
+{% if suggested %}
+<h3>型の候補</h3>
+<p>外の AI が出した候補です。決めるのは代表です。採っても、公開はされません。</p>
+<ul class="template-links">
+  {% for value, label in suggested %}
+  <li><form method="post" action="{{ url_for('needs.accept_kind', office_id=office.id, need_id=need.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="kind" value="{{ value }}">
+    <button type="submit" class="secondary outline">「{{ label }}」にする</button>
+  </form></li>
+  {% endfor %}
+</ul>
+{% elif suggested is not none %}
+<p>型の候補は出ませんでした。「型を選ぶ・書き直す」から選んでください。</p>
+{% elif can_suggest %}
+<form method="post" action="{{ url_for('needs.suggest', office_id=office.id, need_id=need.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit" class="secondary outline" aria-describedby="suggest-note">型の候補を出してもらう</button>
+  <small id="suggest-note">名前・社名・金額・電話・メールアドレスの形を伏せてから、外の AI に送ります。送った文は記録に残しません。決めるのは代表です。</small>
+</form>
+{% endif %}
 {% endif %}
 {% if need.status == "engaged" %}<p><a href="{{ url_for('matching.candidates', office_id=office.id, need_id=need.id) }}">候補と理由を見る</a></p>{% endif %}
 {% if owner and need.status == "published" %}

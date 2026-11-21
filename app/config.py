@@ -82,6 +82,17 @@ def positive_integer(
     return value
 
 
+def whole_number(environ: Mapping[str, str], name: str, *, maximum: int) -> int:
+    raw = environ.get(name, "").strip()
+    try:
+        value = int(raw) if raw else 0
+    except ValueError:
+        value = -1
+    if not 0 <= value <= maximum:
+        raise ConfigError(f"{name} は 0〜{maximum} の整数を指定してください。")
+    return value
+
+
 def load_config(environ: Mapping[str, str]) -> dict[str, Any]:
     mode = environ.get("APP_ENV", "production")
     if mode not in CONFIGS:
@@ -132,6 +143,18 @@ def load_config(environ: Mapping[str, str]) -> dict[str, Any]:
         "PROXY_FIX": boolean(environ, "PROXY_FIX", False),
         "DEMO_PASSWORD": environ.get("DEMO_PASSWORD", ""),
         "AI_DRIVER": environ.get("AI_DRIVER") or ("fake" if mode == "test" else "off"),
+        # 外の AI。既定は使わない。単価と月の上限は運営が入れる（コードに書かない）。
+        "AI_MODEL": environ.get("AI_MODEL", "").strip(),
+        "AI_API_KEY": environ.get("AI_API_KEY", "").strip(),
+        "AI_MONTHLY_LIMIT_YEN": whole_number(
+            environ, "AI_MONTHLY_LIMIT_YEN", maximum=1_000_000
+        ),
+        "AI_INPUT_YEN_PER_MTOK": whole_number(
+            environ, "AI_INPUT_YEN_PER_MTOK", maximum=1_000_000
+        ),
+        "AI_OUTPUT_YEN_PER_MTOK": whole_number(
+            environ, "AI_OUTPUT_YEN_PER_MTOK", maximum=1_000_000
+        ),
         # 台帳の控えを置くフォルダ（DB の外）。空なら instance/ledger-anchors。
         "LEDGER_ANCHOR_DIR": environ.get("LEDGER_ANCHOR_DIR", "").strip(),
         "MAX_CONTENT_LENGTH": 1024 * 1024,
@@ -193,6 +216,20 @@ def validate_config(config: Mapping[str, Any]) -> None:
         problems.append("DEMO_PASSWORD（12文字以上）")
     if mode == "production" and driver == "fake":
         problems.append("AI_DRIVER（production では fake は使えません）")
+    if driver == "claude" and not all(
+        config[name]
+        for name in (
+            "AI_MODEL",
+            "AI_API_KEY",
+            "AI_MONTHLY_LIMIT_YEN",
+            "AI_INPUT_YEN_PER_MTOK",
+            "AI_OUTPUT_YEN_PER_MTOK",
+        )
+    ):
+        problems.append(
+            "AI_MODEL・AI_API_KEY・AI_MONTHLY_LIMIT_YEN・AI_INPUT_YEN_PER_MTOK・"
+            "AI_OUTPUT_YEN_PER_MTOK（AI_DRIVER=claude のときは必須）"
+        )
     if config["DEBUG"] or config["TESTING"]:
         problems.append("DEBUG・TESTING（公開環境では無効）")
     if problems:

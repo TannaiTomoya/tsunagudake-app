@@ -555,6 +555,52 @@ class Message(Created, Base):
     read_at: Mapped[datetime | None]
 
 
+class AiPurpose(StrEnum):
+    TRANSLATE = "translate"
+    DRAFT = "draft"
+    QUESTION = "question"
+    SUMMARY = "summary"
+
+
+class AiOutcome(StrEnum):
+    OK = "ok"
+    EMPTY = "empty"
+    ERROR = "error"
+
+
+class AiRun(Created, Base):
+    """外の AI を呼んだ記録。本文も、返ってきた文も持たない。足すだけ。"""
+
+    __tablename__ = "ai_runs"
+    __table_args__ = (
+        CheckConstraint(
+            "chars >= 0 AND input_tokens >= 0 AND output_tokens >= 0",
+            name="ai_run_counts",
+        ),
+        Index("ix_ai_runs_created_at", "created_at"),
+        Index("ix_ai_runs_need_id_id", "need_id", "id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    actor_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", name="fk_ai_runs_actor_user_id")
+    )
+    office_id: Mapped[int | None] = mapped_column(
+        ForeignKey("offices.id", name="fk_ai_runs_office_id")
+    )
+    purpose: Mapped[AiPurpose] = mapped_column(stored_enum(AiPurpose))
+    driver: Mapped[str] = mapped_column(String(10))
+    chars: Mapped[int]
+    input_tokens: Mapped[int]
+    output_tokens: Mapped[int]
+    outcome: Mapped[AiOutcome] = mapped_column(stored_enum(AiOutcome))
+    result: Mapped[str | None] = mapped_column(String(100))
+    need_id: Mapped[int | None] = mapped_column(
+        ForeignKey("needs.id", name="fk_ai_runs_need_id")
+    )
+    input_hash: Mapped[str | None] = mapped_column(String(64))
+
+
 class CheckSummary(Created, Base):
     """過去比較の件数だけ。科目・金額・顧問先を持つ列は無い。足すだけ。"""
 

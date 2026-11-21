@@ -85,6 +85,14 @@ ROUTES = (
     Route(
         "need-withdraw", "POST", "{need}/withdraw", OFFICE_ACTORS, ("staff", "admin")
     ),
+    Route("need-suggest", "POST", "{need}/suggest", OFFICE_ACTORS, ("staff", "admin")),
+    Route(
+        "need-accept-kind",
+        "POST",
+        "{need}/accept-kind",
+        OFFICE_ACTORS,
+        ("staff", "admin"),
+    ),
     Route("candidates", "GET", "{need}/candidates", OFFICE_ACTORS),
     Route("candidate-generate", "POST", "{need}/candidates", OFFICE_ACTORS, ("admin",)),
     Route(

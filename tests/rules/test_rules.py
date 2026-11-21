@@ -1,5 +1,6 @@
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -7,6 +8,7 @@ from tsunagu_rules import RULES_VERSION, ledger
 from tsunagu_rules.compare import CompareLine, MarkReason, compare
 from tsunagu_rules.distance import NEAR_RADIUS_M, distance_m, is_near
 from tsunagu_rules.matching import match
+from tsunagu_rules.redact import MASK, redact
 from tsunagu_rules.region import (
     is_fictional,
     mask_breakdown,
@@ -346,3 +348,36 @@ def test_t51_only_codes_starting_with_nine_are_fictional() -> None:
     assert all(is_fictional(code) for code in ("90001", "99999", "9"))
     assert not any(is_fictional(code) for code in ("01100", "47382", "00001", "09201"))
     assert not is_fictional("")
+
+
+def test_t64_redact_masks_names_amounts_and_contacts() -> None:
+    # 名前・社名・金額・連絡先は、すべて架空。
+    text = (
+        "架空商事株式会社の田中さんから、毎月３２０，０００円の請求書が紙で届く。"
+        "連絡は tanaka@example.org か 03-1234-5678、携帯 09012345678。"
+        "㈱架空フーズ（担当：はしもと様）は ¥5,000、別に 120000。"
+    )
+    masked = redact(text)
+    for secret in (
+        "架空商事",
+        "田中",
+        "320",
+        "example.org",
+        "1234",
+        "0901",
+        "架空フーズ",
+        "はしもと",
+        "5,000",
+        "120000",
+    ):
+        assert secret not in masked
+    assert MASK in masked and "請求書が紙で届く" in masked
+    # 前に付く社名も、後ろに付く社名も伏せる。
+    assert "架空" not in redact("毎月、株式会社架空商事の件で困る")
+    # 伏せるものが無い文は、そのまま。月の時間のような小さい数は残す。
+    plain = "会計ソフトの設定がわからない。月に10時間かかっている。"
+    assert redact(plain) == plain
+    assert redact(text) == masked and redact("") == ""
+    source = Path("tsunagu_rules/redact.py").read_text()
+    for word in ("flask", "sqlalchemy", "datetime", "import app", "from app"):
+        assert word not in source

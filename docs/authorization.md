@@ -104,6 +104,9 @@
 | 書く・下書きを直す | → | 404 | ○ | ○ | 404 | 404 | 404 | 403 |
 | 見る（本文・翻訳・価値） | → | 404 | ○ | ○ | 404 | ○（型・曜日・条件。**本文は合意の後**） | 404 | ○（記録） |
 | 公開・取り下げ | → | 404 | 403 | ○ | 404 | 404 | 404 | 403 |
+| 型の候補を出してもらう（`POST …/suggest`）・候補の型を採る（`POST …/accept-kind`） | → | 404 | 403 | ○ | 404 | 404 | 404 | 403 |
+
+型の候補（F91）は、規則で訳せなかった下書きにだけ、代表が頼めます。`AI_DRIVER=off`（既定）・月の上限を超えた月・税理士業務の語で止まった困りごと・規則で訳せた困りごとでは、権限を確かめたあとで 409 を返し、外には何も送りません。採れる型は、サーバーに残した直近の候補の中だけです（画面から来た型をそのまま信じません）。採っても公開はされません。公開は、これまでどおり代表が別に押します。
 
 ## 4. 候補・声かけ・合意
 候補の再計算は事務所の代表・職員が POST で実行します。運営の再計算は403、他の所属やロールは404です。閲覧は表の条件に従います。つなぎ手のホームには本人宛ての声かけと本人の伴走だけを表示し、声かけ中の本文は表示しません。
@@ -234,8 +237,10 @@
 | `/o/<int:office_id>/needs/<int:need_id>/candidates` | POST | §4 |
 | `/o/<int:office_id>/needs/<int:need_id>/candidates/<int:candidate_id>/cancel` | POST | §4 |
 | `/o/<int:office_id>/needs/<int:need_id>/candidates/<int:candidate_id>/invite` | POST | §4 |
+| `/o/<int:office_id>/needs/<int:need_id>/accept-kind` | POST | §3 |
 | `/o/<int:office_id>/needs/<int:need_id>/edit` | GET, POST | §3 |
 | `/o/<int:office_id>/needs/<int:need_id>/publish` | POST | §3 |
+| `/o/<int:office_id>/needs/<int:need_id>/suggest` | POST | §3 |
 | `/o/<int:office_id>/needs/<int:need_id>/withdraw` | POST | §3 |
 | `/o/<int:office_id>/needs/new` | GET, POST | §3 |
 | `/r/<code>/` | GET | §7 |
