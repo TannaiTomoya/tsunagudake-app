@@ -595,3 +595,9 @@ torudake（Laravel）の入れ方は、torudake のリポジトリの手順書�
 | 朝いちばんだけエラーになる | DB の接続が切れている。`pool_pre_ping` と `pool_recycle` の設定（02 §6） |
 | 全員がまとめてログインできなくなる | nginx が `X-Forwarded-For` を渡していない |
 | スマホでだけ崩れる | 02 §8.5。表の列を減らす |
+
+### PRを作り、CI成功後にマージする
+
+ブランチをpushしたら、認証済みのGitHub CLIがある端末で `scripts/merge-after-ci.sh --create --title '変更の内容' --body-file PR説明.md` を実行します。説明に `Closes #番号` を書くと、マージ時に対応するIssueも閉じます。既に開いたPRや中断した待機は `scripts/merge-after-ci.sh PR番号` で再開できます。
+
+コマンドはその端末で待機し、対象PRのSQLite・MySQL 8.0・8.4の検査が成功してからマージします。待機中にPRのコミットが変わった場合や、mainの変更を取り込む必要がある場合は停止します。マージ後は通常のmainのCIとVPS自動反映が続きます。

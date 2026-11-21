@@ -48,6 +48,11 @@ def test_prepared_answers_are_short_and_unique() -> None:
 
 
 def test_every_screen_offers_three_known_questions() -> None:
+    assert [q.key for q in suggestions("needs.new")] == [
+        "need_example",
+        "need_hours",
+        "names",
+    ]
     assert set(SCREEN_KEYS) <= set(SCRIPTS)
     for screen in [*SCRIPTS, "unknown.screen", None]:
         offered = suggestions(screen)
@@ -63,6 +68,8 @@ def test_every_screen_offers_three_known_questions() -> None:
         ("料金はいくらですか", "fee"),
         ("点数の決め方を知りたい", "score"),
         ("台帳は書き換えられますか？", "ledger"),
+        ("困りごとの例が浮かばない", "need_example"),
+        ("時間がわからない", "need_hours"),
         ("顧問先のデータを持ち出しませんか", "data"),
     ],
 )
