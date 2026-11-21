@@ -118,7 +118,7 @@ erDiagram
 | name | 文字列(100) | ○ | |
 | municipality_id | 整数 | ○ | |
 | hourly_rate_yen | 整数 | ○ | 事務所の時給。既定4,000円。1,000〜20,000 |
-| software | 文字列(20) | － | 使っている会計ソフト（`SkillTag`） |
+| software | 文字列(20) | － | 事務所が記帳・申告に使う会計ソフト（`SkillTag`）。顧問先が使うソフトは扱わない |
 | client_count | 整数 | － | 顧問先の数（0〜100,000）。代表が `/o/<office_id>/profile` で入れる。空は「入力していない」。地域の画面には、町の合計だけを出す |
 | is_active・is_demo | 真偽 | ○ | |
 
@@ -182,7 +182,7 @@ erDiagram
 | affiliation | 文字列(20) | ○ | `graduate`（修了生）／`kyoryokutai`（地域おこし協力隊）／`other`／`none` |
 | is_listed | 真偽 | ○ | 候補に出てよいか（本人が止められる） |
 
-**talent_skills**：`talent_id`・`kind`（`tool`／`strength`）・`tag`。`tool` の `tag` は `SkillTag`（`freee`・`mf`・`yayoi`・`excel`・`sheets`・`python`・`other`）、`strength` の `tag` は `NeedCategory`。組で一意。
+**talent_skills**：`talent_id`・`kind`（`tool`／`strength`）・`tag`。`tool` の `tag` は `SkillTag`（`freee`・`mf`・`yayoi`・`jdl`・`tkc`・`mjs`・`excel`・`sheets`・`python`・`other`）、`strength` の `tag` は `NeedCategory`。組で一意。
 
 **trust_items**（誓約と研修）
 | 項目 | 型 | 必須 | メモ |
