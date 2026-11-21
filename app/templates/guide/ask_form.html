@@ -16,6 +16,6 @@
         <button type="submit" class="secondary">聞く</button>
       </span>
     </label>
-    <small id="guide-ask-note">顧問先の名前と金額は書かないでください。用意した答えの中からお答えします。</small>
+    <small id="guide-ask-note">顧問先の名前と金額は書かないでください。用意した答えの中からお答えします。{% if signed_in and config.AI_DRIVER != "off" %}用意した答えに無いときは、名前・金額・連絡先の形を伏せてから外の AI に聞き、自動で作った答えをお見せすることがあります。{% endif %}</small>
   </form>
 </div>

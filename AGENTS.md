@@ -5,7 +5,7 @@
 Cursor・Claude Code など、どの AI エージェントもこのファイルに従う（`CLAUDE.md` はこのファイルを読み込むだけ）。
 
 ## 設計書（必ず先に読む）
-- [docs/01-requirements.md](docs/01-requirements.md)：要件（機能 F01〜F91、完成の基準 AC01〜AC14）
+- [docs/01-requirements.md](docs/01-requirements.md)：要件（機能 F01〜F93、完成の基準 AC01〜AC14）
 - [docs/02-technical-spec.md](docs/02-technical-spec.md)：技術の決まり（選び方・フォルダ・設定・安全・見た目・公開）
 - [docs/03-detailed-design.md](docs/03-detailed-design.md)：テーブル・規則・状態・ルート・テスト・**作る順番（§12）**
 - [docs/authorization.md](docs/authorization.md)：**権限の正本**。入口を足す前に、先にここを直す
@@ -27,6 +27,18 @@ Cursor・Claude Code など、どの AI エージェントもこのファイル�
 - #62 の進行の升目を事務所・つなぎ手の画面に表示。
 - #66 の戻った先の選択肢（`statements.returned_kind`）と、地域の画面のグラフ4つ（直近6か月。もとになった事務所が5未満のマスは伏せる）を実装。顧問先の数（`offices.client_count`、`/o/<office_id>/profile`。直せるのは代表だけ。町の画面には合計だけ、入力した事務所が5未満なら伏せ、事務所の数は出さない）を実装。
 - #72 の市町村の一覧（総務省のコード1,741件。`flask sync-municipalities` が無い行だけを足す）、都道府県 → 市町村の2段の選び方、確かめた経路（`office_routes`、`/o/<office_id>/routes`。登録は代表だけ）を実装。通常の事務所の候補は `office_routes` だけ、デモは `travel_times` のまま。デモの人は架空の町だけ、通常の人は実在の町だけを選べる。本番での取り込みは未確認。
+- #24 の退会（`/account/withdraw`。行は残し、名前とメールアドレスを消す）、伴走を終える（代表と担当つなぎ手。理由は選択肢だけで、台帳に `ended`）、規約とポリシーの**案**（`/terms`・`/privacy`）、`flask prune-audit` を実装。専門家への確認と、運営者の名前・連絡先の記載は未了。
+- #23 の台帳の毎日の検証と控え（`flask anchor-ledger`。鎖の最後のハッシュを `ledger_anchors` と DB の外のファイルに控え、前の日の控えと比べる。合わなければ運営にメール）を実装。本番のタイマー（`deploy/tsunagudake-daily.*`）は未設定。
+- #20 の資料回収ボード（`/o/<office_id>/collection`。顧問先は番号だけ）と、撮って送るだけ帳簿から件数だけを受け取る入口（`POST /api/offices/<office_id>/collection-counts`。代表が発行した合言葉。知らないキーは 422）を実装。撮って送るだけ帳簿の側の送信は未実装。
+- #19 の過去比較（規則 `tsunagu_rules/compare.py`、事務所の PC で動く道具 `tools/kako_hikaku.py`。アプリに入るのは、担当つなぎ手が入れる件数3つだけ：`POST /t/engagements/<id>/checks`）を実装。実際の試算表では未確認（テストは架空の数字だけ）。
+- #73 の業務改善メモ（`visits.idea`。伴走の画面の「今月のメモ」、事務所が「やってみる」の印、月の最後の7日間は「今日やること」に出る）を実装。まとめの文は作っていない。
+- #70 のメッセージ（伴走ごと。事務所の代表・職員と担当つなぎ手だけ。運営は読めない。ひな形3つ、「送る／直す／やめる」、既読、翌朝のまとめ、`/account/messages` に相手を3人まで）を実装。
+- #71 の到着の記録（「今から向かいます」「着きました」。位置は押した1回だけ受け取り、**保存しない**。残すのは「近くで押した」事実と時刻だけ。距離の規則は `tsunagu_rules/distance.py`）、事務所の住所と位置（`/o/<office_id>/location`。代表だけ）、次の訪問日を実装。実機（スマホの位置）では未確認。法律の見立ては未確認。
+- #69 のマスの移動（ドラッグ・左右の矢印キーで左下と右下。場所は端末にだけ覚える）と手紙の演出（送った直後と未読があるときだけ。動きを減らす設定では封筒の印だけ）を実装。
+- #21 の型の候補（F91。`app/services/ai.py`。規則で訳せなかった下書きにだけ、代表が頼む。送るのは `tsunagu_rules/redact.py` で伏せた後の文だけ。記録は `ai_runs`（本文は残さない）。採るのも代表、採っても下書きのまま）を実装。**既定は `AI_DRIVER=off` のまま。** `claude` は、モデル・鍵・月の上限・単価がそろわなければ呼ばない。実際の API では未確認。
+- #74 の下書き（F93。メッセージの下書き・案内役への自由な質問・今月のメモのまとめ。送るのは伏せた後の文だけ、入力欄や画面に出すだけで、送る・決めるのは人。保存しない。事務所ごとの月の上限 `AI_OFFICE_MONTHLY_LIMIT_YEN`）を実装。**既定は `AI_DRIVER=off` のまま。** 実際の API では未確認。
+- #22 の開発用の MCP サーバー（F90。`tools/dev_mcp.py`・`.mcp.json`。stdio・読み取り専用・道具は3つ。`APP_ENV=development` の SQLite のファイルだけを読み、メールアドレス・名前・本文を返さない）を実装。公式 Inspector の CLI から道具3つを確認済み。Claude Code は `/mcp` での承認が残っている。
+- 実装の Issue で未着手のものは無い。残りは、実機での確認（#38・#39・#27）と、運営の取り分を決めること（#64）。
 - 1段階ずつ進める。終えたら、この節を書き直す
 
 ## コードの決まり
@@ -56,7 +68,7 @@ Cursor・Claude Code など、どの AI エージェントもこのファイル�
 - 業務画面は見出し、要約の1行、表かフォームを中心にする。説明は案内役マスと `/how` に置き、入力の注意・エラー・操作できない理由・匿名集計の理由はその場で読めるようにする
 - 2カラムは幅1024px以上で使う。基本は左で読み、右で決める。スマホは操作を先にする。候補の画面は、比較表を声かけの前に置く。地域の集計は1列
 - マスは利用者が触ったときにだけ説明する。表示名は「案内役」。顔の中央より下に大きな目を置き、話すときだけ口を開く。弾みには同梱の anime.js 4.1.3（MIT）を使う。台本は `app/guide.py` で管理し、読み上げには端末のローカル音声を使う
-- マスの声は、端末の中で作る音（`guide-voice.js`。ぽこぽこ・ぴこぴこ・ことこと）。言葉で聞きたい人には「読み上げ」を残す。マスへの質問の答えは `app/guide_faq.py` にあらかじめ書いた文だけ（AI は使わない。質問は保存しない）
+- マスの声は、端末の中で作る音（`guide-voice.js`。ぽこぽこ・ぴこぴこ・ことこと）。言葉で聞きたい人には「読み上げ」を残す。マスへの質問の答えは `app/guide_faq.py` にあらかじめ書いた文（既定では AI を使わない。質問は保存しない。AI が有効のときだけ、ログインした人の、用意した答えに無い質問に「自動で作った答え」と書いて返す）
 
 ## 言葉（画面の文言。詳しくは 02 §8.6）
 - **機能より、その先に起きることを書く**（「20時間減った」で止めず、「顧問先の相談に戻った」まで）
@@ -70,7 +82,8 @@ Cursor・Claude Code など、どの AI エージェントもこのファイル�
 - 検査（コミットの前に毎回）：`make check`（ruff format --check → ruff check → mypy → pytest）
 - 規則だけ：`uv run pytest tests/rules -q`
 - DB：`uv run flask db migrate -m "…"` → 中身を読む → `uv run flask db upgrade`
-- デモ：`uv run flask seed-demo`／`uv run flask reset-demo --yes`　台帳：`uv run flask verify-ledger`
+- デモ：`uv run flask seed-demo`／`uv run flask reset-demo --yes`　台帳：`uv run flask verify-ledger`（毎日の検証と控えは `uv run flask anchor-ledger`）　監査記録：`uv run flask prune-audit`（180日たった接続元の印を消す）
+- 過去比較（事務所の PC で。何も送らない）：`python tools/kako_hikaku.py 試算表.csv`
 - 市町村：`uv run flask sync-municipalities`（無い行を足すだけ）。一覧の作り直しは `python scripts/build_municipalities.py 総務省の.xlsx`
 - パッケージを足す：`uv add 名前`（開発用は `uv add --dev 名前`）。足す前に 02 §2・§3 を直す
 

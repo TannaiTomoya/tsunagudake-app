@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 
 from flask import abort
 from sqlalchemy import func, select
@@ -10,6 +10,7 @@ from app.audit import record_audit
 from app.extensions import db
 from app.models import (
     Engagement,
+    EngagementStatus,
     Need,
     Reduction,
     ReductionStatus,
@@ -29,6 +30,9 @@ from tsunagu_rules.types import Fee, NeedKind
 from tsunagu_rules.types import Reduction as RuleReduction
 from tsunagu_rules.value import calc_fee
 
+# 次の訪問日として入れられる、いちばん先の日。
+NEXT_VISIT_DAYS = 90
+
 
 class StatementConflict(Exception):
     pass
@@ -41,6 +45,8 @@ class VisitInput:
     category: NeedKind
     note: str | None
     learned_term: str | None = None
+    idea: str | None = None
+    next_visit: date | None = None
 
 
 @dataclass(frozen=True)
@@ -109,8 +115,20 @@ def save_visit(
     engagement: Engagement, data: VisitInput, visit_id: int | None = None
 ) -> None:
     _lock(engagement)
-    if data.day > today_in_japan() or not 15 <= data.minutes <= 600:
+    state = db.session.scalar(
+        select(Engagement.status).where(Engagement.id == engagement.id)
+    )
+    if state == EngagementStatus.ENDED:
+        raise StatementConflict("終わった伴走には、訪問を記録できません。")
+    today = today_in_japan()
+    if data.day > today or not 15 <= data.minutes <= 600:
         raise StatementConflict("訪問の日付と時間をご確認ください。")
+    if data.next_visit is not None and not (
+        today <= data.next_visit <= today + timedelta(days=NEXT_VISIT_DAYS)
+    ):
+        raise StatementConflict(
+            f"次の訪問日は、今日から{NEXT_VISIT_DAYS}日先までで入力してください。"
+        )
     visit = (
         find_visit(engagement, visit_id, lock=True) if visit_id is not None else None
     )
@@ -126,6 +144,21 @@ def save_visit(
     visit.category = data.category
     visit.note = data.note
     visit.learned_term = data.learned_term
+    if visit.idea != data.idea:
+        # 印は、読んだ文に付いたもの。文が変わったら外す。
+        visit.idea = data.idea
+        visit.idea_adopted_by = None
+        visit.idea_adopted_at = None
+    if data.next_visit is not None:
+        # 空のときは、前に決めた日を変えない。
+        row = db.session.scalar(
+            select(Engagement)
+            .where(Engagement.id == engagement.id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if row is not None:
+            row.next_visit_on = data.next_visit
     if visit_id is None:
         notify_office(
             engagement.office_id,
@@ -165,6 +198,42 @@ def review_visit(
         target_id=visit.id,
     )
     _commit()
+
+
+def adopt_idea(engagement: Engagement, visit_id: int, actor: int) -> None:
+    _lock(engagement)
+    visit = find_visit(engagement, visit_id, lock=True)
+    if not visit.idea:
+        raise StatementConflict("この訪問には、メモがありません。")
+    if visit.idea_adopted_at is not None:
+        return
+    visit.idea_adopted_by = actor
+    visit.idea_adopted_at = utc_now()
+    record_audit(
+        "idea_adopted",
+        actor_id=actor,
+        office_id=engagement.office_id,
+        target_type="visit",
+        target_id=visit.id,
+    )
+    _commit()
+
+
+def month_ideas(engagement_id: int, month: str) -> list[Visit]:
+    first = date(int(month[:4]), int(month[5:]), 1)
+    last = date(first.year + first.month // 12, first.month % 12 + 1, 1)
+    return list(
+        db.session.scalars(
+            select(Visit)
+            .where(
+                Visit.engagement_id == engagement_id,
+                Visit.idea.is_not(None),
+                Visit.visit_date >= first,
+                Visit.visit_date < last,
+            )
+            .order_by(Visit.visit_date)
+        )
+    )
 
 
 def month_reductions(

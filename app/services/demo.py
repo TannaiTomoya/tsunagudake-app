@@ -6,9 +6,13 @@ from sqlalchemy import select
 
 from app.extensions import db
 from app.models import (
+    AiRun,
     AuditLog,
     BookkeepingLevel,
     CandidateStatus,
+    Checkin,
+    CheckSummary,
+    CollectionItem,
     Engagement,
     Invitation,
     ItTask,
@@ -16,6 +20,7 @@ from app.models import (
     MatchCandidate,
     MatchRun,
     MemberRole,
+    Message,
     Municipality,
     MunicipalityMember,
     Need,
@@ -508,6 +513,17 @@ def clear_demo() -> None:
             ),
         ),
         (Invitation, Invitation.is_demo.is_(True)),
+        # 伴走・困りごと・事務所にぶら下がる行は、親より先に消す。
+        (Message, Message.engagement_id.in_(engagements)),
+        (Checkin, Checkin.engagement_id.in_(engagements)),
+        (CheckSummary, CheckSummary.engagement_id.in_(engagements)),
+        (CollectionItem, CollectionItem.office_id.in_(offices)),
+        (
+            AiRun,
+            AiRun.office_id.in_(offices)
+            | AiRun.need_id.in_(needs)
+            | AiRun.actor_user_id.in_(users),
+        ),
         (Statement, Statement.engagement_id.in_(engagements)),
         (Reduction, Reduction.engagement_id.in_(engagements)),
         (Visit, Visit.engagement_id.in_(engagements)),

@@ -1,10 +1,14 @@
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
 from tsunagu_rules import RULES_VERSION, ledger
+from tsunagu_rules.compare import CompareLine, MarkReason, compare
+from tsunagu_rules.distance import NEAR_RADIUS_M, distance_m, is_near
 from tsunagu_rules.matching import match
+from tsunagu_rules.redact import MASK, redact
 from tsunagu_rules.region import (
     is_fictional,
     mask_breakdown,
@@ -206,6 +210,79 @@ def test_t15_agreement_requires_boundaries() -> None:
     assert not ledger.verify([StoredEntry(entry, ledger.GENESIS_HASH, digest)]).valid
 
 
+def test_t55_anchor_digest_and_rewritten_chains() -> None:
+    tips = [(1, 3, "a" * 64), (2, 1, "b" * 64)]
+    digest = ledger.anchor_digest(tips)
+    assert digest == ledger.anchor_digest(reversed(tips)) and len(digest) == 64
+    assert digest != ledger.anchor_digest([(1, 3, "a" * 64), (2, 1, "c" * 64)])
+    assert digest != ledger.anchor_digest(tips[:1])
+    current = {(1, 3): "a" * 64, (1, 4): "d" * 64, (2, 1): "b" * 64}
+    # 鎖が伸びただけなら、控えた行は同じまま。
+    assert ledger.rewritten_chains(tips, current) == []
+    assert ledger.rewritten_chains(tips, {**current, (2, 1): "c" * 64}) == [2]
+    # 控えた行が無くなっても見つかる。
+    assert ledger.rewritten_chains(tips, {(2, 1): "b" * 64}) == [1]
+
+
+def test_t58_compare_never_treats_a_missing_period_as_zero() -> None:
+    lines = [
+        CompareLine("架空A", 121, (100, 90, 110)),
+        CompareLine("架空B", 130, (100, 90, 110)),
+        CompareLine("架空C", 71, (100, 90, 110)),
+        CompareLine("架空D", 69, (100, 90, 110)),
+        # 過去が無い・今期が無いは、0 と比べない。
+        CompareLine("架空E", 5000, (None, None, None)),
+        CompareLine("架空F", 5000, ()),
+        CompareLine("架空G", None, (100, None, None)),
+        # 過去が1期だけでも、ある分で比べる。0 は「0円だった」で、無いのとは違う。
+        CompareLine("架空H", 120, (None, 100, None)),
+        CompareLine("架空I", 1, (0, 0, 0)),
+        # 負の金額でも、幅は -130〜-70。境目は中、1円外は外。
+        CompareLine("架空J", -130, (-100, -90, -110)),
+        CompareLine("架空K", -131, (-100, -90, -110)),
+    ]
+    result = compare(lines)
+    # 幅 = 90〜110 に、平均100の20%（20）を足して 70〜130。
+    assert (result.compared, result.flagged, result.uncomparable) == (8, 3, 3)
+    assert [(mark.account, mark.reason) for mark in result.marks] == [
+        ("架空D", MarkReason.OUTSIDE),
+        ("架空E", MarkReason.NO_PAST),
+        ("架空F", MarkReason.NO_PAST),
+        ("架空G", MarkReason.NO_CURRENT),
+        ("架空I", MarkReason.OUTSIDE),
+        ("架空K", MarkReason.OUTSIDE),
+    ]
+    assert result.marks[0].low == 70 and result.marks[0].high == 130
+    assert compare(lines) == result
+    # 余裕が無ければ、過去の最小〜最大の外はすべて印（比べた8つ）。
+    assert compare(lines, 0).flagged == 8
+    with pytest.raises(ValueError):
+        compare(lines, 10001)
+
+
+def test_t62_distance_is_pure_and_the_edge_is_inside() -> None:
+    # 海の上の、架空の地点。
+    here = (10_000_000, 150_000_000)
+    assert distance_m(*here, *here) == 0
+    # 緯度1度は、およそ 111.19km。
+    assert distance_m(0, 0, 1_000_000, 0) == 111_194
+    assert distance_m(0, 0, 1_000_000, 0) == distance_m(1_000_000, 0, 0, 0)
+    # 日付変更線をまたいでも、近いものは近い。
+    assert distance_m(0, 179_999_000, 0, -179_999_000) == 222
+    there = (10_001_500, 150_000_000)
+    apart = distance_m(*here, *there)
+    assert 160 < apart < 170
+    assert is_near(*here, *there) and is_near(*here, *there, apart)
+    assert not is_near(*here, *there, apart - 1)
+    assert not is_near(*here, 10_001_900, 150_000_000)
+    assert NEAR_RADIUS_M == 200
+    for bad in ((90_000_001, 0), (0, 180_000_001), (-90_000_001, 0)):
+        with pytest.raises(ValueError):
+            distance_m(*bad, 0, 0)
+    with pytest.raises(ValueError):
+        is_near(*here, *there, -1)
+
+
 def test_t16_t17_region_threshold_and_total() -> None:
     rows = [RegionRow("架空町", 4, 7, 0, 9, 12), RegionRow("架空市", 5, 2, 0, 8, 10)]
     result = mask_region(rows, 5)
@@ -271,3 +348,36 @@ def test_t51_only_codes_starting_with_nine_are_fictional() -> None:
     assert all(is_fictional(code) for code in ("90001", "99999", "9"))
     assert not any(is_fictional(code) for code in ("01100", "47382", "00001", "09201"))
     assert not is_fictional("")
+
+
+def test_t64_redact_masks_names_amounts_and_contacts() -> None:
+    # 名前・社名・金額・連絡先は、すべて架空。
+    text = (
+        "架空商事株式会社の田中さんから、毎月３２０，０００円の請求書が紙で届く。"
+        "連絡は tanaka@example.org か 03-1234-5678、携帯 09012345678。"
+        "㈱架空フーズ（担当：はしもと様）は ¥5,000、別に 120000。"
+    )
+    masked = redact(text)
+    for secret in (
+        "架空商事",
+        "田中",
+        "320",
+        "example.org",
+        "1234",
+        "0901",
+        "架空フーズ",
+        "はしもと",
+        "5,000",
+        "120000",
+    ):
+        assert secret not in masked
+    assert MASK in masked and "請求書が紙で届く" in masked
+    # 前に付く社名も、後ろに付く社名も伏せる。
+    assert "架空" not in redact("毎月、株式会社架空商事の件で困る")
+    # 伏せるものが無い文は、そのまま。月の時間のような小さい数は残す。
+    plain = "会計ソフトの設定がわからない。月に10時間かかっている。"
+    assert redact(plain) == plain
+    assert redact(text) == masked and redact("") == ""
+    source = Path("tsunagu_rules/redact.py").read_text()
+    for word in ("flask", "sqlalchemy", "datetime", "import app", "from app"):
+        assert word not in source

@@ -397,6 +397,119 @@ function enableGuide() {
     if (Date.now() - submitted < 30000 && dock.dataset.mood === "happy") spring(trigger.querySelector(".masu"), "celebrate");
   } catch { /* The static expression also conveys success. */ }
 
+  // マスを、画面の左下と右下のあいだで動かす。場所は端末に覚える（覚えられなくても動く）。
+  // マスは自分の行にいるので、主のボタン・表・入力欄には重ならない。
+  const sideKey = "tsunagudake.guide.side";
+  const home = guide.querySelector(".guide-home");
+  const moveHint = document.getElementById("masu-guide-move");
+  let dragStart = null;
+  let dragging = false;
+  let justDragged = false;
+  function setSide(side, { animate = true, remember = true } = {}) {
+    const before = trigger.getBoundingClientRect();
+    if (side === "left") dock.dataset.side = "left";
+    else delete dock.dataset.side;
+    home.hidden = side !== "left";
+    if (remember) {
+      try {
+        if (side === "left") localStorage.setItem(sideKey, "left");
+        else localStorage.removeItem(sideKey);
+      } catch { /* 端末に保存できなくても、この画面では動かせる。 */ }
+    }
+    trigger.style.transform = "";
+    const after = trigger.getBoundingClientRect();
+    const offset = { x: before.left - after.left, y: before.top - after.top };
+    if (!animate || reduced.matches || (!offset.x && !offset.y)) return;
+    // 離した場所から、端まで吸いつく。
+    trigger.style.transform = `translate(${offset.x}px, ${offset.y}px)`;
+    window.anime.animate(offset, {
+      x: 0,
+      y: 0,
+      duration: 180,
+      ease: "outQuad",
+      onUpdate: () => { trigger.style.transform = `translate(${offset.x}px, ${offset.y}px)`; },
+    });
+    setTimeout(() => { if (!dragging) trigger.style.transform = ""; }, 220);
+  }
+  function endDrag(event) {
+    const moved = dragging;
+    dragStart = null;
+    dragging = false;
+    dock.removeAttribute("data-dragging");
+    if (!moved) return;
+    justDragged = true;
+    setTimeout(() => { justDragged = false; }, 0);
+    if (event.type === "pointercancel") { trigger.style.transform = ""; return; }
+    setSide(event.clientX < window.innerWidth / 2 ? "left" : "right");
+  }
+  trigger.addEventListener("pointerdown", event => {
+    if (event.button) return;
+    dragStart = { x: event.clientX, y: event.clientY, id: event.pointerId };
+  });
+  trigger.addEventListener("pointermove", event => {
+    if (!dragStart || event.pointerId !== dragStart.id) return;
+    const dx = event.clientX - dragStart.x;
+    const dy = event.clientY - dragStart.y;
+    if (!dragging) {
+      if (Math.hypot(dx, dy) < 24) return;
+      dragging = true;
+      dock.toggleAttribute("data-dragging", true);
+      try { trigger.setPointerCapture(event.pointerId); } catch { /* つかめなくても、動かせる。 */ }
+    }
+    trigger.style.transform = `translate(${dx}px, ${dy}px)`;
+  });
+  trigger.addEventListener("pointerup", endDrag);
+  trigger.addEventListener("pointercancel", endDrag);
+  // 動かした直後のクリックでは、案内を開かない。
+  trigger.addEventListener("click", event => {
+    if (!justDragged) return;
+    justDragged = false;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
+  trigger.addEventListener("keydown", event => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    setSide(event.key === "ArrowLeft" ? "left" : "right");
+  });
+  home.addEventListener("click", () => {
+    setSide("right");
+    trigger.focus({ preventScroll: true });
+  });
+  if (moveHint) moveHint.hidden = false;
+  try {
+    if (localStorage.getItem(sideKey) === "left") setSide("left", { animate: false, remember: false });
+  } catch { /* 覚えていなければ、右下にいる。 */ }
+
+  // 手紙：送ったときは、封筒を持って 0.8 秒で届けに行って戻る。届いたときは、封筒を持って跳ねる。
+  // 動きを減らす設定では、封筒の印がつくだけ。
+  const letter = trigger.querySelector(".masu-letter");
+  function carryLetter(sent) {
+    if (!letter) return;
+    letter.hidden = false;
+    if (reduced.matches) return;
+    if (!sent) {
+      spring(trigger.querySelector(".masu"), "celebrate");
+      return;
+    }
+    const from = trigger.getBoundingClientRect();
+    const thread = document.getElementById("thread")?.getBoundingClientRect();
+    const flight = { x: 0, y: 0 };
+    const reach = (value, low, high) => Math.max(low, Math.min(high, value));
+    const dx = thread ? reach(thread.left + 24 - from.left, -240, 240) : -80;
+    const dy = thread ? reach(thread.top - from.top, -240, -48) : -120;
+    const land = () => { trigger.style.transform = ""; letter.hidden = true; };
+    window.anime.animate(flight, {
+      keyframes: [{ x: dx, y: dy, duration: 400 }, { x: 0, y: 0, duration: 400 }],
+      ease: "inOutQuad",
+      onUpdate: () => { if (!dragging) trigger.style.transform = `translate(${flight.x}px, ${flight.y}px)`; },
+    });
+    setTimeout(land, 820);
+  }
+  if (document.querySelector("[data-letter-sent]")) carryLetter(true);
+  else if (document.querySelector("[data-letter-arrived]")) carryLetter(false);
+  trigger.addEventListener("click", () => { if (letter) letter.hidden = true; });
+
   // 質問のやりとり（guide-ask.js）が、マスに答えを話させるための口。
   window.masuGuide = { say, setWaiting };
   document.dispatchEvent(new Event("masu:ready"));

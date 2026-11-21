@@ -1,9 +1,11 @@
 {% set has_error = guide_endpoint == "error" or error or failed or (form is defined and form.errors) %}
 <footer class="guide-dock" data-mood="{{ 'worried' if has_error else guide_mood | default('idle') }}">
   <details class="masu-guide">
-    <summary id="masu-guide-trigger" aria-label="案内役のマス。この画面の説明を聞く">
+    <summary id="masu-guide-trigger" aria-label="案内役のマス。この画面の説明を聞く" aria-describedby="masu-guide-move">
       {% include "guide/masu.svg" %}
+      <span class="masu-letter" aria-hidden="true" hidden><svg viewBox="0 0 24 18" focusable="false"><rect x="1" y="1" width="22" height="16"/><path d="M1 1 L12 10 L23 1" fill="none"/></svg></span>
     </summary>
+    <span id="masu-guide-move" class="guide-sr" hidden>左右の矢印キーか、ドラッグで、画面の左下と右下に動かせます。</span>
     <div class="guide-bubble">
       <div class="guide-heading"><strong>マスの画面案内</strong><span class="guide-count"></span></div>
       <div class="guide-lines" aria-live="polite" aria-atomic="true">
@@ -20,6 +22,7 @@
           </select>
         </label>
         <button type="button" class="guide-next secondary outline">次の一言</button>
+        <button type="button" class="guide-home secondary outline" hidden>元の場所に戻す</button>
         <button type="button" class="guide-close secondary outline">閉じる</button>
       </div>
       {% if signed_in %}<p><a href="{{ url_for('auth.today_tasks') }}">今日やること</a></p>{% endif %}

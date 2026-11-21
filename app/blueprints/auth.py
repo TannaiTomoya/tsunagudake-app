@@ -49,6 +49,12 @@ from app.models import (
 )
 from app.services import second_factor
 from app.services.auth import authenticate, requires_second_factor
+from app.services.checkin import (
+    CheckinConflict,
+    CheckinError,
+    CheckinOfficeNotFound,
+    save_location,
+)
 from app.services.municipalities import chosen_prefecture, prefectures, towns_in
 from app.services.office import (
     OfficeNotFound,
@@ -256,6 +262,22 @@ def office_profile(office_id: int) -> ResponseReturnValue:
             return redirect(url_for("auth.office_profile", office_id=office.id))
     else:
         office = require_office(office_id)
+    return _profile_page(
+        office,
+        error=error,
+        entered=request.form.get("client_count", "") if error else None,
+    )
+
+
+def _profile_page(
+    office: Office,
+    *,
+    error: str | None = None,
+    entered: str | None = None,
+    location_error: str | None = None,
+    status: int | None = None,
+) -> ResponseReturnValue:
+    user = cast(User, current_user)
     owner = (
         db.session.scalar(
             select(OfficeMember.member_role).where(
@@ -265,6 +287,13 @@ def office_profile(office_id: int) -> ResponseReturnValue:
         == MemberRole.OWNER
     )
     town = db.session.get(Municipality, office.municipality_id)
+    # 住所と位置の入力欄は、テンプレートが代表にだけ出す（職員と運営には、有無だけ）。
+    form = request.form if location_error else None
+    saved = (
+        (f"{office.lat_e6 / 1_000_000:.6f}", f"{office.lon_e6 / 1_000_000:.6f}")
+        if office.lat_e6 is not None and office.lon_e6 is not None
+        else ("", "")
+    )
     return (
         render_template(
             "auth/office_profile.html",
@@ -273,9 +302,39 @@ def office_profile(office_id: int) -> ResponseReturnValue:
             town=town.name if town else "",
             owner=owner,
             error=error,
-            entered=request.form.get("client_count", "") if error else None,
+            entered=entered,
+            location_error=location_error,
+            address=form.get("address", "") if form else (office.address or ""),
+            lat=form.get("lat", "") if form else saved[0],
+            lon=form.get("lon", "") if form else saved[1],
+            has_address=bool(office.address),
+            has_location=office.lat_e6 is not None,
         ),
-        422 if error else 200,
+        status or (422 if error or location_error else 200),
+    )
+
+
+@bp.post("/o/<int:office_id>/location")
+@login_required  # type: ignore[untyped-decorator]
+def office_location(office_id: int) -> ResponseReturnValue:
+    # 登録できるのは代表だけ。事務所は URL の所属から決める。
+    office = require_office(office_id, owner_only=True)
+    try:
+        save_location(
+            office.id,
+            cast(User, current_user).id,
+            request.form.get("address"),
+            request.form.get("lat"),
+            request.form.get("lon"),
+        )
+    except CheckinOfficeNotFound:
+        abort(404)
+    except CheckinError as exc:
+        return _profile_page(office, location_error=str(exc))
+    except CheckinConflict as exc:
+        return _profile_page(office, location_error=str(exc), status=409)
+    return redirect(
+        url_for("auth.office_profile", office_id=office.id, _anchor="location")
     )
 
 

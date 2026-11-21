@@ -13,12 +13,34 @@
   <small id="client-count-note">町の画面には、町の事務所の合計だけが出ます。入力した事務所が少ない町では、合計も伏せます。空にすると「入力していない」に戻ります。</small>
   <button type="submit">保存する</button>
 </form>
+<h2 id="location">住所と位置（任意）</h2>
+<p>住所は、合意したあとの伴走の画面で、担当するつなぎ手にだけ見せます。位置は、つなぎ手が「着きました」を押したときに、近くにいるかを確かめるためだけに使います。つなぎ手の画面には出しません。</p>
+{% if location_error %}<p role="alert">{{ location_error }}</p>{% endif %}
+{% if office.is_demo %}
+<p>デモの事務所には、住所と位置を登録できません。本物の情報を入れないでください。</p>
+{% else %}
+<form method="post" action="{{ url_for('auth.office_location', office_id=office.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label for="office-address">住所</label>
+  <input id="office-address" name="address" type="text" maxlength="200" value="{{ address }}" autocomplete="street-address">
+  <label for="office-lat">緯度</label>
+  <input id="office-lat" name="lat" type="text" inputmode="decimal" maxlength="20" value="{{ lat }}" aria-describedby="office-location-note">
+  <label for="office-lon">経度</label>
+  <input id="office-lon" name="lon" type="text" inputmode="decimal" maxlength="20" value="{{ lon }}" aria-describedby="office-location-note">
+  <small id="office-location-note">度の数で入れます（小数6けたまで）。事務所にいるときは「今いる場所を入れる」で入ります。両方を空にすると、位置を使わなくなります。</small>
+  <p role="status" data-location-status hidden></p>
+  <button class="secondary outline" type="button" data-fill-location hidden>今いる場所を入れる</button>
+  <button class="secondary outline" type="submit">住所と位置を保存する</button>
+</form>
+{% endif %}
 {% else %}
 <div class="overflow-auto statement-table" role="region" aria-label="事務所のプロフィール" tabindex="0"><table>
   <tbody>
     <tr><th scope="row">顧問先の数</th><td data-numeric>{% if office.client_count is none %}入力していません{% else %}{{ "{:,}".format(office.client_count) }}社{% endif %}</td></tr>
+    <tr><th scope="row">住所</th><td>{{ "登録しています" if has_address else "登録していません" }}</td></tr>
+    <tr><th scope="row">位置</th><td>{{ "登録しています" if has_location else "登録していません" }}</td></tr>
   </tbody>
 </table></div>
-<p>顧問先の数を直せるのは、事務所の代表だけです。</p>
+<p>顧問先の数・住所・位置を直せるのは、事務所の代表だけです。</p>
 {% endif %}
 {% endblock %}

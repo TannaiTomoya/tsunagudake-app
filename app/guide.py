@@ -19,6 +19,11 @@ ENGAGEMENT = (
     "減った時間が0なら、料金も0円です。",
     "すること・しないことと、確定した明細は台帳に残ります。",
 )
+THREAD = (
+    "ひな形を選ぶと、すぐに書き始められます。",
+    "送る前に、文を確かめる画面が出ます。",
+    "顧問先の名前と金額は書かないでください。",
+)
 SCRIPTS = {
     "public.index": (
         "資料回収の仕組みづくりを、毎週来るつなぎ手に頼めます。",
@@ -44,10 +49,20 @@ SCRIPTS = {
     ),
     "auth.today_tasks": ("気になる項目を開くと、元の記録を確認できます。",),
     "auth.account": ("担当のホームから仕事の続きを開けます。",),
+    "accounts.withdraw_account": (
+        "退会すると、名前とメールアドレスを消します。元に戻せません。",
+        "伴走と明細の数字は、相手の記録なので残ります。",
+    ),
+    "public.privacy": ("預かる情報と、退会のときに消すものを確かめられます。",),
+    "public.terms": ("つなぐだけがすること・しないことを確かめられます。",),
     "auth.office_home": ("困りごとを開くと、作業の見込みや進み具合を確かめられます。",),
     "auth.office_routes": (
         "確かめた移動時間だけを登録してください。",
         "登録していない町のつなぎ手は、候補に出ません。",
+    ),
+    "collection.office_board": (
+        "顧問先は番号だけで持ちます。名前と金額は入れません。",
+        "資料がそろったら「そろった」を押してください。",
     ),
     "auth.office_profile": (
         "顧問先の数は、町の合計にだけ使います。",
@@ -74,8 +89,20 @@ SCRIPTS = {
     "matching.candidates": CANDIDATES,
     "matching.office_engagement": ENGAGEMENT,
     "matching.talent_engagement": ENGAGEMENT,
+    "messages.inbox": (
+        "今の伴走の相手に、メッセージを送れます。",
+        "文は、ひな形から選べます。送る前に確かめられます。",
+    ),
+    "drafts.idea_summary": (
+        "今月のメモを、短くまとめた下書きです。",
+        "保存はされません。",
+        "やってみるかは、事務所が決めます。",
+    ),
+    "messages.office_thread": THREAD,
+    "messages.talent_thread": THREAD,
     "statements.visit_form": (
         "訪問した日と作業時間を記録すると、事務所が内容を確かめられます。",
+        "次はいつにしますか。決まっていたら、次の訪問日も入れてください。",
     ),
     "error": ("画面の案内を確かめてください。ホームからも開き直せます。",),
 }

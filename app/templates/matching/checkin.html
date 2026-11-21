@@ -1,0 +1,37 @@
+<h2 id="checkin">今日の訪問</h2>
+{% if next_visit %}<p>次の訪問は {{ next_visit }} の予定です。</p>{% endif %}
+{% if office_address %}<p>事務所の住所：{{ office_address }}</p>{% endif %}
+{% if checkin_error %}<p role="alert">{{ checkin_error }}</p>{% endif %}
+{% if checkin and checkin.arrived_at %}
+<p><span class="state" data-status="confirmed">着きました</span> {{ checkin_times.arrived }} に到着の記録があります（{{ "事務所の近くで押した記録です" if checkin.near else "位置は確かめていません" }}）。</p>
+{% elif checkin and checkin.heading_at %}
+<p><span class="state" data-status="recorded">向かっています</span> 着く予定は {{ checkin_times.eta }} ごろです（{{ checkin_times.heading }} に連絡）。</p>
+{% elif not activity.talent_writer %}
+<p>今日の連絡は、まだありません。つなぎ手が「今から向かいます」を押すと、着く予定がここに出ます。</p>
+{% endif %}
+{% if activity.talent_writer and engagement.status != "ended" and not (checkin and checkin.arrived_at) %}
+<form method="post" action="{{ url_for('matching.checkin', engagement_id=engagement.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="action" value="heading">
+  <label for="checkin-minutes">着くまでの時間</label>
+  <select id="checkin-minutes" name="minutes" required aria-describedby="checkin-heading-note">
+    {% for minutes in eta_choices %}<option value="{{ minutes }}"{% if minutes == 30 %} selected{% endif %}>{{ minutes }}分後</option>{% endfor %}
+  </select>
+  <small id="checkin-heading-note">着く予定の時刻だけを、事務所に知らせます。位置は送りません。</small>
+  <button class="secondary outline" type="submit">{{ "着く予定を直す" if checkin and checkin.heading_at else "今から向かいます" }}</button>
+</form>
+<form method="post" action="{{ url_for('matching.checkin', engagement_id=engagement.id) }}"{% if uses_location %} data-checkin-arrive{% endif %}>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="action" value="arrived">
+  {% if uses_location %}
+  <input type="hidden" name="lat" value="">
+  <input type="hidden" name="lon" value="">
+  <p id="checkin-arrive-note">押したその1回だけ、この端末の位置を送ります。事務所の位置と比べて、{{ near_radius }}m以内なら「近くで押した」という事実と時刻だけを残します。緯度・経度は保存しません。訪問の記録の裏づけに使います。</p>
+  <label><input type="checkbox" name="consent" value="yes" required aria-describedby="checkin-arrive-note"> 位置を1回だけ送ることに同意します</label>
+  <p role="status" data-checkin-status hidden></p>
+  {% else %}
+  <p>この事務所では、位置を使いません。押した時刻だけを残します。</p>
+  {% endif %}
+  <button class="secondary outline" type="submit">着きました</button>
+</form>
+{% endif %}

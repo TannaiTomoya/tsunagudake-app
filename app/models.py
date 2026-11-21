@@ -130,6 +130,15 @@ class Office(Created, Base):
         CheckConstraint(
             "client_count BETWEEN 0 AND 100000", name="office_client_count_range"
         ),
+        CheckConstraint(
+            "lat_e6 BETWEEN -90000000 AND 90000000", name="office_lat_range"
+        ),
+        CheckConstraint(
+            "lon_e6 BETWEEN -180000000 AND 180000000", name="office_lon_range"
+        ),
+        UniqueConstraint(
+            "collection_token_hash", name="uq_offices_collection_token_hash"
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -138,8 +147,41 @@ class Office(Created, Base):
     hourly_rate_yen: Mapped[int] = mapped_column(default=4000)
     software: Mapped[str | None] = mapped_column(String(20))
     client_count: Mapped[int | None]
+    # 住所は、合意したあとの伴走の画面で、担当つなぎ手にだけ見せる。
+    address: Mapped[str | None] = mapped_column(String(200))
+    # 事務所の位置（100万分の1度）。到着の確認にだけ使い、画面には出さない。
+    lat_e6: Mapped[int | None]
+    lon_e6: Mapped[int | None]
+    # 撮って送るだけ帳簿から件数を受け取るための合言葉。ハッシュだけを持つ。
+    collection_token_hash: Mapped[str | None] = mapped_column(String(64))
     is_active: Mapped[bool] = mapped_column(default=True)
     is_demo: Mapped[bool] = mapped_column(default=False)
+    updated_at: Mapped[datetime] = mapped_column(default=utc_now, onupdate=utc_now)
+
+
+class CollectionItem(Created, Base):
+    """資料回収ボードの1マス。顧問先は番号だけで持つ（名前・金額を持たない）。"""
+
+    __tablename__ = "collection_items"
+    __table_args__ = (
+        UniqueConstraint("office_id", "month", "client_no"),
+        CheckConstraint(
+            "client_no BETWEEN 1 AND 9999", name="collection_client_no_range"
+        ),
+        CheckConstraint(
+            "received_count BETWEEN 0 AND 9999", name="collection_received_range"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    office_id: Mapped[int] = mapped_column(ForeignKey("offices.id"))
+    month: Mapped[str] = mapped_column(String(7))
+    client_no: Mapped[int]
+    is_ready: Mapped[bool] = mapped_column(default=False)
+    received_count: Mapped[int] = mapped_column(default=0)
+    updated_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
     updated_at: Mapped[datetime] = mapped_column(default=utc_now, onupdate=utc_now)
 
 
@@ -459,6 +501,8 @@ class Engagement(Created, Base):
     agreed_at: Mapped[datetime | None]
     ended_at: Mapped[datetime | None]
     end_reason: Mapped[str | None] = mapped_column(String(200))
+    # 訪問の最後に決めた、次の訪問日。
+    next_visit_on: Mapped[date | None]
     updated_at: Mapped[datetime] = mapped_column(default=utc_now, onupdate=utc_now)
 
 
@@ -475,6 +519,127 @@ class LedgerRecord(Created, Base):
     prev_hash: Mapped[str] = mapped_column(String(64))
     entry_hash: Mapped[str] = mapped_column(String(64))
     actor_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+
+
+class Checkin(Created, Base):
+    """訪問の日の「向かいます」「着きました」。緯度・経度を持つ列は無い。"""
+
+    __tablename__ = "checkins"
+    __table_args__ = (
+        UniqueConstraint("engagement_id", "day", name="uq_checkins_engagement_day"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    engagement_id: Mapped[int] = mapped_column(ForeignKey("engagements.id"))
+    day: Mapped[date]
+    heading_at: Mapped[datetime | None]
+    eta_at: Mapped[datetime | None]
+    arrived_at: Mapped[datetime | None]
+    # 事務所の近くで押した。None は、位置を確かめていない。
+    near: Mapped[bool | None]
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+
+
+class Message(Created, Base):
+    """伴走ごとのメッセージ。事務所（代表・職員）と担当つなぎ手の間だけ。"""
+
+    __tablename__ = "messages"
+    __table_args__ = (Index("ix_messages_engagement_id_id", "engagement_id", "id"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    engagement_id: Mapped[int] = mapped_column(ForeignKey("engagements.id"))
+    sender_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    from_office: Mapped[bool]
+    template: Mapped[str | None] = mapped_column(String(20))
+    body: Mapped[str] = mapped_column(String(400))
+    read_at: Mapped[datetime | None]
+
+
+class AiPurpose(StrEnum):
+    TRANSLATE = "translate"
+    DRAFT = "draft"
+    QUESTION = "question"
+    SUMMARY = "summary"
+
+
+class AiOutcome(StrEnum):
+    OK = "ok"
+    EMPTY = "empty"
+    ERROR = "error"
+
+
+class AiRun(Created, Base):
+    """外の AI を呼んだ記録。本文も、返ってきた文も持たない。足すだけ。"""
+
+    __tablename__ = "ai_runs"
+    __table_args__ = (
+        CheckConstraint(
+            "chars >= 0 AND input_tokens >= 0 AND output_tokens >= 0",
+            name="ai_run_counts",
+        ),
+        Index("ix_ai_runs_created_at", "created_at"),
+        Index("ix_ai_runs_need_id_id", "need_id", "id"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    actor_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", name="fk_ai_runs_actor_user_id")
+    )
+    office_id: Mapped[int | None] = mapped_column(
+        ForeignKey("offices.id", name="fk_ai_runs_office_id")
+    )
+    purpose: Mapped[AiPurpose] = mapped_column(stored_enum(AiPurpose))
+    driver: Mapped[str] = mapped_column(String(10))
+    chars: Mapped[int]
+    input_tokens: Mapped[int]
+    output_tokens: Mapped[int]
+    outcome: Mapped[AiOutcome] = mapped_column(stored_enum(AiOutcome))
+    result: Mapped[str | None] = mapped_column(String(100))
+    need_id: Mapped[int | None] = mapped_column(
+        ForeignKey("needs.id", name="fk_ai_runs_need_id")
+    )
+    input_hash: Mapped[str | None] = mapped_column(String(64))
+
+
+class CheckSummary(Created, Base):
+    """過去比較の件数だけ。科目・金額・顧問先を持つ列は無い。足すだけ。"""
+
+    __tablename__ = "check_summaries"
+    __table_args__ = (
+        CheckConstraint(
+            "compared BETWEEN 0 AND 9999 AND flagged BETWEEN 0 AND compared "
+            "AND uncomparable BETWEEN 0 AND 9999 AND compared + uncomparable >= 1",
+            name="check_summary_counts",
+        ),
+        Index("ix_check_summaries_engagement_month", "engagement_id", "month"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    engagement_id: Mapped[int] = mapped_column(ForeignKey("engagements.id"))
+    month: Mapped[str] = mapped_column(String(7))
+    compared: Mapped[int]
+    flagged: Mapped[int]
+    uncomparable: Mapped[int]
+    recorded_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+
+
+class LedgerAnchor(Created, Base):
+    """毎日の、鎖の最後のハッシュの控え（同じ中身を DB の外のファイルにも置く）。"""
+
+    __tablename__ = "ledger_anchors"
+    __table_args__ = (
+        CheckConstraint(
+            "chains >= 0 AND entries >= chains AND problems >= 0",
+            name="ledger_anchor_counts",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    anchored_on: Mapped[date] = mapped_column(unique=True)
+    chains: Mapped[int]
+    entries: Mapped[int]
+    digest: Mapped[str] = mapped_column(String(64))
+    problems: Mapped[int]
 
 
 class VisitStatus(StrEnum):
@@ -516,6 +681,11 @@ class Visit(Created, Base):
     )
     learned_term: Mapped[str | None] = mapped_column(String(100))
     note: Mapped[str | None] = mapped_column(String(300))
+    idea: Mapped[str | None] = mapped_column(String(100))
+    idea_adopted_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", name="fk_visits_idea_adopted_by_users")
+    )
+    idea_adopted_at: Mapped[datetime | None]
     status: Mapped[VisitStatus] = mapped_column(
         stored_enum(VisitStatus), default=VisitStatus.RECORDED
     )

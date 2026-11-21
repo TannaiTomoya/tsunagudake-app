@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% set progress_step = 4 %}
+{% block title %}メッセージ{% endblock %}
+{% block content %}
+<p><a href="{{ back }}">伴走に戻る</a></p>
+<h1>メッセージ</h1>
+<p>{{ partner }}とのやりとりです。読めるのは、事務所の代表・職員と、担当するつなぎ手だけです。</p>
+{% if sent %}<p class="letter-sent" role="status" data-letter-sent>送りました。相手には、翌朝のまとめでお知らせします。</p>{% endif %}
+{% if arrived %}<p role="status" data-letter-arrived>新しいメッセージが{{ arrived }}通あります。</p>{% endif %}
+<div class="screen-columns">
+<section class="decision-pane">
+{% if ended %}
+<h2>メッセージを書く</h2>
+<p><span class="state" data-status="ended">終了</span> この伴走は終わったので、新しいメッセージは送れません。これまでの分は読めます。</p>
+{% elif confirming %}
+<h2>この文を送りますか</h2>
+<p class="message-body">{{ draft }}</p>
+<p>送ると、直せません。顧問先の名前と金額が入っていないか、確かめてください。</p>
+<form method="post" action="{{ here }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="body" value="{{ draft }}">
+  <input type="hidden" name="template" value="{{ template }}">
+  <button type="submit" name="action" value="send">送る</button>
+  <button class="secondary outline" type="submit" name="action" value="edit">直す</button>
+</form>
+<p><a href="{{ here }}">やめる</a></p>
+{% else %}
+<h2>メッセージを書く</h2>
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+<p>ひな形から始められます。選ぶと、下の欄に入ります。</p>
+<ul class="template-links">
+  {% for key, (label, _) in templates.items() %}<li><a href="{{ here }}?template={{ key }}"{% if key == template %} aria-current="true"{% endif %}>{{ label }}</a></li>{% endfor %}
+</ul>
+<form method="post" action="{{ here }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="template" value="{{ template }}">
+  <label for="message-body">本文</label>
+  <small id="message-note">顧問先の名前と金額は書かないでください。{{ body_max }}文字まで。</small>
+  <textarea id="message-body" name="body" rows="5" maxlength="{{ body_max }}" required aria-describedby="message-note">{{ draft }}</textarea>
+  {% if auto_draft %}<p role="status" data-auto-draft>自動で作った下書きです。直してから、送る前に確かめてください。送るのは人です。</p>{% endif %}
+  <button type="submit" name="action" value="confirm">送る前に確かめる</button>
+  {% if can_draft %}
+  <button class="secondary outline" type="submit" name="action" value="draft" aria-describedby="draft-note">書いたメモから下書きを作る</button>
+  <small id="draft-note">上の欄のメモだけを、名前・金額・連絡先の形を伏せてから外の AI に送ります。これまでのメッセージは送りません。</small>
+  {% endif %}
+</form>
+{% endif %}
+</section>
+<section class="reading-pane">
+<h2 id="thread">これまでのメッセージ</h2>
+{% if rows %}
+<ol class="message-list" reversed>
+  {% for message, name, sent_at in rows %}
+  <li{% if message.from_office == office_side %} data-mine{% endif %}>
+    <p class="message-meta">{{ "事務所" if message.from_office else "つなぎ手" }}・{{ name }}　{{ sent_at }}　<span class="state" data-status="{{ "confirmed" if message.read_at else "recorded" }}">{{ "既読" if message.read_at else "未読" }}</span></p>
+    <p class="message-body">{{ message.body }}</p>
+  </li>
+  {% endfor %}
+</ol>
+{% else %}
+<p>まだメッセージはありません。{% if not ended %}ひな形を選ぶと、すぐに書き始められます。{% endif %}</p>
+{% endif %}
+</section>
+</div>
+{% endblock %}

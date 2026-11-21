@@ -641,6 +641,11 @@ a:hover {
   color: var(--muted);
 }
 
+/* ボタンの下の注意書きは、ボタンの横に回り込ませない。 */
+button + small {
+  display: block;
+}
+
 .page dl {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -1233,6 +1238,17 @@ body.with-guide {
 .guide-voice { display: flex; align-items: center; gap: .4rem; margin: 0 auto 0 0; }
 .masu-guide [hidden] { display: none; }
 .masu-guide :focus-visible { outline: 2px solid var(--action); outline-offset: 2px; }
+/* 画面の下の、規約とポリシーへのリンク。 */
+.legal-links { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; padding: 1.5rem 1rem 6rem; font-size: 0.875rem; }
+.legal-links a { color: var(--muted); }
+/* メッセージ。自分の分は、左の線で見分ける（色だけにしない：送った人の名前も書く）。 */
+.message-list { list-style: none; padding: 0; margin: 0; }
+.message-list li { padding: 0.75rem 0 0.75rem 0.75rem; border-top: 1px solid var(--line); border-left: 2px solid transparent; }
+.message-list li[data-mine] { border-left-color: var(--line); background: var(--surface); }
+.message-meta { margin: 0 0 0.25rem; color: var(--muted); font-size: 0.875rem; }
+.message-body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.template-links { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; padding: 0; list-style: none; }
+.template-links li { list-style: none; }
 /* 都道府県 → 市町村の1段目。次の入力欄との間をあける。 */
 .prefecture-form { margin-block-end: 1.5rem; }
 .screen-columns { display: grid; gap: 1.5rem; align-items: start; }
@@ -1340,6 +1356,20 @@ body.with-guide {
   background: var(--surface);
   transform: rotate(45deg);
   pointer-events: none;
+}
+/* マスを左下に動かしたとき。吹き出しは、マスの右に開く。 */
+.masu-guide > summary { position: relative; touch-action: none; }
+.guide-dock[data-side="left"] .masu-guide,
+.guide-dock[data-side="left"] .masu-guide > summary { margin: 0 auto 0 0; }
+.guide-dock[data-side="left"] .masu-guide > summary { justify-content: flex-start; }
+.guide-dock[data-side="left"] .masu-guide[open] > summary { right: auto; left: 0; }
+.guide-dock[data-side="left"] .masu-guide[open] {
+  padding: 0 0 0 calc(var(--masu-size, 72px) + var(--masu-tail-gap));
+}
+.guide-dock[data-side="left"] .masu-guide[open]::after {
+  right: auto;
+  left: calc(var(--masu-size, 72px) + 1px);
+  transform: rotate(225deg);
 }
 .guide-bubble { margin: 0; }
 .guide-sr { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; }

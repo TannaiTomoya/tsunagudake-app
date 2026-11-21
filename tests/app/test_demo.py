@@ -8,8 +8,15 @@ from test_identity import _ranks, token
 from app import create_app
 from app.extensions import db
 from app.models import (
+    AiOutcome,
+    AiPurpose,
+    AiRun,
+    Checkin,
+    CheckSummary,
+    CollectionItem,
     Engagement,
     MatchCandidate,
+    Message,
     Municipality,
     Need,
     NeedStatus,
@@ -461,3 +468,93 @@ def test_t39_demo_work_steps(monkeypatch: pytest.MonkeyPatch) -> None:
         assert html.count('aria-current="step"') == 1
         assert f'aria-current="step"><small>{step}</small>' in html
     assert 'aria-current="step"' not in client.get("/how").get_data(as_text=True)
+
+
+def test_reset_demo_clears_rows_of_the_newer_tables(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # デモで押されたメッセージ・到着の記録・過去比較・資料回収・AI の記録が
+    # 残っていても、初期化は止まらない。通常の人の記録は消さない。
+    monkeypatch.setenv("APP_ENV", "development")
+    app = create_app(
+        {"SQLALCHEMY_DATABASE_URI": "sqlite://", "DEMO_PASSWORD": PASSPHRASE}
+    )
+    with app.app_context():
+        db.create_all()
+        db.session.add(
+            User(
+                email="ordinary@example.org",
+                display_name="通常の架空利用者",
+                role=Role.OFFICE,
+                password_hash="unused",
+                session_nonce=token_hex(16),
+            )
+        )
+        db.session.commit()
+    runner = app.test_cli_runner()
+    assert runner.invoke(args=["seed-demo"]).exit_code == 0
+    month = today_in_japan().strftime("%Y-%m")
+    with app.app_context():
+        owner = db.session.scalar(
+            select(User).where(User.email == ACCOUNTS[Role.OFFICE])
+        )
+        ordinary = db.session.scalar(
+            select(User).where(User.email == "ordinary@example.org")
+        )
+        engagement = db.session.scalar(select(Engagement).order_by(Engagement.id))
+        assert owner and ordinary and engagement
+        run = {
+            "purpose": AiPurpose.TRANSLATE,
+            "driver": "fake",
+            "chars": 1,
+            "input_tokens": 1,
+            "output_tokens": 1,
+            "outcome": AiOutcome.EMPTY,
+        }
+        db.session.add_all(
+            [
+                Message(
+                    engagement_id=engagement.id,
+                    sender_user_id=owner.id,
+                    from_office=True,
+                    body="架空の連絡",
+                ),
+                Checkin(
+                    engagement_id=engagement.id,
+                    day=today_in_japan(),
+                    created_by=owner.id,
+                ),
+                CheckSummary(
+                    engagement_id=engagement.id,
+                    month=month,
+                    compared=3,
+                    flagged=1,
+                    uncomparable=0,
+                    recorded_by=owner.id,
+                ),
+                CollectionItem(
+                    office_id=engagement.office_id,
+                    month=month,
+                    client_no=1,
+                    updated_by=owner.id,
+                ),
+                AiRun(
+                    actor_user_id=owner.id,
+                    office_id=engagement.office_id,
+                    need_id=engagement.need_id,
+                    **run,
+                ),
+                AiRun(actor_user_id=ordinary.id, **run),
+            ]
+        )
+        ordinary_id = ordinary.id
+        db.session.commit()
+
+    result = runner.invoke(args=["reset-demo", "--yes"])
+    assert result.exit_code == 0, result.output
+    with app.app_context():
+        for model in (Message, Checkin, CheckSummary, CollectionItem):
+            assert db.session.scalars(select(model)).all() == []
+        (kept,) = db.session.scalars(select(AiRun)).all()
+        assert kept.actor_user_id == ordinary_id
+    assert runner.invoke(args=["seed-demo"]).exit_code == 0

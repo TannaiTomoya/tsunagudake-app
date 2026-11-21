@@ -7,6 +7,7 @@ from app.audit import record_audit
 from app.authz import require_need
 from app.extensions import db
 from app.models import (
+    AiOutcome,
     ItTask,
     Need,
     NeedStatus,
@@ -15,6 +16,7 @@ from app.models import (
     TranslationSource,
     utc_now,
 )
+from app.services import ai
 from app.services.ledger import append_record
 from tsunagu_rules import RULES_VERSION
 from tsunagu_rules.translation import load_dictionary, translate
@@ -143,6 +145,72 @@ def withdraw_need(office: Office, need_id: int, actor_id: int) -> None:
     need.status = NeedStatus.WITHDRAWN
     record_audit(
         "need_withdrawn",
+        actor_id=actor_id,
+        office_id=office.id,
+        target_type="need",
+        target_id=need.id,
+    )
+    _commit()
+
+
+def request_suggestion(office: Office, need_id: int, actor_id: int) -> None:
+    """規則で訳せなかった下書きに、型の候補を頼む。決めるのは人（`accept_suggestion`）。
+
+    外を呼ぶあいだ行をロックしない。記録にはその時の `input_hash` を残すので、
+    呼んでいる間に書き直されたら、その候補は使えない。
+    """
+    need = require_need(office, need_id)
+    if need.status != NeedStatus.DRAFT or translations(need):
+        raise NeedConflict("型の候補は、規則で訳せなかった下書きにだけ出せます。")
+    if ai.suggestion_for(need) is not None:
+        return
+    outcome = ai.suggest_kinds(need, actor_id)
+    if outcome is None:
+        raise NeedConflict(
+            "今は、型の候補を出せません。「型を選ぶ・書き直す」から選んでください。"
+        )
+    record_audit(
+        "need_kind_suggested",
+        actor_id=actor_id,
+        office_id=office.id,
+        target_type="need",
+        target_id=need.id,
+    )
+    _commit()
+    if outcome == AiOutcome.ERROR:
+        raise NeedConflict(
+            "外の AI から返事がありませんでした。"
+            "「型を選ぶ・書き直す」から選ぶか、時間をおいてお試しください。"
+        )
+
+
+def accept_suggestion(
+    office: Office, need_id: int, actor_id: int, raw_kind: str
+) -> None:
+    """候補の型を採る。採れるのは、サーバーに残した直近の候補の中だけ。公開はしない。"""
+    need = require_need(office, need_id, lock=True)
+    if need.status != NeedStatus.DRAFT or translations(need, lock=True):
+        raise NeedConflict("型の候補は、規則で訳せなかった下書きにだけ採れます。")
+    suggested = ai.suggestion_for(need) or []
+    if raw_kind not in NeedKind or NeedKind(raw_kind) not in suggested:
+        raise NeedConflict(
+            "この型は、いまの文の候補にありません。もう一度、候補を確かめてください。"
+        )
+    pattern = next(
+        item for item in DICTIONARY.patterns if item.kind == NeedKind(raw_kind)
+    )
+    for task in pattern.tasks:
+        db.session.add(
+            NeedTranslation(
+                need_id=need.id,
+                category=pattern.kind,
+                it_task=ItTask(task),
+                evidence="外の AI の候補から、代表が選びました。",
+                source=TranslationSource.AI_ACCEPTED,
+            )
+        )
+    record_audit(
+        "need_kind_accepted",
         actor_id=actor_id,
         office_id=office.id,
         target_type="need",

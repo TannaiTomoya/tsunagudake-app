@@ -487,6 +487,27 @@ sudo journalctl -u tsunagudake-mail.service -n 20 --no-pager
 
 送信結果は運営画面の「メールの記録」で確認できます。送信に失敗した記録は次回処理で再試行します。SMTP が受理した直後にワーカーが止まった場合は再送されることがあります。初回は管理下のテストアドレスで受信とリンクを確認します。運営画面のデモ用本文は、実際のメールとして送信されません。
 
+### 台帳の毎日の検証と控え（段階22）
+
+**この節は、実機ではまだ確かめていません。**
+
+毎日 03:10（日本時間）に、監査記録の接続元の印（180日たったもの）を消し、境界線台帳の全部の鎖を検証して、鎖の最後のハッシュを控えます。控えのファイルは `~/.local/state/tsunagudake/ledger-anchors/` に、日付ごとに1つ出来ます（上書きしません）。03:30 のバックアップより前に動くので、その日の控えの行もバックアップに入ります。
+
+```bash
+sudo install -m 644 deploy/tsunagudake-daily.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl start tsunagudake-daily.service
+sudo systemctl enable --now tsunagudake-daily.timer
+systemctl list-timers tsunagudake-daily.timer
+sudo journalctl -u tsunagudake-daily.service -n 20 --no-pager
+ls -l ~/.local/state/tsunagudake/ledger-anchors/
+```
+
+合わない記録があると、サービスは失敗として記録され、運営のアカウントにメールが出ます（メールの送信は上の「通知メールの送信」の設定が要ります）。運営の画面の「境界線台帳を検証する」にも、最後の控えが出ます。
+
+- 控えのファイルは消さない・直さない。OS を入れ直すときは、このフォルダも控えてから移します（無いと、次の日に「前の控えのファイルがありません」と出ます）
+- 合わないと出たら、先にその日のバックアップと控えのファイルを別の場所へ退避してから調べます
+
 ## 14. 発表の直前
 ```bash
 cd /var/www/tsunagudake-app

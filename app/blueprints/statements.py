@@ -8,7 +8,7 @@ from flask_wtf import FlaskForm
 from sqlalchemy import select
 from wtforms import DateField, IntegerField, SelectField, StringField, TextAreaField  # type: ignore[import-untyped]
 from wtforms.fields.choices import SelectChoice  # type: ignore[import-untyped]
-from wtforms.validators import InputRequired, Length, NumberRange  # type: ignore[import-untyped]
+from wtforms.validators import InputRequired, Length, NumberRange, Optional  # type: ignore[import-untyped]
 
 from app.authz import require_office_engagement, require_talent_engagement
 from app.blueprints.needs import CATEGORIES
@@ -34,11 +34,13 @@ from app.services.statement import (
     ReductionInput,
     StatementConflict,
     VisitInput,
+    adopt_idea,
     confirm_reduction,
     fee_preview,
     finalize,
     find_statement,
     find_visit,
+    month_ideas,
     month_reductions,
     record_payment,
     review_visit,
@@ -66,6 +68,8 @@ class VisitForm(FlaskForm):  # type: ignore[misc]
     category = SelectField("業務の型", choices=_CHOICES, validators=[InputRequired()])
     learned_term = StringField("聞き返した用語（任意）", validators=[Length(max=100)])
     note = TextAreaField("事務所に伝えること（任意）", validators=[Length(max=300)])
+    idea = StringField("気づいたこと（任意）", validators=[Length(max=100)])
+    next_visit = DateField("次の訪問日（任意）", validators=[Optional()])
 
 
 class ReductionForm(FlaskForm):  # type: ignore[misc]
@@ -90,6 +94,7 @@ class Activity:
     owner: bool
     talent_writer: bool
     reduction_form: ReductionForm
+    ideas: list[tuple[str, Visit]]
 
     @property
     def finalized(self) -> bool:
@@ -145,6 +150,14 @@ def activity_for(engagement: Engagement, *, office_side: bool) -> Activity:
         owner,
         not office_side,
         ReductionForm(formdata=None, data={"month": month}),
+        [
+            (
+                f"{visit.visit_date.month}月{visit.visit_date.day}日"
+                f"({'月火水木金土日'[visit.visit_date.weekday()]})",
+                visit,
+            )
+            for visit in month_ideas(engagement.id, month)
+        ],
     )
 
 
@@ -184,6 +197,7 @@ def visit_form(engagement_id: int, visit_id: int | None = None) -> ResponseRetur
             "category": visit.category.value,
             "note": visit.note,
             "learned_term": visit.learned_term,
+            "idea": visit.idea,
         }
     form = VisitForm(data=initial)
     error = None
@@ -198,6 +212,8 @@ def visit_form(engagement_id: int, visit_id: int | None = None) -> ResponseRetur
                     NeedKind(form.category.data),
                     (form.note.data or "").strip() or None,
                     (form.learned_term.data or "").strip() or None,
+                    (form.idea.data or "").strip() or None,
+                    form.next_visit.data,
                 ),
                 visit_id,
             )
@@ -208,7 +224,8 @@ def visit_form(engagement_id: int, visit_id: int | None = None) -> ResponseRetur
             error, status = str(exc), 409
     elif form.is_submitted():
         error, status = (
-            "日付、業務の型、15〜600分の訪問時間、300文字以内の伝える内容をご確認ください。",
+            "日付、業務の型、15〜600分の訪問時間、300文字以内の伝える内容、"
+            "100文字以内の気づいたこと、次の訪問日をご確認ください。",
             422,
         )
     return render_template(
@@ -233,6 +250,30 @@ def visit_review(
     except StatementConflict as exc:
         return _conflict(exc)
     return _office_back(engagement)
+
+
+@bp.post(
+    "/o/<int:office_id>/engagements/<int:engagement_id>/visits/<int:visit_id>/adopt-idea"
+)
+@login_required  # type: ignore[untyped-decorator]
+def idea_adopt(
+    office_id: int, engagement_id: int, visit_id: int
+) -> ResponseReturnValue:
+    engagement = require_office_engagement(office_id, engagement_id, write=True)
+    try:
+        adopt_idea(engagement, visit_id, _actor().id)
+    except StatementConflict as exc:
+        return _conflict(exc)
+    month = request.form.get("month", "")
+    return redirect(
+        url_for(
+            "matching.office_engagement",
+            office_id=engagement.office_id,
+            engagement_id=engagement.id,
+            month=month if valid_month(month) else None,
+            _anchor="ideas",
+        )
+    )
 
 
 @bp.post("/o/<int:office_id>/engagements/<int:engagement_id>/reductions")

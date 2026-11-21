@@ -85,6 +85,14 @@ ROUTES = (
     Route(
         "need-withdraw", "POST", "{need}/withdraw", OFFICE_ACTORS, ("staff", "admin")
     ),
+    Route("need-suggest", "POST", "{need}/suggest", OFFICE_ACTORS, ("staff", "admin")),
+    Route(
+        "need-accept-kind",
+        "POST",
+        "{need}/accept-kind",
+        OFFICE_ACTORS,
+        ("staff", "admin"),
+    ),
     Route("candidates", "GET", "{need}/candidates", OFFICE_ACTORS),
     Route("candidate-generate", "POST", "{need}/candidates", OFFICE_ACTORS, ("admin",)),
     Route(
@@ -159,6 +167,20 @@ ROUTES = (
         "visit-dispute",
         "POST",
         "{engagement}/visits/1/dispute",
+        ("other_office", "other_staff", "unrelated", "municipality"),
+        ("assigned", "admin"),
+    ),
+    Route(
+        "idea-adopt",
+        "POST",
+        "{engagement}/visits/1/adopt-idea",
+        ("other_office", "other_staff", "unrelated", "municipality"),
+        ("assigned", "admin"),
+    ),
+    Route(
+        "idea-summary",
+        "POST",
+        "{engagement}/ideas/summary",
         ("other_office", "other_staff", "unrelated", "municipality"),
         ("assigned", "admin"),
     ),
@@ -284,6 +306,75 @@ ROUTES = (
         "admin-suspend", "POST", "/admin/users/2/suspend", (*TALENT_ACTORS, "assigned")
     ),
     Route("admin-self-suspend", "POST", "/admin/users/4/suspend", (), ("admin",)),
+    Route(
+        "office-end",
+        "POST",
+        "{engagement}/end",
+        ("other_office", "other_staff", "unrelated", "municipality"),
+        ("staff", "assigned", "admin"),
+    ),
+    Route("talent-end", "POST", "{talent_engagement}/end", TALENT_ACTORS, ("admin",)),
+    Route(
+        "check-summary",
+        "POST",
+        "{talent_engagement}/checks",
+        TALENT_ACTORS,
+        ("admin",),
+    ),
+    Route("collection", "GET", "/o/1/collection", OFFICE_ACTORS),
+    Route("collection-save", "POST", "/o/1/collection", OFFICE_ACTORS, ("admin",)),
+    Route(
+        "collection-token",
+        "POST",
+        "/o/1/collection/token",
+        OFFICE_ACTORS,
+        ("staff", "admin"),
+    ),
+    Route(
+        "checkin",
+        "POST",
+        "{talent_engagement}/checkins",
+        TALENT_ACTORS,
+        ("admin",),
+    ),
+    Route(
+        "office-location",
+        "POST",
+        "/o/1/location",
+        OFFICE_ACTORS,
+        ("staff", "admin"),
+    ),
+    # メッセージは、運営にも見せない（GET も 403）。
+    Route(
+        "office-messages",
+        "GET",
+        "{engagement}/messages",
+        ("other_office", "other_staff", "unrelated", "municipality"),
+        ("assigned", "admin"),
+    ),
+    Route(
+        "office-message-send",
+        "POST",
+        "{engagement}/messages",
+        ("other_office", "other_staff", "unrelated", "municipality"),
+        ("assigned", "admin"),
+    ),
+    Route(
+        "talent-messages",
+        "GET",
+        "{talent_engagement}/messages",
+        TALENT_ACTORS,
+        ("admin",),
+    ),
+    Route(
+        "talent-message-send",
+        "POST",
+        "{talent_engagement}/messages",
+        TALENT_ACTORS,
+        ("admin",),
+    ),
+    Route("withdraw-form", "GET", "/account/withdraw", (), ("admin",)),
+    Route("withdraw", "POST", "/account/withdraw", (), ("admin",)),
 )
 
 
@@ -390,6 +481,20 @@ def test_denial_matrix(
                 "grade": "2",
                 "client_count": "12",
                 "municipality": "2",
+                "reason": "goal_met",
+                "action": "send"
+                if path.endswith("/messages")
+                else "heading"
+                if path.endswith("/checkins")
+                else "add",
+                "address": "架空市架空町1-1",
+                "body": "架空の連絡",
+                "client_no": "5",
+                "compared": "4",
+                "flagged": "1",
+                "uncomparable": "0",
+                "password": PASSWORD,
+                "confirm": "yes",
             },
         )
     else:
@@ -437,3 +542,32 @@ def test_child_lookup_is_restricted_to_the_members_office(
     assert client.get("/o/2/").status_code == 200
     path = paths[item].replace("/o/1/", "/o/2/") + suffix
     assert client.get(path).status_code == 404
+
+
+@pytest.mark.parametrize(
+    ("method", "suffix"),
+    [
+        ("GET", "/messages"),
+        ("POST", "/messages"),
+        ("POST", "/end"),
+        ("POST", "/ideas/summary"),
+        ("POST", "/visits/1/adopt-idea"),
+    ],
+)
+def test_engagement_children_are_restricted_to_the_members_office(
+    matrix: tuple[Flask, dict[str, str], dict[str, str]],
+    method: str,
+    suffix: str,
+) -> None:
+    # 自分の事務所の道から、ほかの事務所の伴走の番号を指しても、届かない。
+    app, paths, identities = matrix
+    client = app.test_client()
+    with client.session_transaction() as session:
+        session["_user_id"] = identities[EMAILS["other_office"]]
+    assert client.get("/o/2/").status_code == 200
+    path = paths["engagement"].replace("/o/1/", "/o/2/") + suffix
+    if method == "GET":
+        assert client.get(path).status_code == 404
+    else:
+        form = {"csrf_token": token(client, "/login")}
+        assert client.post(path, data=form).status_code == 404

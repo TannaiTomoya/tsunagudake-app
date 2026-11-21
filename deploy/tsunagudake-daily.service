@@ -1,0 +1,17 @@
+[Unit]
+Description=Daily tsunagudake checks: prune audit marks, verify and anchor the ledger
+After=network-online.target mysql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/var/www/tsunagudake-app
+EnvironmentFile=/var/www/tsunagudake-app/.env
+Environment=LEDGER_ANCHOR_DIR=/home/ubuntu/.local/state/tsunagudake/ledger-anchors
+ExecStart=/var/www/tsunagudake-app/.venv/bin/flask --app app prune-audit
+ExecStart=/var/www/tsunagudake-app/.venv/bin/flask --app app anchor-ledger
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes

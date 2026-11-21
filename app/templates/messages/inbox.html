@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}メッセージ{% endblock %}
+{% block content %}
+<h1>メッセージ</h1>
+<p>今の伴走の相手を、3人まで出しています。送る相手を選んでください。</p>
+{% if partners %}
+<div class="overflow-auto statement-table" role="region" aria-label="メッセージを送る相手" tabindex="0"><table>
+  <thead><tr><th scope="col">相手</th><th scope="col" data-numeric>未読</th><th scope="col">開く</th></tr></thead>
+  <tbody>{% for partner in partners %}
+    <tr><th scope="row">{{ partner.name }}</th><td data-numeric>{{ partner.unread }}通</td><td><a href="{{ partner.link }}">メッセージを開く</a></td></tr>
+  {% endfor %}</tbody>
+</table></div>
+{% else %}
+<p>今、メッセージを送れる相手はいません。合意した伴走ができると、ここに並びます。</p>
+{% endif %}
+<p><a href="{{ url_for('auth.account') }}">マイページに戻る</a></p>
+{% endblock %}

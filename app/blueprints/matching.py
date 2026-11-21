@@ -1,4 +1,5 @@
 import json
+from datetime import date
 from typing import cast
 
 from flask import Blueprint, abort, redirect, render_template, request, url_for
@@ -24,6 +25,7 @@ from app.extensions import db
 from app.models import (
     CandidateStatus,
     Engagement,
+    EngagementStatus,
     MatchCandidate,
     MatchRun,
     MemberRole,
@@ -38,7 +40,22 @@ from app.models import (
     TalentAffiliation,
     TalentSkill,
     User,
+    today_in_japan,
+    utc_now,
 )
+from app.services.checkin import (
+    ETA_CHOICES,
+    CheckinConflict,
+    CheckinError,
+    arrivals,
+    arrive,
+    checkin_on,
+    head_out,
+    japan_clock,
+    uses_location,
+)
+from app.services.checks import CheckConflict, CheckError, save_summary, totals_for
+from app.services.engagement import END_REASONS, EngagementConflict, end_engagement
 from app.services.ledger import records_for_need
 from app.services.matching import (
     MatchConflict,
@@ -49,7 +66,9 @@ from app.services.matching import (
     latest_run,
     respond,
 )
+from app.services.messages import unread_count
 from app.services.trust import TrustConflict, verify_skill
+from tsunagu_rules.distance import NEAR_RADIUS_M
 
 bp = Blueprint("matching", __name__)
 EXCLUSIONS = {
@@ -277,15 +296,30 @@ def answer_invitation(candidate_id: int, answer: str) -> ResponseReturnValue:
     return redirect(url_for("auth.talent_home"))
 
 
-def _engagement_page(engagement: Engagement, *, office_side: bool) -> str:
+def _day_label(day: date) -> str:
+    return f"{day.month}月{day.day}日({'月火水木金土日'[day.weekday()]})"
+
+
+def _engagement_page(
+    engagement: Engagement,
+    *,
+    office_side: bool,
+    check_error: str | None = None,
+    checkin_error: str | None = None,
+) -> str:
     need = db.session.scalar(
         select(Need).where(
             Need.id == engagement.need_id,
             Need.office_id == engagement.office_id,
         )
     )
-    if need is None:
+    office = db.session.get(Office, engagement.office_id)
+    if need is None or office is None:
         abort(404)
+    today = today_in_japan()
+    checkin = checkin_on(engagement.id, today)
+    ended = engagement.status == EngagementStatus.ENDED
+    upcoming = engagement.next_visit_on
     return render_template(
         "matching/engagement.html",
         engagement=engagement,
@@ -300,6 +334,29 @@ def _engagement_page(engagement: Engagement, *, office_side: bool) -> str:
         activity=activity_for(engagement, office_side=office_side),
         categories=CATEGORIES,
         returned_kinds=RETURNED_KINDS,
+        end_reasons=END_REASONS,
+        checks=totals_for(engagement.id),
+        check_error=check_error,
+        checkin=checkin,
+        checkin_error=checkin_error,
+        checkin_times={
+            name: japan_clock(moment)
+            for name, moment in (
+                ("heading", checkin.heading_at if checkin else None),
+                ("eta", checkin.eta_at if checkin else None),
+                ("arrived", checkin.arrived_at if checkin else None),
+            )
+            if moment is not None
+        },
+        eta_choices=ETA_CHOICES,
+        uses_location=uses_location(office),
+        near_radius=NEAR_RADIUS_M,
+        arrivals=arrivals(engagement.id),
+        # 住所は、合意したあとの担当つなぎ手にだけ。終わった伴走では見せない。
+        office_address=office.address if not office_side and not ended else None,
+        next_visit=_day_label(upcoming) if upcoming and upcoming >= today else None,
+        # 画面に出すのは、読める人（事務所の代表・職員、担当つなぎ手）にだけ。
+        unread_messages=unread_count(engagement.id, office_side=office_side),
         ledger=[
             (row, json.loads(row.payload)["data"]) for row in records_for_need(need)
         ],
@@ -340,3 +397,100 @@ def skill_confirmation(
             _anchor="skills",
         )
     )
+
+
+@bp.post("/t/engagements/<int:engagement_id>/checks")
+@login_required  # type: ignore[untyped-decorator]
+def check_summary(engagement_id: int) -> ResponseReturnValue:
+    # 件数を記録できるのは、担当するつなぎ手だけ。受け取るのは3つの整数だけ。
+    engagement = require_talent_engagement(engagement_id, write=True)
+    try:
+        save_summary(
+            engagement,
+            _actor().id,
+            request.form.get("compared"),
+            request.form.get("flagged"),
+            request.form.get("uncomparable"),
+            today_in_japan(),
+        )
+    except CheckError as exc:
+        page = _engagement_page(engagement, office_side=False, check_error=str(exc))
+        return page, 422
+    except CheckConflict as exc:
+        return render_template("error.html", message=str(exc)), 409
+    return redirect(
+        url_for(
+            "matching.talent_engagement", engagement_id=engagement_id, _anchor="checks"
+        )
+    )
+
+
+@bp.post("/t/engagements/<int:engagement_id>/checkins")
+@login_required  # type: ignore[untyped-decorator]
+def checkin(engagement_id: int) -> ResponseReturnValue:
+    # 押せるのは、担当するつなぎ手だけ。日付と時刻は、サーバーの時計から決める。
+    engagement = require_talent_engagement(engagement_id, write=True)
+    action = request.form.get("action", "")
+    if action not in {"heading", "arrived"}:
+        abort(400)
+    try:
+        if action == "heading":
+            head_out(
+                engagement,
+                _actor().id,
+                request.form.get("minutes"),
+                today_in_japan(),
+                utc_now(),
+            )
+        else:
+            # 受け取った位置は、比べるためにだけ使い、保存も記録もしない。
+            arrive(
+                engagement,
+                _actor().id,
+                request.form.get("lat"),
+                request.form.get("lon"),
+                today_in_japan(),
+                utc_now(),
+                consent=request.form.get("consent") == "yes",
+            )
+    except CheckinError as exc:
+        page = _engagement_page(engagement, office_side=False, checkin_error=str(exc))
+        return page, 422
+    except CheckinConflict as exc:
+        return render_template("error.html", message=str(exc)), 409
+    return redirect(
+        url_for(
+            "matching.talent_engagement", engagement_id=engagement_id, _anchor="checkin"
+        )
+    )
+
+
+@bp.post("/o/<int:office_id>/engagements/<int:engagement_id>/end")
+@bp.post("/t/engagements/<int:engagement_id>/end", endpoint="talent_end")
+@login_required  # type: ignore[untyped-decorator]
+def end(engagement_id: int, office_id: int | None = None) -> ResponseReturnValue:
+    # 終えられるのは、事務所の代表と、担当するつなぎ手本人だけ。
+    if office_id is not None:
+        engagement = require_office_engagement(
+            office_id, engagement_id, owner_only=True
+        )
+    else:
+        engagement = require_talent_engagement(engagement_id, write=True)
+    try:
+        end_engagement(
+            engagement,
+            _actor().id,
+            request.form.get("reason", ""),
+            by_office=office_id is not None,
+        )
+    except EngagementConflict as exc:
+        return render_template("error.html", message=str(exc)), 409
+    if office_id is not None:
+        return redirect(
+            url_for(
+                "matching.office_engagement",
+                office_id=office_id,
+                engagement_id=engagement_id,
+            )
+        )
+    return redirect(url_for("matching.talent_engagement", engagement_id=engagement_id))

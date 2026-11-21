@@ -48,7 +48,13 @@ def test_t30_unset_mode_requires_production_settings() -> None:
 
 @pytest.mark.parametrize(
     ("mode", "name", "invalid"),
-    [("demo", "DEMO_PASSWORD", "short"), ("production", "AI_DRIVER", "fake")],
+    [
+        ("demo", "DEMO_PASSWORD", "short"),
+        ("production", "AI_DRIVER", "fake"),
+        # claude は、モデル・鍵・月の上限・単価がそろわなければ起動しない。
+        ("production", "AI_DRIVER", "claude"),
+        ("demo", "AI_DRIVER", "claude"),
+    ],
 )
 def test_t30_mode_specific_rules(mode: str, name: str, invalid: str) -> None:
     settings = public_settings(mode)

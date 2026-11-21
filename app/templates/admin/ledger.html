@@ -6,4 +6,15 @@
 <p role="alert">記録が一致しませんでした。</p>
 <ul>{% for need_id, seq in failures %}<li>困りごと {{ need_id }} / 行 {{ seq }}</li>{% endfor %}</ul>
 {% else %}<p>台帳の検証が完了しました。</p>{% endif %}
+<h2>毎日の控え</h2>
+{% if anchor %}
+<p>最後の控えは {{ anchor_day }} です。{% if anchor.problems %}<strong>合わない記録が{{ anchor.problems }}件ありました。</strong>{% else %}合わない記録はありませんでした。{% endif %}</p>
+<div class="overflow-auto" role="region" aria-label="最後の控え" tabindex="0"><table>
+  <thead><tr><th scope="col">日</th><th scope="col" data-numeric>鎖</th><th scope="col" data-numeric>行</th><th scope="col">まとめた印</th></tr></thead>
+  <tbody><tr><td>{{ anchor_day }}</td><td data-numeric>{{ anchor.chains }}本</td><td data-numeric>{{ anchor.entries }}行</td><td><code>{{ anchor.digest }}</code></td></tr></tbody>
+</table></div>
+<p>同じ印を、DB の外のファイルにも控えています。前の日に控えた行が今も同じかを、毎日比べます。</p>
+{% else %}
+<p>控えはまだありません。<code>flask anchor-ledger</code> を毎日動かすと、ここに出ます。</p>
+{% endif %}
 {% endblock %}

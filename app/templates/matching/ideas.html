@@ -1,0 +1,32 @@
+<h2 id="ideas">今月のメモ</h2>
+<p>{{ activity.month[:4] | int }}年{{ activity.month[5:] | int }}月の訪問で、つなぎ手が気づいたことです。やってみるかは、事務所が決めます。</p>
+{% if activity.ideas %}
+<div class="overflow-auto statement-table" role="region" aria-label="今月のメモ" tabindex="0"><table>
+  <thead><tr><th scope="col">訪問日</th><th scope="col">気づいたこと</th><th scope="col">状態</th></tr></thead>
+  <tbody>{% for day, visit in activity.ideas %}
+  <tr>
+    <th scope="row">{{ day }}</th><td>{{ visit.idea }}</td>
+    <td>{% if visit.idea_adopted_at %}<span class="state" data-status="confirmed">やってみる</span>
+    {% else %}<span class="state" data-status="recorded">まだ</span>
+      {% if activity.office_writer %}
+      <form method="post" action="{{ url_for('statements.idea_adopt', office_id=engagement.office_id, engagement_id=engagement.id, visit_id=visit.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="month" value="{{ activity.month }}">
+        <button class="secondary outline" type="submit">やってみる</button>
+      </form>
+      {% endif %}
+    {% endif %}</td>
+  </tr>
+  {% endfor %}</tbody>
+</table></div>
+{% if activity.office_writer and config.AI_DRIVER != "off" %}
+<form method="post" action="{{ url_for('drafts.idea_summary', office_id=engagement.office_id, engagement_id=engagement.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="month" value="{{ activity.month }}">
+  <button class="secondary outline" type="submit" aria-describedby="summary-note">まとめの下書きを作る</button>
+  <small id="summary-note">この月のメモだけを、名前・金額・連絡先の形を伏せてから外の AI に送ります。下書きは保存されません。</small>
+</form>
+{% endif %}
+{% else %}
+<p>この月のメモはありません。{% if activity.talent_writer and engagement.status != "ended" %}訪問の記録の「気づいたこと」に書くと、ここに並びます。{% endif %}</p>
+{% endif %}

@@ -1,6 +1,6 @@
 import hashlib
 import json
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import replace
 from datetime import UTC
 
@@ -66,3 +66,25 @@ def verify(entries: Iterable[StoredEntry]) -> VerifyResult:
             return VerifyResult(False, entry.seq)
         previous = stored.entry_hash
     return VerifyResult(True)
+
+
+def anchor_digest(tips: Iterable[tuple[int, int, str]]) -> str:
+    """鎖ごとの最後の行（困りごと・行の番号・ハッシュ）をまとめた印。順番に依らない。"""
+    lines = sorted(f"{need}:{seq}:{entry_hash}" for need, seq, entry_hash in tips)
+    return hashlib.sha256("\n".join(lines).encode()).hexdigest()
+
+
+def rewritten_chains(
+    anchored: Iterable[tuple[int, int, str]], current: Mapping[tuple[int, int], str]
+) -> list[int]:
+    """前に控えた行が、今も同じハッシュかを確かめる。違う・無い困りごとを返す。
+
+    鎖を最後まで作り直す書き換えは `verify` では見つからないので、控えと比べる。
+    """
+    return sorted(
+        {
+            need
+            for need, seq, entry_hash in anchored
+            if current.get((need, seq)) != entry_hash
+        }
+    )

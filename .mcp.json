@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "tsunagudake-dev": {
+      "command": "uv",
+      "args": ["run", "--frozen", "python", "tools/dev_mcp.py"],
+      "env": {
+        "APP_ENV": "development"
+      }
+    }
+  }
+}
