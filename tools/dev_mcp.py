@@ -97,6 +97,13 @@ def open_app() -> Flask:
             raise Refused(
                 "開発用の DB がありません。先に flask db upgrade を実行してください。"
             )
+        from sqlalchemy import inspect as sa_inspect
+
+        if not sa_inspect(db.engine).has_table("needs"):
+            raise Refused(
+                "開発用の DB の表がありません。"
+                "先に flask db upgrade を実行してください。"
+            )
         event.listen(db.engine, "connect", _read_only)
         db.engine.dispose()
     return app
@@ -200,8 +207,12 @@ def call_tool(app: Flask, name: str, arguments: Mapping[str, Any]) -> dict[str, 
             return handler(**arguments)
         except SQLAlchemyError as error:
             # 接続先や SQL を出さない。種類だけを伝える。
+            # 表が無いときは、upgrade を案内する。
+            detail = str(error).lower()
+            missing = "no such table" in detail or "doesn't exist" in detail
+            hint = " 先に flask db upgrade を実行してください。" if missing else ""
             raise ToolError(
-                f"DB を読めませんでした（{type(error).__name__}）。"
+                f"DB を読めませんでした（{type(error).__name__}）。{hint}".rstrip()
             ) from None
         finally:
             db.session.rollback()
@@ -233,7 +244,8 @@ def respond(
     if method == "initialize":
         asked = params.get("protocolVersion")
         result = {
-            "protocolVersion": asked if asked in PROTOCOLS else PROTOCOLS[-1],
+            # 知らない版を求められたら、自分が知っているいちばん新しい版を返す。
+            "protocolVersion": asked if asked in PROTOCOLS else PROTOCOLS[0],
             "capabilities": {"tools": {}},
             "serverInfo": {"name": NAME, "version": VERSION},
         }

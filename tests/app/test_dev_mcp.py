@@ -136,7 +136,7 @@ def test_t66_tools_return_fixed_columns_and_never_write(
     assert started["protocolVersion"] == "2025-03-26"
     assert started["capabilities"] == {"tools": {}}
     older = ask(_request("initialize", protocolVersion="1999-01-01"))["result"]
-    assert older["protocolVersion"] == "2024-11-05"
+    assert older["protocolVersion"] == "2025-06-18"
     tools = ask(_request("tools/list"))["result"]["tools"]
     assert [tool["name"] for tool in tools] == [
         "open_needs",
@@ -263,6 +263,18 @@ def test_t66_speaks_json_rpc_over_stdio(
     assert counted == {"published": 1, "by_kind": {"collect": 1}}
     for word in HIDDEN:
         assert word not in result.stdout
+
+
+def test_t66_refuses_a_sqlite_file_without_tables(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    empty = tmp_path / "empty.sqlite"
+    empty.write_bytes(b"")
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{empty}")
+    mcp = _load()
+    with pytest.raises(mcp.Refused, match="flask db upgrade"):
+        mcp.open_app()
 
 
 def test_t66_settings_hold_no_keys_and_the_tool_only_reads() -> None:
