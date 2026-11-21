@@ -5,13 +5,27 @@
 <h1>事務所のプロフィール</h1>
 <p>{{ heading }}（{{ town }}）</p>
 {% if error %}<p role="alert">{{ error }}</p>{% endif %}
+<h2 id="software">事務所で使う会計ソフト</h2>
 {% if owner %}
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="action" value="software">
+  <label for="office-software">主に使うソフト</label>
+  <select id="office-software" name="software" aria-describedby="software-help">
+    <option value="">未設定</option>
+    {% if office.software and office.software not in software_choices %}<option selected disabled>{{ office.software }}</option>{% endif %}
+    {% for key, label in software_choices.items() %}<option value="{{ key }}"{% if office.software == key %} selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  <small id="software-help">次に候補を出すとき、このソフトの利用経験を伴走先が確認した人に加点します。</small>
+  <button type="submit">会計ソフトを保存する</button>
+</form>
+<h2>事務所の情報</h2>
 <form method="post">
   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <label for="client_count">顧問先の数（任意）</label>
   <input id="client_count" name="client_count" type="number" inputmode="numeric" min="0" max="100000" step="1" value="{{ entered if entered is not none else (office.client_count if office.client_count is not none else '') }}" aria-describedby="client-count-note">
   <small id="client-count-note">町の画面には、町の事務所の合計だけが出ます。入力した事務所が少ない町では、合計も伏せます。空にすると「入力していない」に戻ります。</small>
-  <button type="submit">保存する</button>
+  <button type="submit" class="secondary outline">顧問先の数を保存する</button>
 </form>
 <h2 id="location">住所と位置（任意）</h2>
 <p>住所は、合意したあとの伴走の画面で、担当するつなぎ手にだけ見せます。位置は、つなぎ手が「着きました」を押したときに、近くにいるかを確かめるためだけに使います。つなぎ手の画面には出しません。</p>
@@ -36,6 +50,7 @@
 {% else %}
 <div class="overflow-auto statement-table" role="region" aria-label="事務所のプロフィール" tabindex="0"><table>
   <tbody>
+    <tr><th scope="row">利用ソフト</th><td>{{ software_choices.get(office.software, office.software or "未設定") }}</td></tr>
     <tr><th scope="row">顧問先の数</th><td data-numeric>{% if office.client_count is none %}入力していません{% else %}{{ "{:,}".format(office.client_count) }}社{% endif %}</td></tr>
     <tr><th scope="row">住所</th><td>{{ "登録しています" if has_address else "登録していません" }}</td></tr>
     <tr><th scope="row">位置</th><td>{{ "登録しています" if has_location else "登録していません" }}</td></tr>

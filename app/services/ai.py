@@ -63,6 +63,13 @@ DRAFT_SYSTEM = (
     "「〈伏せ〉」は、そのまま残してください。"
     "税務の判断や助言は書かないでください。連絡文だけを返してください。"
 )
+BRIEF_SYSTEM = (
+    "会計事務所がIT担当者に相談する文章の下書きを作ります。"
+    "今行っている作業と、手伝ってほしいことを、短い日本語でまとめてください。"
+    "入力にない製品名・実績・数字・期限・連携の可否を作らないでください。"
+    "人の推薦、料金の決定、税務の助言はせず、〈伏せ〉はそのままにします。"
+    "本文だけを400文字以内で返してください。"
+)
 QUESTION_SYSTEM = (
     "「つなぐだけ」の案内役として答えます。つなぐだけは、地方の会計事務所に、"
     "会計とITがわかる人（つなぎ手）を週1回入れるしくみです。"
@@ -329,6 +336,12 @@ def _write(
         run.outcome = AiOutcome.EMPTY
     db.session.commit()
     return written or None
+
+
+def draft_brief(office_id: int, actor_id: int, memo: str) -> str | None:
+    return _write(
+        AiPurpose.DRAFT, BRIEF_SYSTEM, memo, actor_id=actor_id, office_id=office_id
+    )
 
 
 def draft_message(

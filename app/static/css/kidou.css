@@ -279,3 +279,31 @@ body {
   body > .print-copy { display: block; margin: 0; box-shadow: none; }
   .print-button, .guide-dock, .topbar, .demo-notice, .rail, .legal-links { display: none; }
 }
+
+.match-intake { padding: 1rem 1.25rem; border-inline-start: 3px solid var(--line); background: var(--surface); }
+.match-intake p:last-child, .estimate-header p, .estimate-parties p { margin-bottom: 0; }
+.estimate-sheet { margin-block: 1.25rem; padding: clamp(1rem, 3vw, 2rem); border: 1px solid var(--line); background: var(--surface); }
+.estimate-header, .estimate-parties, .estimate-total { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .5rem 1rem; }
+.estimate-header { border-bottom: 2px solid var(--line); padding-bottom: .75rem; }
+.estimate-header h3 { margin: 0; font-size: 1.75rem; }
+.estimate-header p, .estimate-parties small { color: var(--muted); font-size: .9rem; }
+.estimate-parties { margin-block: 1rem; }
+.estimate-parties small { display: block; }
+.estimate-total, .estimate-preview { padding: .75rem; background: var(--raised); }
+.estimate-total strong, .estimate-preview output { font-variant-numeric: tabular-nums; font-weight: 700; }
+.estimate-total strong { font-size: clamp(1.4rem, 4vw, 2rem); }
+.estimate-sheet caption { text-align: left; font-weight: 700; }
+.estimate-sheet td { text-align: right; font-variant-numeric: tabular-nums; }
+@media print {
+  @page { size: A4; margin: 18mm; }
+  body:has(> .print-copy) { background: var(--paper); color-scheme: light; padding: 0; }
+  .print-copy, .print-copy * { color: var(--paper-ink) !important; background: var(--paper) !important; text-shadow: none !important; border-color: var(--paper-rule) !important; }
+  body > .estimate-sheet.print-copy { width: 100%; padding: 0; border: 0; font-size: 11pt; }
+  .estimate-sheet.print-copy .estimate-header { padding-bottom: 6mm; }
+  .estimate-sheet.print-copy .estimate-total { border-block: 2px solid; padding: 4mm 0; }
+  .estimate-sheet.print-copy table { width: 100%; border-collapse: collapse; }
+  .estimate-sheet.print-copy td, .estimate-sheet.print-copy th { padding: 3mm 0; border-bottom: 1px solid; }
+  .estimate-sheet.print-copy tr { break-inside: avoid; }
+}
+.brief-assistant { border-block-start: 1px solid var(--line); padding-block-start: 1rem; margin-block-start: 1.5rem; }
+.brief-assistant h2 { font-size: 1.125rem; }

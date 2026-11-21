@@ -21,6 +21,11 @@
 <h2>境界線台帳</h2>
 {% include "matching/ledger.html" %}
 <h2>合意した条件</h2>
+{% if sent_estimate %}
+<details><summary>声かけ時の見積書を見る・印刷する</summary>
+  {% with invitation=sent_estimate[0], recipient=sent_estimate[1], categories=estimate_categories %}{% include "matching/estimate.html" %}{% endwith %}
+</details>
+{% endif %}
 <p>{{ need.body }}</p>
 <dl>
   <dt>曜日</dt><dd>{{ weekdays[engagement.weekday] }}</dd>

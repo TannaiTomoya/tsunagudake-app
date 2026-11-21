@@ -24,6 +24,7 @@ from app.models import (
 from app.services import ai
 from app.services.ledger import records_for_need
 from app.services.needs import (
+    DICTIONARY,
     EDITABLE,
     NeedConflict,
     NeedInput,
@@ -34,6 +35,7 @@ from app.services.needs import (
     translations,
     withdraw_need,
 )
+from tsunagu_rules.translation import translate
 from tsunagu_rules.types import NeedKind
 from tsunagu_rules.value import estimate_value
 
@@ -156,7 +158,7 @@ def _detail(office: Office, need_id: int, error: str | None = None) -> str:
         suggested=suggested
         if suggested is None
         else [(kind.value, CATEGORIES[kind]) for kind in suggested],
-        can_suggest=asking and suggested is None and ai.available(),
+        can_suggest=asking and suggested is None and ai.available(office.id),
         ledger=[
             (row, json.loads(row.payload)["data"]) for row in records_for_need(need)
         ],
@@ -210,7 +212,31 @@ def _save(
 ) -> ResponseReturnValue:
     error = None
     status = 200
-    if form.validate_on_submit():
+    original = None
+    if (
+        form.is_submitted()
+        and request.form.get("action") == "draft-brief"
+        and need_id is None
+    ):
+        memo = form.body.data or ""
+        if not form.body.validate(form):
+            status = 422
+        elif translate(memo, DICTIONARY).blocked:
+            error, status = (
+                "税務の判断を含む相談はAIに送れません。頼みたいIT作業を書いてください。",
+                422,
+            )
+        else:
+            proposal = ai.draft_brief(office.id, cast(User, current_user).id, memo)
+            if proposal:
+                original = memo
+                form.body.data = proposal
+            else:
+                error, status = (
+                    "AIの下書きを作れませんでした。入力した内容で相談を続けられます。",
+                    409,
+                )
+    elif form.validate_on_submit():
         try:
             need = save_need(
                 office, cast(User, current_user).id, form.values(), need_id
@@ -221,7 +247,13 @@ def _save(
     elif form.is_submitted():
         status = 422
     return render_template(
-        "needs/form.html", form=form, office=office, need_id=need_id, error=error
+        "needs/form.html",
+        form=form,
+        office=office,
+        need_id=need_id,
+        error=error,
+        original=original,
+        can_draft=need_id is None and ai.available(office.id),
     ), status
 
 

@@ -321,3 +321,89 @@ def test_t64_only_the_ai_module_reaches_out() -> None:
     source = Path("app/services/ai.py").read_text()
     assert "sk-" not in source and 'config["AI_MODEL"]' in source
     assert 'config["AI_API_KEY"]' in source
+
+
+def test_brief_is_an_editable_masked_proposal_only(
+    identity_app: Flask, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client = _owner(identity_app)
+    path = "/o/1/needs/new"
+    csrf = token(client, path)
+    sent = _spy(monkeypatch, "入力の取り込み手順を整えたいです。")
+    data = {
+        "csrf_token": csrf,
+        "action": "draft-brief",
+        "body": BODY,
+        "monthly_hours": "30",
+        "weekdays": "0",
+    }
+    identity_app.config["AI_DRIVER"] = "off"
+    assert client.post(path, data=data).status_code == 409
+    assert not sent
+    identity_app.config["AI_DRIVER"] = "fake"
+    assert client.post("/o/2/needs/new", data=data).status_code == 404
+    assert client.post(path, data={**data, "body": "申告書の作成"}).status_code == 422
+    assert not sent
+    page = client.post(path, data=data)
+    assert page.status_code == 200
+    assert "入力の取り込み手順を整えたいです。</textarea>" in page.get_data(
+        as_text=True
+    )
+    assert len(sent) == 1 and "〈伏せ〉" in sent[0]
+    assert all(secret not in sent[0] for secret in SECRETS)
+    with identity_app.app_context():
+        assert db.session.scalar(select(Need.id)) is None
+    del data["action"]
+    assert (
+        client.post(
+            path, data={**data, "body": "私が直した取り込みの相談です。"}
+        ).status_code
+        == 302
+    )
+    with identity_app.app_context():
+        saved = db.session.scalar(select(Need))
+        assert (
+            saved
+            and saved.status == NeedStatus.DRAFT
+            and saved.body == "私が直した取り込みの相談です。"
+        )
+
+
+def test_brief_sends_masked_memo_to_claude_messages(identity_app: Flask) -> None:
+    import json
+    from io import BytesIO
+    from unittest.mock import patch
+
+    identity_app.config.update(
+        AI_DRIVER="claude",
+        AI_API_KEY="test-placeholder",
+        AI_MODEL="fixture-model",
+        AI_MONTHLY_LIMIT_YEN=1000,
+        AI_INPUT_YEN_PER_MTOK=1,
+        AI_OUTPUT_YEN_PER_MTOK=1,
+    )
+    client = _owner(identity_app)
+    path = "/o/1/needs/new"
+    form = {"csrf_token": token(client, path), "action": "draft-brief", "body": BODY}
+    # HTTP の境界で架空の応答を返す。実サービスの鍵や通信は不要。
+    payload = {
+        "content": [{"type": "text", "text": "資料回収の手順を整理したいです。"}],
+        "usage": {"input_tokens": 80, "output_tokens": 20},
+    }
+    with patch(
+        "app.services.ai.urllib.request.urlopen",
+        return_value=BytesIO(json.dumps(payload).encode()),
+    ) as send:
+        response = client.post(path, data=form)
+    assert response.status_code == 200
+    assert "資料回収の手順を整理したいです。</textarea>" in response.get_data(
+        as_text=True
+    )
+    request = send.call_args.args[0]
+    assert request.full_url == ai.ENDPOINT and request.method == "POST"
+    body = json.loads(request.data)
+    assert body["model"] == "fixture-model" and body["system"] == ai.BRIEF_SYSTEM
+    memo = body["messages"][0]["content"]
+    assert "〈伏せ〉" in memo and all(secret not in memo for secret in SECRETS)
+    (run,) = _runs(identity_app)
+    assert run.driver == "claude" and (run.input_tokens, run.output_tokens) == (80, 20)

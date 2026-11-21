@@ -53,6 +53,9 @@ class MatchConflict(Exception):
     pass
 
 
+MAX_ESTIMATE_HOURS = 400
+
+
 @dataclass(frozen=True)
 class Offer:
     weekday: int
@@ -261,19 +264,23 @@ def invite(
         raise MatchConflict("双方が通える曜日を選んでください。")
     if not _rank(need, office, today_in_japan(), talent.id).candidates:
         raise MatchConflict("候補の条件が変わりました。候補を出し直してください。")
-    candidate.status = CandidateStatus.INVITED
-    candidate.offer_weekday = offer.weekday
-    candidate.offer_fee_share_bp = offer.share_bp
-    candidate.offer_fee_cap_yen = offer.cap_yen
     hours = offer.estimate_hours
     if hours is None:
         hours = estimate_value(
             need.monthly_hours, office.hourly_rate_yen
         ).projected_hours[1]
-    if not 0 <= hours <= need.monthly_hours:
+        if not hours:
+            raise MatchConflict(
+                "見込み時間を入力してください。減らない見込みなら0時間です。"
+            )
+    if not 0 <= hours <= MAX_ESTIMATE_HOURS:
         raise MatchConflict(
-            "見込みの時間は、この困りごとの月の時間以内で入力してください。"
+            f"見込み時間は0〜{MAX_ESTIMATE_HOURS}の整数で入力してください。"
         )
+    candidate.status = CandidateStatus.INVITED
+    candidate.offer_weekday = offer.weekday
+    candidate.offer_fee_share_bp = offer.share_bp
+    candidate.offer_fee_cap_yen = offer.cap_yen
     candidate.estimate_hours = hours
     candidate.estimate_hourly_rate = office.hourly_rate_yen
     candidate.estimate_total = calc_fee(

@@ -4,12 +4,12 @@
 <div class="screen-columns home-columns work-first">
 <section class="hero decision-pane" aria-labelledby="hero-title">
   <div class="hero-copy">
-    <p class="audience">資料回収を、毎週来る人と仕組みに</p>
+    <p class="audience">会計事務所とIT担当者のマッチング</p>
     <div class="hero-intro">
-      <h1 id="hero-title" data-text="税理士は、&#8203;判断するだけ。">税理士は、<wbr>判断するだけ。</h1>
+      <h1 id="hero-title" data-text="会計ソフトに詳しい人を探す">会計ソフトに<wbr>詳しい人を探す</h1>
       <a class="hero-masu" href="#masu-guide-trigger" aria-label="案内役のマス。この画面の説明を聞く">{% include "guide/masu.svg" %}</a>
     </div>
-    <p>地方の会計事務所が、紙の帳簿を取りに行って打ち直す時間を、毎週来る人と仕組みで減らし、顧問先の相談に戻せます。<span class="fee-promise">減らなければ0円。</span></p>
+    <p>freee会計、マネーフォワード、弥生会計。今のソフトを使いながら、資料回収や入力の手間を減らすIT担当者を、経験と通える曜日で選べます。<span class="fee-promise">減らなければ0円。</span></p>
     <div class="actions">
       <a class="action" href="{{ url_for('auth.account' if signed_in else 'auth.login') }}">{{ 'マイページを開く' if signed_in else 'ログインする' }}</a>
       {% if demo_available %}<a class="action quiet" href="{{ url_for('demo.enter') }}">デモで入る</a>{% else %}<a class="action quiet" href="{{ url_for('public.how') }}">しくみを見る</a>{% endif %}

@@ -45,7 +45,7 @@ def test_t32_bad_host(client: FlaskClient) -> None:
 def test_home_uses_local_styles(client: FlaskClient) -> None:
     response = client.get("/")
     assert response.status_code == 200
-    assert "税理士は、判断するだけ。" in response.get_data(as_text=True).replace(
+    assert "会計ソフトに詳しい人を探す" in response.get_data(as_text=True).replace(
         "<wbr>", ""
     )
     for phrase in (

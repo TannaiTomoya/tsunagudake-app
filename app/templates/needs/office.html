@@ -2,6 +2,11 @@
 {% set progress_step = 1 %}
 {% block content %}
 <h1>{{ heading }}</h1>
+<section class="match-intake">
+  <h2>会計業務をIT担当者に相談する</h2>
+  <p>使っているソフトと頼みたい作業から、通える人を探せます。</p>
+  <p><strong>利用ソフト　{{ software_name }}</strong> · <a href="{{ url_for('auth.office_profile', office_id=office.id, _anchor='software') }}">プロフィールで確認する</a></p>
+</section>
 <h2>困りごと</h2>
 {% if can_write %}<p><a href="{{ url_for('needs.new', office_id=office.id) }}" role="button">困りごとを書く</a></p>{% endif %}
 {% if items %}

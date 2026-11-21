@@ -5,7 +5,9 @@
 {% block content %}
 <p><a href="{{ url_for('needs.detail', office_id=office.id, need_id=need.id) }}">困りごとに戻る</a></p>
 <h1>候補と理由</h1>
-<p>声をかける人を選ぶのは代表です。</p>
+<div class="match-intake"><p><strong>利用ソフト　{{ software_name }}</strong> · <a href="{{ url_for('auth.office_profile', office_id=office.id, _anchor='software') }}">設定を確認</a></p>
+<p>相談内容　{{ need.body | truncate(100) }}</p></div>
+<p>ソフトの経験と通える曜日を比較して、代表が声をかける人を選びます。</p>
 {% if error %}<p role="alert">{{ error }}</p>{% endif %}
 <div class="screen-columns">
 <section class="reading-pane">
@@ -18,7 +20,7 @@
     <tbody>{% for candidate, talent, name, town in candidates %}
     <tr>
       <td data-numeric data-label="順位">{{ candidate.rank }}</td>
-      <td data-label="表示名・所属">{{ name }}（{{ town }}）<br><small>所属：{{ affiliations[talent.affiliation] }}</small></td>
+      <td data-label="表示名・所属">{{ name }}（{{ town }}）<br><small>所属：{{ affiliations[talent.affiliation] }}</small><br><small>確認済みのソフト・道具：{{ verified_tools.get(talent.id, []) | join("、") or "未確認" }}</small></td>
       <td data-label="簿記">{{ talent.bookkeeping_level ~ "級" if talent.level_verified_at and talent.bookkeeping_level != "none" else "—" }}</td>
       <td data-label="理由">{% if run.rules_version not in ("1.0.0", "1.0.1") and talent.translation_verified_at %}<p>確認の一文が書けます（翻訳課題合格）。</p>{% endif %}<ul>{% for reason in candidate.reasons %}<li>{{ reason }}</li>{% endfor %}</ul></td>
       <td data-numeric data-label="点数">{{ candidate.score }}</td><td data-label="状態"><span class="{{ 'seal' if candidate.status == 'accepted' else 'state' }}" data-status="{{ candidate.status }}">{{ labels[candidate.status] }}</span></td>
@@ -44,7 +46,7 @@
     <details{% if selected_candidate_id == candidate.id %} open{% endif %}>
       <summary>{{ name }}さんに声をかける</summary>
       {% if days %}
-      <form method="post" action="{{ url_for('matching.invitation', office_id=office.id, need_id=need.id, candidate_id=candidate.id) }}">
+      <form method="post" data-estimate-form data-rate="{{ office.hourly_rate_yen }}" data-default-hours="{{ suggested_hours }}" action="{{ url_for('matching.invitation', office_id=office.id, need_id=need.id, candidate_id=candidate.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label for="weekday-{{ candidate.id }}">曜日</label>
         <select id="weekday-{{ candidate.id }}" name="weekday" required>
@@ -54,17 +56,19 @@
         <label for="share-{{ candidate.id }}">{{ form.share_percent.label.text }}</label>
         {{ form.share_percent(id="share-" ~ candidate.id, min=1, max=49, step=1, required=true, **{"aria-describedby": "share-hint-" ~ candidate.id}) }}
         <small id="share-hint-{{ candidate.id }}">50%未満</small>
-        <label for="hours-{{ candidate.id }}">減る時間の見込み（月）</label>
-        {{ form.estimate_hours(id="hours-" ~ candidate.id, min=0, max=need.monthly_hours, placeholder=(need.monthly_hours * 35 // 100)) }}
-        <small>空欄なら今かかる時間の35%で見積もります。料金は事務所が実際に確かめた時間で決まります。</small>
-        <label for="cap-{{ candidate.id }}">{{ form.cap_yen.label.text }}</label>
-        {{ form.cap_yen(id="cap-" ~ candidate.id, min=0) }}
+        <label for="hours-{{ candidate.id }}">月に減らせそうな時間（時間）</label>
+        {{ form.estimate_hours(id="hours-" ~ candidate.id, min=0, max=max_estimate_hours, step=1, required=not suggested_hours, placeholder="例：30", **{"aria-describedby": "hour-guide-" ~ candidate.id}) }}
+        <small id="hour-guide-{{ candidate.id }}">相談時の作業時間は月{{ need.monthly_hours }}時間です。見積もりは今の見通しで0〜{{ max_estimate_hours }}時間を入力できます。{% if suggested_hours %}空欄なら参考値の{{ suggested_hours }}時間で計算します。{% endif %}</small>
+        <label for="cap-{{ candidate.id }}">月の支払上限額（円・任意）</label>
+        {{ form.cap_yen(id="cap-" ~ candidate.id, min=0, placeholder="例：30000") }}
+        <small>空欄は上限なし、0円なら見積額も0円です。</small>
+        <p class="estimate-preview" hidden>月の見積額 <output aria-live="polite"></output></p>
         <button type="submit" class="secondary outline">見積書を添えて声をかける</button>
       </form>
       {% else %}<p>双方が通える曜日がありません。候補を出し直してください。</p>{% endif %}
     </details>
     {% elif candidate.status == "invited" %}
-    {% with invitation=candidate %}{% include "matching/estimate.html" %}{% endwith %}
+    {% with invitation=candidate, recipient=name, categories=estimate_categories %}{% include "matching/estimate.html" %}{% endwith %}
     <form method="post" action="{{ url_for('matching.cancel_invitation', office_id=office.id, need_id=need.id, candidate_id=candidate.id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="secondary outline">{{ name }}さんへの声かけを取り消す</button>

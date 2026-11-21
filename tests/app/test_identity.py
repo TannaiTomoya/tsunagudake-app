@@ -1351,3 +1351,48 @@ def test_t46_agreement_uses_rate_from_sent_estimate(identity_app: Flask) -> None
     with identity_app.app_context():
         agreement = db.session.scalar(select(Engagement))
         assert agreement and agreement.hourly_rate_yen == 4000
+        saved_id = agreement.id
+    for viewer, prefix in ((talent, "/t"), (office, "/o/1")):
+        page = viewer.get(f"{prefix}/engagements/{saved_id}").get_data(as_text=True)
+        assert "声かけ時の見積書を見る・印刷する" in page and "8,000円" in page
+
+
+@pytest.mark.parametrize(("hours", "total"), [("0", 0), ("30", 30000), ("400", 30000)])
+def test_estimate_for_revised_scope_on_one_hour_need(
+    identity_app: Flask, hours: str, total: int
+) -> None:
+    _seed_candidates(identity_app)
+    office = identity_app.test_client()
+    sign_in(office, "office@example.org")
+    path, candidates = _publish_and_generate(office)
+    with identity_app.app_context():
+        need = db.session.get(Need, int(path.split("/")[-1]))
+        assert need
+        need.monthly_hours = 1
+        db.session.commit()
+    first = _ranks(identity_app)[0][0]
+    page = office.get(candidates).get_data(as_text=True)
+    assert re.search(r'<input[^>]+max="400"[^>]+name="estimate_hours"', page)
+    invite_url = f"{candidates}/{first}/invite"
+    data = {**_offer_data(token(office, candidates)), "cap_yen": "30000"}
+    assert office.post(invite_url, data=data).status_code == 409
+    for invalid in ("-1", "401"):
+        assert (
+            office.post(
+                invite_url, data={**data, "estimate_hours": invalid}
+            ).status_code
+            == 422
+        )
+    assert (
+        office.post(invite_url, data={**data, "estimate_hours": hours}).status_code
+        == 302
+    )
+    html = office.get(candidates).get_data(as_text=True)
+    assert 'aria-label="月額の計算内訳"' in html and f"{total:,}円" in html
+    with identity_app.app_context():
+        offer = db.session.get(MatchCandidate, first)
+        assert (
+            offer
+            and offer.estimate_hours == int(hours)
+            and offer.estimate_total == total
+        )
