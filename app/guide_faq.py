@@ -244,6 +244,56 @@ SCREEN_KEYS: dict[str, tuple[str, ...]] = {
 }
 
 
+@dataclass(frozen=True)
+class Topic:
+    key: str
+    label: str
+    faq_keys: tuple[str, ...]
+
+
+# 自分の言葉で聞くときは、先に話題を選ぶ。探す・外に渡すのは、その話題の答えだけ。
+TOPICS: tuple[Topic, ...] = (
+    Topic(
+        "write",
+        "困りごとの書き方",
+        ("what", "write", "need_example", "names", "blocked", "publish"),
+    ),
+    Topic(
+        "time_money",
+        "時間とお金",
+        (
+            "need_hours",
+            "zero",
+            "fee",
+            "example",
+            "cap",
+            "value",
+            "reduced",
+            "returned",
+            "visit",
+            "operator",
+        ),
+    ),
+    Topic(
+        "connector",
+        "つなぎ手",
+        ("who", "score", "excluded", "connector", "tax", "pledge", "decline"),
+    ),
+    Topic(
+        "ledger",
+        "台帳と安全",
+        ("ledger", "data", "region", "masked", "demo", "masu"),
+    ),
+)
+TOPIC_BY_KEY = {topic.key: topic for topic in TOPICS}
+TOPIC_FAQS: dict[str, tuple[Faq, ...]] = {
+    topic.key: tuple(BY_KEY[key] for key in topic.faq_keys) for topic in TOPICS
+}
+TOPIC_REQUIRED = "先に話題を選んでから、聞いてください。"
+assert sorted(key for topic in TOPICS for key in topic.faq_keys) == sorted(BY_KEY)
+assert len(TOPIC_REQUIRED) <= ANSWER_LIMIT
+
+
 def _normalize(text: str) -> str:
     folded = unicodedata.normalize("NFKC", text).lower()
     return "".join(letter for letter in folded if letter.isalnum())
@@ -276,15 +326,33 @@ def answer_key(key: str) -> Reply:
 TAX_HINTS = ("税", "申告", "控除", "経費", "仕訳")
 
 
-def nearest(question: str, count: int = 3) -> tuple[Faq, ...]:
-    """質問に近い、用意した質問と答えを、近い順に返す。"""
+def topics() -> tuple[Topic, ...]:
+    """自分の言葉で聞くときに選ぶ話題。"""
+    return TOPICS
+
+
+def faqs_in_topic(topic: str | None) -> tuple[Faq, ...] | None:
+    """話題ごとの用意した答え。知らない話題は None。"""
+    if not topic:
+        return None
+    return TOPIC_FAQS.get(topic)
+
+
+def nearest(question: str, count: int = 3, topic: str | None = None) -> tuple[Faq, ...]:
+    """質問に近い、用意した質問と答えを、近い順に返す。
+
+    話題を渡したときは、その話題の答えだけを材料にする。
+    """
+    pool = faqs_in_topic(topic) if topic is not None else FAQS
+    if not pool:
+        return ()
     pairs = _pairs(_normalize(question[:QUESTION_LIMIT]))
 
     def score(faq: Faq) -> float:
         target = _pairs(_normalize(faq.question))
         return len(pairs & target) / (len(pairs) + len(target) or 1)
 
-    return tuple(sorted(FAQS, key=score, reverse=True)[:count])
+    return tuple(sorted(pool, key=score, reverse=True)[:count])
 
 
 def may_send_out(question: str, taxwork: tuple[str, ...] = ()) -> bool:
@@ -294,19 +362,25 @@ def may_send_out(question: str, taxwork: tuple[str, ...] = ()) -> bool:
     return bool(text) and not any(_normalize(word) in text for word in words)
 
 
-def answer_text(question: str, taxwork: tuple[str, ...] = ()) -> Reply:
+def answer_text(
+    question: str, taxwork: tuple[str, ...] = (), topic: str | None = None
+) -> Reply:
     """自由に打たれた質問に、いちばん近い用意した答えを返す。
 
     税理士の仕事にあたる言葉（taxwork）があれば、探す前に止める。
+    話題を渡したときは、その話題の答えだけを探す。話題が無い・知らないときは、探さない。
     """
     text = _normalize(question[:QUESTION_LIMIT])
     if not text:
         return Reply("none", NO_ANSWER)
     if any(_normalize(word) in text for word in taxwork):
         return Reply("boundary", BOUNDARY_ANSWER, "tax")
+    pool = faqs_in_topic(topic)
+    if pool is None:
+        return Reply("none", TOPIC_REQUIRED)
     pairs = _pairs(text)
     best: tuple[float, Faq] | None = None
-    for faq in FAQS:
+    for faq in pool:
         target = _pairs(_normalize(faq.question))
         overlap = 2 * len(pairs & target) / (len(pairs) + len(target) or 1)
         hits = sum(1 for word in faq.words if _normalize(word) in text)

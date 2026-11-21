@@ -381,12 +381,13 @@ def answer_question(
     """用意した答えに無い質問に、近い答えをもとにした答えを作る。
 
     `known` は、あらかじめ書いた質問と答え（公開している文）。
-    同じ質問には、外を呼ばずに前の答えを返す。
+    同じ質問を同じ材料で聞いたときだけ、外を呼ばずに前の答えを返す。
+    材料（選んだ話題の答え）が違えば、同じ文でも別の質問として扱う。
     """
-    key = hashlib.sha256(redact(question).encode()).hexdigest()
+    context = "\n".join(f"問：{asked}\n答：{answer}" for asked, answer in known)
+    key = hashlib.sha256(f"{redact(question)}\n{context}".encode()).hexdigest()
     if key in _answers:
         return _answers[key]
-    context = "\n".join(f"問：{asked}\n答：{answer}" for asked, answer in known)
     written = _write(
         AiPurpose.QUESTION,
         f"{QUESTION_SYSTEM}\n用意した答え：\n{context}",

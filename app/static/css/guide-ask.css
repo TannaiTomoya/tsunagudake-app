@@ -28,6 +28,14 @@
   white-space: normal;
 }
 .guide-ask-free label { display: block; margin: 0; font-size: .88rem; color: var(--muted); }
+.guide-ask-topic { margin-bottom: .45rem; }
+.guide-ask-topic select {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: .25rem;
+  font-size: 1rem;
+}
 .guide-ask-row { display: flex; gap: .4rem; margin-top: .25rem; }
 .guide-ask-row input { flex: 1; min-width: 0; min-height: 44px; margin: 0; font-size: 1rem; }
 .guide-ask-row button { width: auto; min-height: 44px; margin: 0; padding: 0 1rem; white-space: nowrap; }

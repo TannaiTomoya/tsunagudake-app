@@ -6,7 +6,13 @@ from test_identity import _agree, sign_in, token
 from test_identity import identity_app as identity_app
 
 from app.extensions import db
-from app.guide_faq import BOUNDARY_ANSWER, NO_ANSWER, may_send_out, nearest
+from app.guide_faq import (
+    BOUNDARY_ANSWER,
+    NO_ANSWER,
+    TOPIC_FAQS,
+    may_send_out,
+    nearest,
+)
 from app.models import (
     AiOutcome,
     AiPurpose,
@@ -125,10 +131,19 @@ def test_t65_message_draft_fills_the_box_and_a_person_sends(
     assert len(_runs(app)) == 2
 
 
-def _ask(client: FlaskClient, question: str, page: str = "/account") -> dict[str, str]:
+def _ask(
+    client: FlaskClient,
+    question: str,
+    page: str = "/account",
+    topic: str = "write",
+) -> dict[str, str]:
     response = client.post(
         "/guide/ask",
-        data={"csrf_token": token(client, page), "question": question},
+        data={
+            "csrf_token": token(client, page),
+            "topic": topic,
+            "question": question,
+        },
         headers={"Accept": "application/json"},
     )
     assert response.status_code == 200
@@ -153,26 +168,30 @@ def test_t65_free_question_goes_out_only_when_signed_in_and_safe(
     client = app.test_client()
     assert sign_in(client, "office@example.org") == 302
     # 用意した答えがあれば、それを返す。税務の言葉がある質問は、送らない。
-    assert _ask(client, "料金はいくらですか")["kind"] == "faq"
-    assert _ask(client, "税務相談はできますか")["answer"] == BOUNDARY_ANSWER
+    assert _ask(client, "料金はいくらですか", topic="time_money")["kind"] == "faq"
+    assert _ask(client, "税務相談はできますか", topic="connector")["answer"] == (
+        BOUNDARY_ANSWER
+    )
     for taxing in ("この経費は落とせますか", "控除のことを教えて", "しんこく 申告"):
         assert not may_send_out(taxing)
-        assert _ask(client, taxing)["kind"] != "auto"
+        assert _ask(client, taxing, topic="time_money")["kind"] != "auto"
     assert not may_send_out("") and not may_send_out("ぜいむ", ("ぜいむ",))
     assert sent == [] and _runs(app) == []
 
     # 用意した答えに無い質問だけ、伏せてから聞く。「自動で作った答え」と書いて返す。
-    reply = _ask(client, question)
+    # 材料は、選んだ話題の答えだけ。
+    reply = _ask(client, question, topic="write")
     assert reply["kind"] == "auto"
     assert reply["answer"] == ai.AUTO_ANSWER + ai.FAKE_REPLIES[AiPurpose.QUESTION]
     (system, text) = sent[0]
     assert "〈伏せ〉" in text and "食べますか" in text
     for secret in ("田中", "090", "1234", "架空利用者", "架空事務所"):
         assert secret not in text and secret not in system
-    # 一緒に送るのは、公開している「用意した答え」の近いもの3つだけ。
     assert system.startswith(ai.QUESTION_SYSTEM) and system.count("問：") == 3
-    for faq in nearest(question):
+    for faq in nearest(question, topic="write"):
         assert faq.answer in system
+    for faq in TOPIC_FAQS["time_money"]:
+        assert faq.answer not in system
     (run,) = _runs(app)
     assert (run.purpose, run.office_id, run.actor_user_id) == (
         AiPurpose.QUESTION,
@@ -182,19 +201,35 @@ def test_t65_free_question_goes_out_only_when_signed_in_and_safe(
     assert run.result is None and run.need_id is None
 
     # 同じ質問には、外を呼ばずに前の答えを返す。
-    assert _ask(client, question) == reply
+    assert _ask(client, question, topic="write") == reply
     assert len(sent) == 1 and len(_runs(app)) == 1
 
+    # 同じ文でも、話題が違えば前の答えを使い回さない。材料はその話題の答えだけ。
+    assert _ask(client, question, topic="ledger")["kind"] == "auto"
+    assert len(sent) == 2 and len(_runs(app)) == 2
+    (system, _) = sent[1]
+    for faq in nearest(question, topic="ledger"):
+        assert faq.answer in system
+    for faq in TOPIC_FAQS["write"]:
+        assert faq.answer not in system
+
     # JavaScript が無いときの画面にも、同じ答えが出る。
-    form = {"csrf_token": token(client, "/account"), "question": question}
+    form = {
+        "csrf_token": token(client, "/account"),
+        "topic": "write",
+        "question": question,
+    }
     page = client.post("/guide/ask", data=form).get_data(as_text=True)
     assert ai.AUTO_ANSWER in page and 'data-kind="auto"' in page
 
     # off では、これまでどおり用意した答えだけ。
     app.config["AI_DRIVER"] = "off"
     _never(monkeypatch)
-    assert _ask(client, "まったく別の、あたらしい質問です")["answer"] == NO_ANSWER
-    assert len(_runs(app)) == 1
+    assert (
+        _ask(client, "まったく別の、あたらしい質問です", topic="write")["answer"]
+        == NO_ANSWER
+    )
+    assert len(_runs(app)) == 2
 
 
 def _summary(client: FlaskClient, office_path: str, month: str) -> tuple[int, str]:

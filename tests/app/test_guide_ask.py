@@ -14,8 +14,13 @@ from app.guide_faq import (
     FAQS,
     NO_ANSWER,
     SCREEN_KEYS,
+    TOPIC_BY_KEY,
+    TOPIC_FAQS,
+    TOPIC_REQUIRED,
+    TOPICS,
     answer_key,
     answer_text,
+    nearest,
     suggestions,
 )
 from tsunagu_rules.translation import load_dictionary
@@ -62,37 +67,64 @@ def test_every_screen_offers_three_known_questions() -> None:
 
 
 @pytest.mark.parametrize(
-    ("question", "key"),
+    ("question", "topic", "key"),
     [
-        ("減らなかったらどうなるの", "zero"),
-        ("料金はいくらですか", "fee"),
-        ("点数の決め方を知りたい", "score"),
-        ("台帳は書き換えられますか？", "ledger"),
-        ("困りごとの例が浮かばない", "need_example"),
-        ("時間がわからない", "need_hours"),
-        ("顧問先のデータを持ち出しませんか", "data"),
+        ("減らなかったらどうなるの", "time_money", "zero"),
+        ("料金はいくらですか", "time_money", "fee"),
+        ("点数の決め方を知りたい", "connector", "score"),
+        ("台帳は書き換えられますか？", "ledger", "ledger"),
+        ("困りごとの例が浮かばない", "write", "need_example"),
+        ("時間がわからない", "time_money", "need_hours"),
+        ("顧問先のデータを持ち出しませんか", "ledger", "data"),
     ],
 )
 def test_free_question_finds_the_nearest_prepared_answer(
-    question: str, key: str
+    question: str, topic: str, key: str
 ) -> None:
-    first = answer_text(question)
+    first = answer_text(question, topic=topic)
     assert (first.kind, first.key) == ("faq", key)
-    assert answer_text(question) == first
+    assert answer_text(question, topic=topic) == first
+
+
+def test_every_faq_belongs_to_exactly_one_topic() -> None:
+    assert len(TOPICS) == 4
+    assert set(TOPIC_BY_KEY) == {"write", "time_money", "connector", "ledger"}
+    claimed = [key for topic in TOPICS for key in topic.faq_keys]
+    assert sorted(claimed) == sorted(BY_KEY)
+    assert len(claimed) == len(set(claimed)) == len(FAQS)
+
+
+def test_same_question_stays_inside_the_chosen_topic() -> None:
+    question = "料金はいくらですか"
+    hit = answer_text(question, topic="time_money")
+    assert (hit.kind, hit.key) == ("faq", "fee")
+    for other in ("write", "connector", "ledger"):
+        miss = answer_text(question, topic=other)
+        assert miss.kind == "none"
+        assert miss.answer == NO_ANSWER
+        assert miss.key is None
+        for faq in nearest(question, topic=other):
+            assert faq.key in {item.key for item in TOPIC_FAQS[other]}
+            assert faq.key != "fee"
 
 
 def test_unrelated_or_empty_question_has_no_answer() -> None:
+    assert answer_text("料金はいくらですか").answer == TOPIC_REQUIRED
+    assert answer_text("料金はいくらですか", topic="unknown").answer == TOPIC_REQUIRED
     for question in ("", "   ", "今日の天気を教えて", "x" * 400):
-        reply = answer_text(question)
+        reply = answer_text(question, topic="write")
         assert (reply.kind, reply.answer, reply.key) == ("none", NO_ANSWER, None)
     assert answer_key("missing").kind == "none"
 
 
 def test_tax_judgement_is_stopped_before_matching() -> None:
     taxwork = load_dictionary().taxwork
-    reply = answer_text("料金の中で申告書の作成もお願いできますか", taxwork)
+    reply = answer_text(
+        "料金の中で申告書の作成もお願いできますか", taxwork, topic="time_money"
+    )
     assert (reply.kind, reply.answer) == ("boundary", BOUNDARY_ANSWER)
-    assert answer_text("料金はいくらですか", taxwork).kind == "faq"
+    assert answer_text("料金はいくらですか", taxwork, topic="time_money").kind == "faq"
+    assert answer_text("申告書の作成は頼めますか", taxwork).kind == "boundary"
 
 
 def test_guide_shows_voices_and_questions_without_javascript(app: Flask) -> None:
@@ -103,7 +135,9 @@ def test_guide_shows_voices_and_questions_without_javascript(app: Flask) -> None
         response.headers["Content-Security-Policy"]
         == "default-src 'self'; frame-ancestors 'none'"
     )
-    assert re.findall(r'<option value="(\w+)">', html) == list(VOICES)
+    voice = re.search(r'<select aria-label="案内役の声">(.*?)</select>', html, re.S)
+    assert voice
+    assert re.findall(r'<option value="(\w+)">', voice.group(1)) == list(VOICES)
     for name in ("guide-voice.js", "guide.js", "guide-ask.js"):
         assert f'<script defer src="/static/js/{name}"></script>' in html
         assert client.get(f"/static/js/{name}").status_code == 200
@@ -113,6 +147,12 @@ def test_guide_shows_voices_and_questions_without_javascript(app: Flask) -> None
     for faq in suggestions("public.index"):
         assert f'value="{faq.key}"' in html
         assert faq.question in html
+    assert "先に話題を選んでください。" in html
+    assert 'name="topic"' in html
+    assert html.count("<option") >= 5
+    for topic in TOPICS:
+        assert f'value="{topic.key}"' in html
+        assert topic.label in html
     assert "顧問先の名前と金額は書かないでください。" in html
     assert 'maxlength="100"' in html
 
@@ -147,6 +187,7 @@ def test_free_question_is_answered_and_not_echoed_in_json(app: Flask) -> None:
         data={
             "csrf_token": _token(client),
             "screen": "<script>",
+            "topic": "time_money",
             "question": "申告書の作成は頼めますか",
         },
         headers={"Accept": "application/json"},
@@ -159,6 +200,21 @@ def test_free_question_is_answered_and_not_echoed_in_json(app: Flask) -> None:
     ]
 
 
+def test_free_question_without_topic_asks_to_choose(app: Flask) -> None:
+    client = app.test_client()
+    response = client.post(
+        "/guide/ask",
+        data={
+            "csrf_token": _token(client),
+            "screen": "public.index",
+            "question": "料金はいくらですか",
+        },
+        headers={"Accept": "application/json"},
+    )
+    body = response.get_json()
+    assert (body["kind"], body["answer"]) == ("none", TOPIC_REQUIRED)
+
+
 def test_answer_page_works_without_javascript(app: Flask) -> None:
     client = app.test_client()
     response = client.post(
@@ -166,6 +222,7 @@ def test_answer_page_works_without_javascript(app: Flask) -> None:
         data={
             "csrf_token": _token(client),
             "screen": "public.index",
+            "topic": "write",
             "question": "<b>今日の天気</b>",
         },
     )
@@ -175,6 +232,7 @@ def test_answer_page_works_without_javascript(app: Flask) -> None:
     assert "<b>今日の天気</b>" not in html
     assert "&lt;b&gt;今日の天気&lt;/b&gt;" in html
     assert html.count('name="faq"') == 3
+    assert 'value="write" selected' in html or "selected>困りごとの書き方" in html
 
 
 def test_ask_requires_csrf_token_and_post(monkeypatch: pytest.MonkeyPatch) -> None:
