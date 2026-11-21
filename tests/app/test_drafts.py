@@ -204,6 +204,15 @@ def test_t65_free_question_goes_out_only_when_signed_in_and_safe(
     assert _ask(client, question, topic="write") == reply
     assert len(sent) == 1 and len(_runs(app)) == 1
 
+    # 同じ文でも、話題が違えば前の答えを使い回さない。材料はその話題の答えだけ。
+    assert _ask(client, question, topic="ledger")["kind"] == "auto"
+    assert len(sent) == 2 and len(_runs(app)) == 2
+    (system, _) = sent[1]
+    for faq in nearest(question, topic="ledger"):
+        assert faq.answer in system
+    for faq in TOPIC_FAQS["write"]:
+        assert faq.answer not in system
+
     # JavaScript が無いときの画面にも、同じ答えが出る。
     form = {
         "csrf_token": token(client, "/account"),
@@ -220,7 +229,7 @@ def test_t65_free_question_goes_out_only_when_signed_in_and_safe(
         _ask(client, "まったく別の、あたらしい質問です", topic="write")["answer"]
         == NO_ANSWER
     )
-    assert len(_runs(app)) == 1
+    assert len(_runs(app)) == 2
 
 
 def _summary(client: FlaskClient, office_path: str, month: str) -> tuple[int, str]:
