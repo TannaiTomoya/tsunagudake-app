@@ -421,7 +421,9 @@ def test_demo_weekdays_and_candidate_specific_choices(
     page = generate_for([1, 2])
     forms = dict(
         re.findall(
-            r'<form method="post" action="([^"]+/invite)">(.*?)</form>', page, re.S
+            r'<form method="post"[^>]* action="([^"]+/invite)"[^>]*>(.*?)</form>',
+            page,
+            re.S,
         )
     )
     by_day = {}

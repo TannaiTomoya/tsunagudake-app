@@ -57,9 +57,11 @@ from app.services.checkin import (
 )
 from app.services.municipalities import chosen_prefecture, prefectures, towns_in
 from app.services.office import (
+    ACCOUNTING_SOFTWARE,
     OfficeNotFound,
     OfficeProfileError,
     save_client_count,
+    save_software,
 )
 from app.services.region import dashboard_for
 from app.services.routes import (
@@ -235,6 +237,9 @@ def office_home(office_id: int) -> str:
     ).all()
     return render_template(
         "needs/office.html",
+        software_name=ACCOUNTING_SOFTWARE.get(
+            office.software or "", office.software or "未設定"
+        ),
         heading=office.name,
         office=office,
         items=items,
@@ -250,10 +255,13 @@ def office_profile(office_id: int) -> ResponseReturnValue:
     user = cast(User, current_user)
     error = None
     if request.method == "POST":
-        # 直せるのは代表だけ。事務所は URL の所属から決め、画面からは数だけを受け取る。
+        # 所属する事務所の代表だけが、数と利用ソフトを別々に保存できる。
         office = require_office(office_id, owner_only=True)
         try:
-            save_client_count(office.id, user.id, request.form.get("client_count"))
+            if request.form.get("action") == "software":
+                save_software(office.id, user.id, request.form.get("software"))
+            else:
+                save_client_count(office.id, user.id, request.form.get("client_count"))
         except OfficeNotFound:
             abort(404)
         except OfficeProfileError as exc:
@@ -265,7 +273,7 @@ def office_profile(office_id: int) -> ResponseReturnValue:
     return _profile_page(
         office,
         error=error,
-        entered=request.form.get("client_count", "") if error else None,
+        entered=request.form.get("client_count") if error else None,
     )
 
 
@@ -297,6 +305,7 @@ def _profile_page(
     return (
         render_template(
             "auth/office_profile.html",
+            software_choices=ACCOUNTING_SOFTWARE,
             heading=office.name,
             office=office,
             town=town.name if town else "",
@@ -338,13 +347,15 @@ def office_location(office_id: int) -> ResponseReturnValue:
     )
 
 
-def _japan_day(moment: datetime | None) -> str:
+@bp.app_template_filter("japan_day")
+def _japan_day(moment: datetime | None, with_year: bool = False) -> str:
     if moment is None:
         return "—"
     if moment.tzinfo is None:
         moment = moment.replace(tzinfo=UTC)
     local = moment.astimezone(ZoneInfo("Asia/Tokyo"))
-    return f"{local.month}月{local.day}日({'月火水木金土日'[local.weekday()]})"
+    year = f"{local.year}年" if with_year else ""
+    return f"{year}{local.month}月{local.day}日({'月火水木金土日'[local.weekday()]})"
 
 
 @bp.route("/o/<int:office_id>/routes", methods=["GET", "POST"])
@@ -417,6 +428,7 @@ def talent_home() -> str:
     return render_template(
         "auth/talent_home.html",
         heading="信用台帳",
+        recipient=user.display_name,
         talent=talent,
         statuses=trust_statuses(talent, today) if talent is not None else (),
         today=today,

@@ -1,5 +1,5 @@
-<h2 id="checks">過去比較の件数</h2>
-<p>過去比較は、事務所のパソコンの中だけで動きます。ここに入るのは、件数だけです。印を見て決めるのは税理士です。</p>
+<h2 id="checks">試算表の比較結果（任意）</h2>
+<p>事務所のパソコンで今期と過去の試算表を比べたときに、税理士が確認する科目の数を共有します。比較をしていない訪問では入力不要です。</p>
 {% if checks %}
 <div class="overflow-auto statement-table" role="region" aria-label="過去比較の件数" tabindex="0"><table>
   <thead><tr><th scope="col">月</th><th scope="col" data-numeric>回数</th><th scope="col" data-numeric>比べた科目</th><th scope="col" data-numeric>印</th><th scope="col" data-numeric>比べられなかった科目</th></tr></thead>
@@ -12,19 +12,22 @@
 {% endif %}
 {% if activity.talent_writer and engagement.status != "ended" %}
 <details{% if check_error %} open{% endif %}>
-  <summary>件数を記録する</summary>
+  <summary>今回比べた試算表の結果を入力する</summary>
   {% if check_error %}<p role="alert">{{ check_error }}</p>{% endif %}
-  <p>道具（<code>tools/kako_hikaku.py</code>）の最後の行に出た、3つの数だけを入れてください。科目の名前・金額・顧問先の名前は書かないでください。あとから直せません。</p>
+  <p>比較ツールの結果の最終行を見て、今回1回分を入力してください。例「比べた科目 12・印 2・比べられなかった科目 1」なら、上から 12、2、1 です。</p>
+  <details><summary>パソコンで比較する方法</summary>
+    <p>つなぎ手が事務所のパソコンで <code>python tools/kako_hikaku.py 試算表.csv</code> を実行します。CSVはパソコン内に保管してください。</p>
+  </details>
   <form method="post" action="{{ url_for('matching.check_summary', engagement_id=engagement.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <label for="check-compared">比べた科目の数</label>
+    <label for="check-compared">今期と過去を比べた科目数</label>
     <input id="check-compared" name="compared" type="number" inputmode="numeric" min="0" max="9999" step="1" required>
-    <label for="check-flagged">印の数</label>
+    <label for="check-flagged">そのうち、過去の幅から外れて印が付いた科目数</label>
     <input id="check-flagged" name="flagged" type="number" inputmode="numeric" min="0" max="9999" step="1" required>
-    <label for="check-uncomparable">比べられなかった科目の数</label>
+    <label for="check-uncomparable">今期か過去の数字がなく、比較できなかった科目数</label>
     <input id="check-uncomparable" name="uncomparable" type="number" inputmode="numeric" min="0" max="9999" step="1" required aria-describedby="check-note">
-    <small id="check-note">過去の期が無い科目は、0として扱わず、ここに数えます。</small>
-    <button class="secondary outline" type="submit">件数を記録する</button>
+    <small id="check-note">科目名・金額・顧問先名は送りません。保存すると今月の集計に加わり、あとから直せません。</small>
+    <button class="secondary outline" type="submit">今月に比較1回分を記録する</button>
   </form>
 </details>
 {% endif %}

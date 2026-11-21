@@ -7,6 +7,10 @@
 {% if error %}<p role="alert">{{ error }}</p>{% endif %}
 <form method="post">
   {{ form.hidden_tag() }}
+  {% if original %}
+    <p role="status">AIの案を入力欄に入れました。内容を確かめて直してから保存してください。</p>
+    <details><summary>元の相談メモを見る</summary><p>{{ original }}</p></details>
+  {% endif %}
   {{ form.body.label }}
   <small id="body-note">顧問先の名前と金額は書かないでください。</small>
   {{ form.body(placeholder="例：毎月、紙の帳簿を取りに行っています。写真で受け取れるようにしたいです。", maxlength=1000, required=true, **{"aria-describedby": "body-note"}) }}
@@ -26,5 +30,16 @@
   {% endif %}
   {% if form.manual_kind.errors %}<p role="alert">一覧から型を選んでください。</p>{% endif %}
   <button type="submit">下書きを保存して翻訳する</button>
+  {% if not need_id %}
+  <section class="brief-assistant" aria-labelledby="brief-title">
+    <h2 id="brief-title">IT担当者への相談文を整える</h2>
+    {% if can_draft %}
+      <p id="brief-privacy">上の困りごとを使って外部AIが依頼文の案を作ります。押すと名前・金額・連絡先の形を伏せて送信します。顧問先の情報は入力しないでください。</p>
+      <button type="submit" class="secondary outline" name="action" value="draft-brief" formnovalidate aria-describedby="brief-privacy">AIで相談文の下書きを作る</button>
+    {% else %}
+      <p>現在は外部AIを利用できません。「今の作業」と「手伝ってほしいこと」を書けば、そのまま相談できます。</p>
+    {% endif %}
+  </section>
+  {% endif %}
 </form>
 {% endblock %}

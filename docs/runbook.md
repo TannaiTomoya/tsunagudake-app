@@ -474,6 +474,12 @@ mysql --login-path=restore-local tsunagudake_restore -e "$Q"
 
 事故に気づいたら、先に既存の控えを別の場所へ退避します。本番への復元は、アプリを止め、復元直前の状態も保存したうえで、人が行います。
 
+### 外部AIで相談の下書きを試す
+
+事務所の「困りごとを書く」にある「AIで相談文の下書きを作る」から使います。本人がメモを入力して押すと、伏せ字にしたメモを Claude Messages API に送り、返事を編集欄に戻します。「下書きを保存して翻訳する」を押すまで相談は保存されません。
+
+運営が試験利用を開始するときは、VPS のアプリ設定で `AI_DRIVER=claude`、利用できる `AI_MODEL`、`AI_API_KEY` を設定します。`AI_MONTHLY_LIMIT_YEN` は合意した試験予算（1,000円）、`AI_INPUT_YEN_PER_MTOK` と `AI_OUTPUT_YEN_PER_MTOK` は利用モデルの100万トークンあたりの円換算単価です。必要に応じて `AI_OFFICE_MONTHLY_LIMIT_YEN` で事務所別の上限を設定します。設定をサービスに反映したあと、架空の業務メモで下書きと手動保存を確認します。導入前と停止時は `AI_DRIVER=off` で相談を手入力できます。
+
 ### 通知メールの送信（段階16）
 
 本番では認証付き SMTP リレーを用意し、送信元ドメインの認証を配信元の手順で済ませます。VPS の `ubuntu` ユーザーで `~/.config/tsunagudake-mail/smtp.env` を権限600で用意し、`SMTP_HOST`、`SMTP_PORT`（省略時465）、`SMTP_FROM`、`SMTP_USERNAME`、`SMTP_PASSWORD` を設定します。

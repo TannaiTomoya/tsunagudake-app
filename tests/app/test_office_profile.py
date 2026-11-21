@@ -187,3 +187,27 @@ def test_t50_region_says_when_no_office_has_entered(profile_app: Flask) -> None:
     assert sign_in(town, "municipality@example.org") == 302
     section = _section(town.get("/r/00001/").get_data(as_text=True))
     assert "顧問先の数を入力した事務所は、まだありません" in section
+
+
+def test_software_is_owner_scoped_and_saved_independently(profile_app: Flask) -> None:
+    owner = profile_app.test_client()
+    sign_in(owner, "office@example.org")
+    csrf = token(owner, PROFILE)
+    owner.post(PROFILE, data={"csrf_token": csrf, "client_count": "42"})
+    data = {"csrf_token": csrf, "action": "software", "software": "freee"}
+    assert owner.post("/o/2/profile", data=data).status_code == 404
+    assert owner.post(PROFILE, data=data).status_code == 302
+    assert owner.post(PROFILE, data={**data, "software": "invalid"}).status_code == 422
+    assert _count(profile_app) == 42
+    assert "freee会計" in owner.get("/o/1/").get_data(as_text=True)
+    reader = profile_app.test_client()
+    sign_in(reader, "staff@example.org")
+    assert (
+        reader.post(
+            PROFILE, data={**data, "csrf_token": token(reader, PROFILE)}
+        ).status_code
+        == 403
+    )
+    with profile_app.app_context():
+        office = db.session.get(Office, 1)
+        assert office and office.software == "freee"

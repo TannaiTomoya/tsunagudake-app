@@ -1,8 +1,22 @@
 {% if invitation.estimate_total is not none %}
-<section class="print-document"><h3>見積書</h3>
-<p>{{ office_name if office_name is defined else office.name }}からの提案・声かけ番号 {{ invitation.id }}</p>
-<p>見込み {{ invitation.estimate_hours }}時間 × 時給 {{ "{:,}円".format(invitation.estimate_hourly_rate) }} × {{ "%g"|format(invitation.offer_fee_share_bp / 100) }}%{% if invitation.offer_fee_cap_yen is not none %}（上限 {{ "{:,}円".format(invitation.offer_fee_cap_yen) }}）{% endif %}</p>
-<p>月の見積額 <strong>{{ "{:,}円".format(invitation.estimate_total) }}</strong></p>
-<p>減らなければ0円です。支払額は月の明細で確定します。</p>
-<button class="secondary outline print-button" type="button">この見積書を印刷する</button></section>
+<section class="print-document estimate-sheet" aria-label="月の見積書">
+  <div class="estimate-header">
+    <h3>見積書</h3>
+    <p>声かけ番号 {{ invitation.id }}<br>発行日 {{ invitation.invited_at | japan_day(true) }}</p>
+  </div>
+  <div class="estimate-parties">
+    <p><small>提案先</small><strong>{{ recipient }} 様</strong></p>
+    <p><small>提案元</small>{{ office_name if office_name is defined else office.name }}</p>
+  </div>
+  <p><strong>対象業務</strong>　{{ categories | join("・") or "会計業務のIT支援" }}{% if invitation.offer_weekday is not none %}（毎週{{ "月火水木金土日"[invitation.offer_weekday] }}曜）{% endif %}</p>
+  <p class="estimate-total"><span>月の見積額</span><strong>{{ "{:,}円".format(invitation.estimate_total) }}</strong></p>
+  <table aria-label="月額の計算内訳"><caption>月額の計算内訳</caption><tbody>
+    <tr><th scope="row">減る時間の見込み</th><td>{{ invitation.estimate_hours }}時間／月</td></tr>
+    <tr><th scope="row">事務所の時給</th><td>{{ "{:,}円".format(invitation.estimate_hourly_rate) }}</td></tr>
+    <tr><th scope="row">料金の割合</th><td>{{ "%g"|format(invitation.offer_fee_share_bp / 100) }}%</td></tr>
+    <tr><th scope="row">月の支払上限額</th><td>{{ "{:,}円".format(invitation.offer_fee_cap_yen) if invitation.offer_fee_cap_yen is not none else "上限なし" }}</td></tr>
+  </tbody></table>
+  <p class="estimate-terms">見積額は、見込み時間 × 時給 × 料金の割合で計算し、月の上限額までとします。実際の支払額は事務所が確認した時間で決まります。減らなければ0円です。</p>
+  <button class="secondary outline print-button" type="button">この見積書を印刷する</button>
+</section>
 {% endif %}

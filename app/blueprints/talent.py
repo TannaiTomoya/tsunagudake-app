@@ -30,6 +30,7 @@ from app.models import (
     today_in_japan,
 )
 from app.services.municipalities import chosen_prefecture, prefectures, towns_in
+from app.services.office import ACCOUNTING_SOFTWARE
 from app.services.trust import (
     PLEDGE_TERMS,
     PLEDGE_VERSION,
@@ -43,11 +44,7 @@ from tsunagu_rules.types import NeedKind
 bp = Blueprint("talent", __name__, url_prefix="/t")
 
 TOOLS = {
-    "freee": "freee",
-    "mf": "マネーフォワード",
-    "yayoi": "弥生",
-    "excel": "Excel",
-    "sheets": "Google スプレッドシート",
+    **ACCOUNTING_SOFTWARE,
     "python": "Python",
     "other": "その他",
 }

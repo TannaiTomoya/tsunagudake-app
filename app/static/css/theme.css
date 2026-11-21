@@ -5,6 +5,9 @@
   --pico-icon-checkbox: url("../icons/check.svg");
   --pico-icon-chevron: url("../icons/chevron.svg");
   --pico-icon-date: url("../icons/calendar.svg");
+  --paper: white;
+  --paper-ink: black;
+  --paper-rule: #777;
   --canvas: #05070f;
   --rail: #080c18;
   --surface: #0b1020;

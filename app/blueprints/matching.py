@@ -39,6 +39,7 @@ from app.models import (
     Talent,
     TalentAffiliation,
     TalentSkill,
+    TalentSkillKind,
     User,
     today_in_japan,
     utc_now,
@@ -58,6 +59,7 @@ from app.services.checks import CheckConflict, CheckError, save_summary, totals_
 from app.services.engagement import END_REASONS, EngagementConflict, end_engagement
 from app.services.ledger import records_for_need
 from app.services.matching import (
+    MAX_ESTIMATE_HOURS,
     MatchConflict,
     Offer,
     cancel,
@@ -67,8 +69,10 @@ from app.services.matching import (
     respond,
 )
 from app.services.messages import unread_count
+from app.services.office import ACCOUNTING_SOFTWARE
 from app.services.trust import TrustConflict, verify_skill
 from tsunagu_rules.distance import NEAR_RADIUS_M
+from tsunagu_rules.value import estimate_value
 
 bp = Blueprint("matching", __name__)
 EXCLUSIONS = {
@@ -110,7 +114,7 @@ class OfferForm(FlaskForm):  # type: ignore[misc]
         validators=[InputRequired(), NumberRange(min=1, max=49)],
     )
     estimate_hours = IntegerField(
-        "減る時間の見込み", validators=[Optional(), NumberRange(0, 400)]
+        "減る時間の見込み", validators=[Optional(), NumberRange(0, MAX_ESTIMATE_HOURS)]
     )
     cap_yen = IntegerField(
         "月の上限（円、省略可）",
@@ -120,6 +124,15 @@ class OfferForm(FlaskForm):  # type: ignore[misc]
 
 def _actor() -> User:
     return cast(User, current_user)
+
+
+def _category_labels(need_id: int) -> list[str]:
+    selected = set(
+        db.session.scalars(
+            select(NeedTranslation.category).where(NeedTranslation.need_id == need_id)
+        )
+    )
+    return [label for kind, label in CATEGORIES.items() if kind in selected]
 
 
 def _candidate_page(
@@ -143,6 +156,26 @@ def _candidate_page(
             .order_by(MatchCandidate.rank)
         )
         candidates = list(db.session.execute(query))
+    verified_tools: dict[int, list[str]] = {}
+    if candidates:
+        skills = db.session.scalars(
+            select(TalentSkill)
+            .where(
+                TalentSkill.talent_id.in_(
+                    [talent.id for _, talent, _, _ in candidates]
+                ),
+                TalentSkill.kind == TalentSkillKind.TOOL,
+                TalentSkill.verified_at.is_not(None),
+            )
+            .order_by(TalentSkill.tag)
+        )
+        for skill in skills:
+            verified_tools.setdefault(skill.talent_id, []).append(
+                TOOLS.get(skill.tag, skill.tag)
+            )
+    suggested_hours = estimate_value(
+        need.monthly_hours, office.hourly_rate_yen
+    ).projected_hours[1]
     user = _actor()
     member_role = db.session.scalar(
         select(OfficeMember.member_role).where(
@@ -158,7 +191,16 @@ def _candidate_page(
         candidates=candidates,
         writable=user.role == Role.OFFICE and need.status == NeedStatus.PUBLISHED,
         owner=user.role == Role.OFFICE and member_role == MemberRole.OWNER,
-        offer_form=OfferForm(formdata=None),
+        offer_form=OfferForm(
+            formdata=None, data={"estimate_hours": suggested_hours or None}
+        ),
+        suggested_hours=suggested_hours,
+        max_estimate_hours=MAX_ESTIMATE_HOURS,
+        estimate_categories=_category_labels(need_id),
+        software_name=ACCOUNTING_SOFTWARE.get(
+            office.software or "", office.software or "未設定"
+        ),
+        verified_tools=verified_tools,
         submitted=submitted,
         selected_candidate_id=candidate_id,
         offer_days={
@@ -212,7 +254,9 @@ def invitation(office_id: int, need_id: int, candidate_id: int) -> ResponseRetur
                     need_id,
                     "料金の割合は1〜49の整数で入力してください。"
                     if form.share_percent.errors
-                    else "曜日と月の上限を確認してください。",
+                    else f"見込み時間は0〜{MAX_ESTIMATE_HOURS}の整数です。"
+                    if form.estimate_hours.errors
+                    else "曜日と月の上限額（円）を確認してください。",
                     candidate_id=candidate_id,
                     submitted=form,
                 ), 422
@@ -261,19 +305,10 @@ def talent_activity(
         .where(Talent.user_id == user_id)
         .order_by(Engagement.id)
     )
-    offers = []
-    for candidate, name, need_id in db.session.execute(invitations):
-        categories = db.session.scalars(
-            select(NeedTranslation.category).where(NeedTranslation.need_id == need_id)
-        )
-        selected = set(categories)
-        offers.append(
-            (
-                candidate,
-                name,
-                [label for kind, label in CATEGORIES.items() if kind in selected],
-            )
-        )
+    offers = [
+        (candidate, name, _category_labels(need_id))
+        for candidate, name, need_id in db.session.execute(invitations)
+    ]
     return offers, [
         (engagement, name) for engagement, name in db.session.execute(engagements)
     ]
@@ -320,6 +355,19 @@ def _engagement_page(
     checkin = checkin_on(engagement.id, today)
     ended = engagement.status == EngagementStatus.ENDED
     upcoming = engagement.next_visit_on
+    activity = activity_for(engagement, office_side=office_side)
+    estimate = None
+    if activity.owner or activity.talent_writer:
+        estimate = db.session.execute(
+            select(MatchCandidate, User.display_name)
+            .join(Talent, Talent.id == MatchCandidate.talent_id)
+            .join(User, User.id == Talent.user_id)
+            .where(
+                MatchCandidate.id == engagement.candidate_id,
+                MatchCandidate.talent_id == engagement.talent_id,
+                MatchCandidate.estimate_total.is_not(None),
+            )
+        ).one_or_none()
     return render_template(
         "matching/engagement.html",
         engagement=engagement,
@@ -331,7 +379,10 @@ def _engagement_page(
             .order_by(TalentSkill.kind, TalentSkill.tag)
         ).all(),
         tools=TOOLS,
-        activity=activity_for(engagement, office_side=office_side),
+        activity=activity,
+        sent_estimate=estimate,
+        office_name=office.name,
+        estimate_categories=_category_labels(need.id) if estimate else [],
         categories=CATEGORIES,
         returned_kinds=RETURNED_KINDS,
         end_reasons=END_REASONS,
