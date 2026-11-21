@@ -10,12 +10,20 @@
   <form class="guide-ask-form guide-ask-free" method="post" action="{{ url_for('guide.ask') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="screen" value="{{ ask_screen }}">
+    <label class="guide-ask-topic">話題
+      <select name="topic" required aria-describedby="guide-ask-note">
+        <option value="" {% if not ask_topic | default('') %}selected{% endif %} disabled>選んでください</option>
+        {% for topic in guide_topics() %}
+        <option value="{{ topic.key }}" {% if ask_topic | default('') == topic.key %}selected{% endif %}>{{ topic.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
     <label>自分の言葉で聞く
       <span class="guide-ask-row">
         <input type="text" name="question" maxlength="100" required autocomplete="off" aria-describedby="guide-ask-note">
         <button type="submit" class="secondary">聞く</button>
       </span>
     </label>
-    <small id="guide-ask-note">顧問先の名前と金額は書かないでください。用意した答えの中からお答えします。{% if signed_in and config.AI_DRIVER != "off" %}用意した答えに無いときは、名前・金額・連絡先の形を伏せてから外の AI に聞き、自動で作った答えをお見せすることがあります。{% endif %}</small>
+    <small id="guide-ask-note">先に話題を選んでください。顧問先の名前と金額は書かないでください。選んだ話題の用意した答えの中からお答えします。{% if signed_in and config.AI_DRIVER != "off" %}用意した答えに無いときは、その話題の答えだけを材料に、名前・金額・連絡先の形を伏せてから外の AI に聞き、自動で作った答えをお見せすることがあります。{% endif %}</small>
   </form>
 </div>

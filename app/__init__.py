@@ -62,9 +62,10 @@ def create_app(config: Mapping[str, Any] | None = None) -> Flask:
 
     app.register_blueprint(drafts_bp)
     from app.blueprints.guide import bp as guide_bp
-    from app.blueprints.guide import suggestions
+    from app.blueprints.guide import suggestions, topics
 
     app.register_blueprint(guide_bp)
     app.jinja_env.globals["guide_questions"] = suggestions
+    app.jinja_env.globals["guide_topics"] = topics
     init_cli(app)
     return app
