@@ -641,6 +641,11 @@ a:hover {
   color: var(--muted);
 }
 
+/* ボタンの下の注意書きは、ボタンの横に回り込ませない。 */
+button + small {
+  display: block;
+}
+
 .page dl {
   display: grid;
   grid-template-columns: auto 1fr;
