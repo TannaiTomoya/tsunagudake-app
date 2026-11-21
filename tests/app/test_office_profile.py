@@ -211,3 +211,19 @@ def test_software_is_owner_scoped_and_saved_independently(profile_app: Flask) ->
     with profile_app.app_context():
         office = db.session.get(Office, 1)
         assert office and office.software == "freee"
+
+
+def test_jdl_is_an_accounting_software_choice(profile_app: Flask) -> None:
+    owner = profile_app.test_client()
+    sign_in(owner, "office@example.org")
+    assert '<option value="jdl"' in owner.get(PROFILE).get_data(as_text=True)
+    data = {
+        "csrf_token": token(owner, PROFILE),
+        "action": "software",
+        "software": "jdl",
+    }
+    assert owner.post(PROFILE, data=data).status_code == 302
+    assert "JDL" in owner.get("/o/1/").get_data(as_text=True)
+    with profile_app.app_context():
+        office = db.session.get(Office, 1)
+        assert office and office.software == "jdl"

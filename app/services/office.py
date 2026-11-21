@@ -8,6 +8,7 @@ ACCOUNTING_SOFTWARE = {
     "freee": "freee会計",
     "mf": "マネーフォワード クラウド会計",
     "yayoi": "弥生会計",
+    "jdl": "JDL",
     "excel": "Excel",
     "sheets": "Google スプレッドシート",
 }

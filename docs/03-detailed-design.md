@@ -182,7 +182,7 @@ erDiagram
 | affiliation | 文字列(20) | ○ | `graduate`（修了生）／`kyoryokutai`（地域おこし協力隊）／`other`／`none` |
 | is_listed | 真偽 | ○ | 候補に出てよいか（本人が止められる） |
 
-**talent_skills**：`talent_id`・`kind`（`tool`／`strength`）・`tag`。`tool` の `tag` は `SkillTag`（`freee`・`mf`・`yayoi`・`excel`・`sheets`・`python`・`other`）、`strength` の `tag` は `NeedCategory`。組で一意。
+**talent_skills**：`talent_id`・`kind`（`tool`／`strength`）・`tag`。`tool` の `tag` は `SkillTag`（`freee`・`mf`・`yayoi`・`jdl`・`excel`・`sheets`・`python`・`other`）、`strength` の `tag` は `NeedCategory`。組で一意。
 
 **trust_items**（誓約と研修）
 | 項目 | 型 | 必須 | メモ |
