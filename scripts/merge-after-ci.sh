@@ -6,7 +6,8 @@ stop() { echo "$*" >&2; exit 1; }
 
 if [[ ${1:-} == --create ]]; then
     shift
-    pr=$(gh pr create -R "$repo" --base main "$@")
+    branch=$(git symbolic-ref --short HEAD)
+    pr=$(gh pr create -R "$repo" --base main --head "$branch" "$@")
     echo "$pr"
 elif [[ $# == 1 && $1 =~ ^[0-9]+$ ]]; then
     pr=$1
