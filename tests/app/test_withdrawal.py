@@ -1,27 +1,45 @@
 import json
+import time
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import timedelta
+from threading import Event, Thread
+from typing import Any
 
 import pytest
 from flask import Flask
 from flask.testing import FlaskClient
-from sqlalchemy import func, select
-from test_identity import PASSWORD, _agree, sign_in, token
+from sqlalchemy import func, select, text
+from test_identity import (
+    PASSWORD,
+    _agree,
+    _offer_data,
+    _publish_and_generate,
+    _ranks,
+    _seed_candidates,
+    sign_in,
+    token,
+)
 from test_identity import database_app as database_app
 from test_identity import identity_app as identity_app
 from test_identity import mysql_identity_app as mysql_identity_app
 
+from app.audit import record_audit
 from app.extensions import db
 from app.models import (
     AuditLog,
+    CandidateStatus,
     Engagement,
     EngagementStatus,
     LedgerRecord,
+    MatchCandidate,
     MemberRole,
     MunicipalityMember,
     Need,
     NeedStatus,
     Office,
     OfficeMember,
+    OutboxMail,
     Reduction,
     Role,
     Statement,
@@ -35,7 +53,10 @@ from app.models import (
     today_in_japan,
     utc_now,
 )
+from app.ratelimit import check_login
+from app.services import matching as matching_service
 from app.services.ledger import ledger_failures
+from app.services.mail import notify_user
 from app.services.withdrawal import WithdrawalBlocked, withdraw
 from tsunagu_rules.types import NeedKind
 
@@ -357,3 +378,269 @@ def test_t54_policy_drafts_are_public(
         assert word in page.get_data(as_text=True)
     home = identity_app.test_client().get("/").get_data(as_text=True)
     assert 'href="/privacy"' in home and 'href="/terms"' in home
+
+
+# ---- 退会と、声かけ・合意・通知が同時に走ったとき（MySQL だけ。#81） ----
+
+WAIT = 20
+OLD_ADDRESS = "tsunagite@example.org"
+INVITED_REASON = "返事を待っている声かけがあります"
+ENGAGED_REASON = "進行中の伴走があります"
+
+
+class _Gate:
+    """決めた関数の入口で1回だけ止め、合図で先へ進める。"""
+
+    def __init__(self) -> None:
+        self.reached = Event()
+        self.release = Event()
+        self._used = False
+
+    def wrap(self, original: Callable[..., Any]) -> Callable[..., Any]:
+        def inner(*args: Any, **kwargs: Any) -> Any:
+            if not self._used:
+                self._used = True
+                self.reached.set()
+                assert self.release.wait(WAIT), "合図が来ませんでした。"
+            return original(*args, **kwargs)
+
+        return inner
+
+
+def _spawn(work: Callable[[], Any]) -> tuple[Thread, dict[str, Any]]:
+    box: dict[str, Any] = {}
+
+    def run() -> None:
+        try:
+            box["result"] = work()
+        except Exception as error:
+            # 画面なら 500 になる所。種類だけを控える。
+            box["result"] = type(error).__name__
+
+    thread = Thread(target=run, daemon=True)
+    thread.start()
+    return thread, box
+
+
+def _until_someone_waits_for_a_lock(app: Flask) -> None:
+    """だれかが行のロックを待つまで待つ（時間ではなく、DB の状態で確かめる）。"""
+    query = text(
+        "SELECT COUNT(*) FROM performance_schema.data_lock_waits AS w "
+        "JOIN performance_schema.data_locks AS l "
+        "ON l.ENGINE_LOCK_ID = w.REQUESTING_ENGINE_LOCK_ID "
+        "WHERE l.OBJECT_SCHEMA = DATABASE()"
+    )
+    with app.app_context():
+        engine = db.engine
+    deadline = time.monotonic() + WAIT
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as probe:
+        while not probe.scalar(query):
+            assert time.monotonic() < deadline, "ロックを待つ処理がありませんでした。"
+            time.sleep(0.02)
+
+
+@dataclass(frozen=True)
+class _Race:
+    app: Flask
+    office: FlaskClient
+    talent: FlaskClient
+    match_path: str
+    candidate_id: int
+    talent_id: int
+    offer: dict[str, str]
+    leave: dict[str, str]
+
+    def invite(self) -> int:
+        path = f"{self.match_path}/{self.candidate_id}/invite"
+        return self.office.post(path, data=self.offer).status_code
+
+    def accept(self) -> int:
+        # 同じ人の、もう1つの画面から受ける。
+        other = self.app.test_client()
+        assert sign_in(other, OLD_ADDRESS) == 302
+        path = f"/t/invitations/{self.candidate_id}/accept"
+        form = {"csrf_token": token(other, "/t/")}
+        return other.post(path, data=form).status_code
+
+    def list_again(self) -> int:
+        form = {"csrf_token": self.offer["csrf_token"]}
+        return self.office.post(self.match_path, data=form).status_code
+
+    def notify(self) -> int:
+        with self.app.app_context():
+            user = db.session.get(User, 2)
+            assert user is not None
+            notify_user(user, "架空のお知らせ", "架空の本文です。")
+            db.session.commit()
+        return 302
+
+    def withdraw(self) -> tuple[int, str]:
+        response = self.talent.post(WITHDRAW, data=self.leave)
+        return response.status_code, response.get_data(as_text=True)
+
+    def after(self) -> dict[str, object]:
+        with self.app.app_context():
+            user = db.session.get(User, 2)
+            assert user is not None
+            return {
+                "active": user.is_active,
+                "candidates": sorted(
+                    db.session.scalars(
+                        select(MatchCandidate.status).where(
+                            MatchCandidate.talent_id == self.talent_id
+                        )
+                    )
+                ),
+                # 退会した人の元のアドレスあてに、送る前のメールが残っていないか。
+                "mail_to_old_address": db.session.scalar(
+                    select(func.count())
+                    .select_from(OutboxMail)
+                    .where(OutboxMail.recipient == OLD_ADDRESS)
+                ),
+                "ledger": list(
+                    db.session.scalars(
+                        select(LedgerRecord.kind).order_by(LedgerRecord.seq)
+                    )
+                ),
+                "ledger_failures": ledger_failures(),
+            }
+
+
+def _race(app: Flask) -> _Race:
+    """候補を出した所まで進める（声かけの直前）。"""
+    _seed_candidates(app)
+    office = app.test_client()
+    assert sign_in(office, "office@example.org") == 302
+    _, match_path = _publish_and_generate(office)
+    candidate_id, talent_id = _ranks(app)[0][:2]
+    with app.app_context():
+        person = db.session.get(Talent, talent_id)
+        assert person is not None and person.user_id == 2
+    talent = app.test_client()
+    assert sign_in(talent, OLD_ADDRESS) == 302
+    leave = {
+        "csrf_token": token(talent, "/account"),
+        "password": PASSWORD,
+        "confirm": "yes",
+    }
+    offer = _offer_data(token(office, match_path))
+    return _Race(app, office, talent, match_path, candidate_id, talent_id, offer, leave)
+
+
+INVITED = {
+    "active": True,
+    "candidates": [CandidateStatus.INVITED],
+    "mail_to_old_address": 1,
+    "ledger": ["published", "invited"],
+    "ledger_failures": [],
+}
+GONE = {
+    "active": False,
+    "candidates": [CandidateStatus.CLOSED],
+    "mail_to_old_address": 0,
+    "ledger": ["published"],
+    "ledger_failures": [],
+}
+
+
+@pytest.mark.parametrize(
+    ("steps", "status", "reason", "after"),
+    [
+        # 声かけが保存された直後：退会できない。声かけは、そのまま残る。
+        (("invite",), 409, INVITED_REASON, INVITED),
+        # 合意が保存された直後：退会できない。
+        (
+            ("invite", "accept"),
+            409,
+            ENGAGED_REASON,
+            {
+                **INVITED,
+                "candidates": [CandidateStatus.ACCEPTED],
+                "ledger": ["published", "invited", "agreed"],
+            },
+        ),
+        # 候補が出し直された直後：退会でき、新しい候補も終了になる。
+        (
+            ("list_again",),
+            200,
+            "退会しました",
+            {**GONE, "candidates": [CandidateStatus.CLOSED, CandidateStatus.CLOSED]},
+        ),
+        # 通知が積まれた直後：退会でき、元のアドレスあてのメールは残らない。
+        (("notify",), 200, "退会しました", GONE),
+    ],
+)
+def test_t54_mysql_withdrawal_reads_what_was_saved_a_moment_before(
+    mysql_identity_app: Flask,
+    monkeypatch: pytest.MonkeyPatch,
+    steps: tuple[str, ...],
+    status: int,
+    reason: str,
+    after: dict[str, object],
+) -> None:
+    # 退会の処理が読み始めたあとに、ほかの人の操作が保存されたとき。
+    race = _race(mysql_identity_app)
+    gate = _Gate()
+    monkeypatch.setattr("app.services.withdrawal.check_login", gate.wrap(check_login))
+    leaving, left = _spawn(race.withdraw)
+    assert gate.reached.wait(WAIT)
+    try:
+        assert [getattr(race, step)() for step in steps] == [302] * len(steps)
+    finally:
+        gate.release.set()
+    leaving.join(WAIT)
+    assert not leaving.is_alive()
+    code, page = left["result"]
+    assert (code, reason in page, race.after()) == (status, True, after)
+
+
+def test_t54_mysql_withdrawal_waits_for_an_invitation_in_flight(
+    mysql_identity_app: Flask, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 声かけが候補とつなぎ手の行をロックしている間に、退会が始まったとき。
+    race = _race(mysql_identity_app)
+    gate = _Gate()
+    monkeypatch.setattr(matching_service, "_rank", gate.wrap(matching_service._rank))
+    inviting, sent = _spawn(race.invite)
+    assert gate.reached.wait(WAIT)
+    leaving, left = _spawn(race.withdraw)
+    try:
+        _until_someone_waits_for_a_lock(race.app)
+    finally:
+        gate.release.set()
+    for thread in (inviting, leaving):
+        thread.join(WAIT)
+        assert not thread.is_alive()
+    code, page = left["result"]
+    assert (sent["result"], code, INVITED_REASON in page, race.after()) == (
+        302,
+        409,
+        True,
+        INVITED,
+    )
+
+
+def test_t54_mysql_invitation_waits_for_a_withdrawal_in_flight(
+    mysql_identity_app: Flask, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # 退会が消し終えて、まだ保存していない間に、声かけが始まったとき。
+    race = _race(mysql_identity_app)
+    gate = _Gate()
+    monkeypatch.setattr("app.services.withdrawal.record_audit", gate.wrap(record_audit))
+    leaving, left = _spawn(race.withdraw)
+    assert gate.reached.wait(WAIT)
+    inviting, sent = _spawn(race.invite)
+    try:
+        _until_someone_waits_for_a_lock(race.app)
+    finally:
+        gate.release.set()
+    for thread in (leaving, inviting):
+        thread.join(WAIT)
+        assert not thread.is_alive()
+    code, page = left["result"]
+    assert (code, "退会しました" in page, sent["result"], race.after()) == (
+        200,
+        True,
+        409,
+        GONE,
+    )
