@@ -285,18 +285,6 @@ a:hover {
 }
 
 /* Home: Misregistered Ledger hero */
-@keyframes misreg-settle {
-  from {
-    text-shadow:
-      -4px -1px 0 color-mix(in srgb, var(--misreg-c) 60%, transparent),
-      4px 1px 0 color-mix(in srgb, var(--misreg-m) 60%, transparent);
-  }
-  to {
-    text-shadow:
-      -1px 0 0 color-mix(in srgb, var(--misreg-c) 45%, transparent),
-      1px 0 0 color-mix(in srgb, var(--misreg-m) 45%, transparent);
-  }
-}
 
 .hero {
   position: relative;
@@ -309,47 +297,7 @@ a:hover {
   background: var(--surface);
 }
 
-/* Base layer: paper ledger rules (horizontal rows + wide column rules) */
-.hero::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image:
-    repeating-linear-gradient(
-      0deg,
-      transparent 0 27px,
-      color-mix(in srgb, var(--line) 65%, transparent) 27px 28px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      transparent 0 119px,
-      color-mix(in srgb, var(--line) 55%, transparent) 119px 120px
-    );
-}
-
-/* Overlay layer: slightly misregistered data grid (carbon-copy offset) */
-.hero::after {
-  content: "";
-  position: absolute;
-  inset: -4px;
-  z-index: 0;
-  pointer-events: none;
-  transform: translate(3px, 3px);
-  background-image:
-    repeating-linear-gradient(
-      0deg,
-      transparent 0 27px,
-      color-mix(in srgb, var(--misreg-c) 16%, transparent) 27px 28px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      transparent 0 27px,
-      color-mix(in srgb, var(--misreg-m) 10%, transparent) 27px 28px
-    );
-}
-
+/* トップの面には罫線もずれた格子も引かない（#95）。帳簿らしさはページの余白の升目で出す。 */
 .hero-copy {
   position: relative;
   z-index: 1;
@@ -372,16 +320,6 @@ a:hover {
   max-width: 11em;
   margin: 0 0 18px;
   word-break: keep-all;
-  text-shadow:
-    -1px 0 0 color-mix(in srgb, var(--misreg-c) 45%, transparent),
-    1px 0 0 color-mix(in srgb, var(--misreg-m) 45%, transparent);
-  animation: misreg-settle 0.35s ease-out both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero h1 {
-    animation: none;
-  }
 }
 
 .hero-copy > p:not(.audience) {
@@ -602,9 +540,6 @@ a:hover {
   padding: 0.9rem 0 0.8rem;
   border-top: 3px double var(--line);
   border-bottom: 1px solid var(--line);
-  text-shadow:
-    -1px 0 0 color-mix(in srgb, var(--misreg-c) 45%, transparent),
-    1px 0 0 color-mix(in srgb, var(--misreg-m) 45%, transparent);
 }
 
 .page h2 {

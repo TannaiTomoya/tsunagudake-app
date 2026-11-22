@@ -83,10 +83,31 @@ def test_kidou_layer_uses_theme_tokens_and_respects_reduced_motion() -> None:
     outside, guarded = css.split("@media (prefers-reduced-motion: no-preference)")
     assert "animation:" in guarded
     assert not re.search(r"animation:(?!\s*none)", outside)
-    # 飾りの色を文字に使うのは、グリッチで重ねる見出しの写し（疑似要素）だけ。
+    # 飾りの色を文字に使うなら、疑似要素の飾りだけ（今は使っていない）。
     for line in css.splitlines():
         if re.search(r"(?<![-\w])color: var\(--(misreg|volt)", line):
             assert "::before" in line or "::after" in line
+
+
+def test_top_heading_and_figure_stay_still_and_single() -> None:
+    # トップの見出しは最初から単色・一重。説明文の後ろに面や線を重ねない（#95）。
+    index = Path("app/templates/public/index.html").read_text()
+    kidou = Path("app/static/css/kidou.css").read_text()
+    theme = Path("app/static/css/theme.css").read_text()
+    figure = Path("app/templates/public/ledger-figure.svg").read_text()
+    assert "data-text" not in index
+    for gone in (".hero::before", ".hero::after", "mix-blend-mode"):
+        assert gone not in kidou and gone not in theme
+    assert "repeating-linear-gradient" not in kidou
+    for gone in ("kidou-band", "kidou-title", "kidou-boot", "misreg-settle"):
+        assert gone not in kidou and gone not in theme
+    # 見出し（h1・h2）の規則に、文字の影を付けない。
+    for css in (kidou, theme):
+        for selector, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+            if re.search(r"\bh[12]\b", selector):
+                assert "text-shadow" not in body, selector.strip()
+    # 帳簿図は主線を一組だけ。ずれた色の線を引かない。
+    assert "misreg" not in figure
 
 
 def test_t49_chart_geometry_stays_inside_the_frame() -> None:
