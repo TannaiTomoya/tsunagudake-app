@@ -2,12 +2,12 @@
    色は theme.css の変数だけを使う。主役は、案内役マスと見出しのグリッチの2つ。
    発光は、主の操作と今いる所だけ。動きは決めた場所だけで、reduced-motion では止める。 */
 
-/* ---- 地：ほぼ黒の藍に、うすい升目 ---- */
+/* ---- 地：淡い灰色に、文字を邪魔しないうすい升目 ---- */
 body {
   background-color: var(--canvas);
   background-image:
-    linear-gradient(color-mix(in srgb, var(--line) 34%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--line) 34%, transparent) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--line) 18%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--line) 18%, transparent) 1px, transparent 1px);
   background-size: 32px 32px;
   background-attachment: fixed;
 }
@@ -55,7 +55,7 @@ body {
       right 16% top 34% / min(34%, 200px) 44% no-repeat,
     linear-gradient(color-mix(in srgb, var(--volt) 30%, transparent), color-mix(in srgb, var(--volt) 30%, transparent))
       right -2% top 52% / min(30%, 180px) 40% no-repeat;
-  mix-blend-mode: screen;
+  mix-blend-mode: multiply;
 }
 /* 走査線と細かい升目 */
 .hero::after {
@@ -156,7 +156,7 @@ body {
   color: var(--on-action);
   font-weight: 800;
   letter-spacing: 0.02em;
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--action) 55%, transparent));
+  filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--action) 30%, transparent));
 }
 .action:not(.quiet):hover,
 .page [role="button"]:not(.secondary):not([aria-disabled="true"]):hover,
@@ -165,7 +165,7 @@ body {
   background:
     linear-gradient(135deg, transparent 9px, var(--action-hover) 9.5px) left / 51% 100% no-repeat,
     linear-gradient(-45deg, transparent 9px, var(--action-hover) 9.5px) right / 51% 100% no-repeat;
-  filter: drop-shadow(0 0 16px color-mix(in srgb, var(--action) 75%, transparent));
+  filter: drop-shadow(0 2px 10px color-mix(in srgb, var(--action) 40%, transparent));
 }
 .action.quiet,
 .page .secondary.outline,
@@ -180,10 +180,11 @@ body {
 /* ---- 今いる所：光る ---- */
 .rail nav a[aria-current="page"] {
   color: var(--action);
-  text-shadow: 0 0 12px color-mix(in srgb, var(--action) 70%, transparent);
+  text-decoration: underline 2px;
+  text-underline-offset: 0.3em;
   border-color: var(--action);
 }
-.brand-mark { filter: drop-shadow(0 0 6px color-mix(in srgb, var(--action) 45%, transparent)); }
+.brand-mark { filter: drop-shadow(0 0 4px color-mix(in srgb, var(--action) 30%, transparent)); }
 
 /* ---- 表：見出しの行にだけ色を置く ---- */
 .page table thead th {
@@ -200,12 +201,12 @@ body {
 .page :is(input, textarea, select):focus-visible,
 .guide-ask-row input:focus-visible {
   border-color: var(--action);
-  box-shadow: 0 0 0 1px var(--action), 0 0 14px color-mix(in srgb, var(--action) 35%, transparent);
+  box-shadow: 0 0 0 2px var(--action), 0 0 10px color-mix(in srgb, var(--action) 25%, transparent);
 }
 
 /* ---- 案内役マス：主役として少しだけ光る ---- */
-.hero-masu .masu { filter: drop-shadow(0 0 18px color-mix(in srgb, var(--action) 45%, transparent)); }
-.guide-dock .masu { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--action) 40%, transparent)); }
+.hero-masu .masu { filter: drop-shadow(0 4px 12px color-mix(in srgb, var(--action) 30%, transparent)); }
+.guide-dock .masu { filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--action) 30%, transparent)); }
 .guide-ask > summary { color: var(--action); }
 /* 手紙の印：メッセージを送ったとき・届いているときだけ、マスが封筒を持つ。 */
 .masu-letter {

@@ -6,11 +6,11 @@
 {% set navigation = [('public.index', 'ホーム', 'home'), ('public.how', 'しくみ', 'book')] %}
 {% set guide_lines = guide_scripts.get(guide_endpoint | default(request.endpoint), ()) %}
 <!doctype html>
-<html lang="ja" data-theme="dark">
+<html lang="ja" data-theme="light">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#05070f">
+    <meta name="theme-color" content="#eef1f6">
     <meta name="apple-mobile-web-app-title" content="{{ brand }}">
     <link rel="icon" href="{{ url_for('public.favicon') }}" type="image/x-icon">
     <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='icons/masu-180.png') }}">
