@@ -35,6 +35,44 @@ def test_t31_theme_contrast(foreground: str, background: str) -> None:
     assert (high + 0.05) / (low + 0.05) >= 4.5
 
 
+@pytest.mark.parametrize(
+    ("foreground", "background"),
+    [
+        ("line", "surface"),
+        ("line", "canvas"),
+        ("line", "raised"),
+        ("action", "canvas"),
+        ("action", "rail"),
+        ("on-action", "action-hover"),
+    ],
+)
+def test_t31_borders_and_focus_stand_out(foreground: str, background: str) -> None:
+    # 入力欄の境界とフォーカスの枠は、隣の色と3:1以上（#93）。
+    css = Path("app/static/css/theme.css").read_text()
+    palette = dict(re.findall(r"--([a-z-]+):\s*(#[\da-f]{6});", css))
+    low, high = sorted(luminance(palette[name]) for name in (foreground, background))
+    assert (high + 0.05) / (low + 0.05) >= 3
+
+
+def test_light_scheme_is_the_default_for_projection() -> None:
+    # 明るい会場で投影しても読めるよう、初期表示は明るい配色（#93）。
+    base = Path("app/templates/base.html").read_text()
+    theme = Path("app/static/css/theme.css").read_text()
+    assert 'data-theme="light"' in base and 'data-theme="dark"' not in base
+    color = re.search(r'name="theme-color" content="(#[\da-f]{6})"', base)
+    palette = dict(re.findall(r"--([a-z-]+):\s*(#[\da-f]{6});", theme))
+    assert color and color.group(1) == palette["canvas"]
+    assert ':root[data-theme="light"]' in theme and "color-scheme: light;" in theme
+    assert luminance(palette["canvas"]) > 0.8 and luminance(palette["text"]) < 0.05
+    # 入力部品のアイコンも、白い地で見える色にする。
+    for icon in ("chevron", "calendar"):
+        svg = Path(f"app/static/icons/{icon}.svg").read_text()
+        stroke = re.search(r'stroke="(#[\da-f]{6})"', svg)
+        assert stroke
+        low, high = sorted(luminance(c) for c in (stroke.group(1), palette["surface"]))
+        assert (high + 0.05) / (low + 0.05) >= 3
+
+
 def test_kidou_layer_uses_theme_tokens_and_respects_reduced_motion() -> None:
     css = Path("app/static/css/kidou.css").read_text()
     theme = Path("app/static/css/theme.css").read_text()
