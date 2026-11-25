@@ -383,7 +383,8 @@ class TalentSkill(Created, Base):
         UniqueConstraint("talent_id", "kind", "tag"),
         CheckConstraint(
             "(kind = 'tool' AND tag IN "
-            "('freee', 'mf', 'yayoi', 'excel', 'sheets', 'python', 'other')) "
+            "('freee', 'mf', 'yayoi', 'jdl', 'tkc', 'mjs', "
+            "'excel', 'sheets', 'python', 'other')) "
             "OR (kind = 'strength' AND tag IN "
             "('collect', 'check', 'entry', 'report', 'tooling', 'teaching'))",
             name="talent_skill_valid_tag",
