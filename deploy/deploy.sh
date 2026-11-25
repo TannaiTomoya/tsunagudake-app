@@ -66,6 +66,9 @@ for attempt in {1..30}; do
     if status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
         --max-time 3 -- "$base_url/healthz") && [[ $status == 200 ]]; then
         echo "更新後の /healthz が HTTP 200 を返しました。"
+        # 反映が成功したときだけ、古い反映前の控えを消す（#106）。消せなくても反映は成功のまま。
+        bash deploy/prune_deploy_backups.sh "$backup_dir" ||
+            echo "古い反映前の控えを消せませんでした。runbook §12.3 を見てください。" >&2
         exit 0
     fi
     if (( attempt < 30 )); then

@@ -1,6 +1,6 @@
 # 公開の手順（Xserver VPS） — つなぐだけ（Tsunagudake）
 
-版1.4・2026-11-21。構成と理由は [02 技術仕様書 §11](02-technical-spec.md)。
+版1.5・2026-11-25。構成と理由は [02 技術仕様書 §11](02-technical-spec.md)。
 
 **この手順は、本人が自分で打つ。** AI エージェントは本番に SSH しない。分からない所は、候補を出させて、読んでから自分で打つ。
 前提：XServer VPS クラウド（XServer VPS は新規受付を止めていた）、Ubuntu 26.04、DB は VPS の中の MySQL、HTTPS、ドメインあり。Ubuntu 24.04 でも、同じ手順で進められる（版1.1 で確かめた）。
@@ -408,9 +408,32 @@ cd /var/www/tsunagudake-app
 bash deploy/deploy.sh https://tsunagudake.example.jp
 ```
 
-更新前に DB の gzip を保存し（ここだけ `umask 077`）、`main` を対象コミットへ早送りして、`app/static` を読める権限に直し、`uv sync --frozen --no-dev`、`flask db upgrade`、`flask sync-municipalities`（市町村の無い行を足すだけ）、再起動を行います。公開 `/healthz` が HTTP 200 を返さなければ Actions に失敗が残ります。自動実行では Actions 側と VPS 側で `main` を照合し、進んでいた場合は反映を見送ります。
+更新前に DB の gzip を保存し（ここだけ `umask 077`）、`main` を対象コミットへ早送りして、`app/static` を読める権限に直し、`uv sync --frozen --no-dev`、`flask db upgrade`、`flask sync-municipalities`（市町村の無い行を足すだけ）、再起動を行います。公開 `/healthz` が HTTP 200 を返さなければ Actions に失敗が残ります。成功すると、古い反映の前の控えを整理します（§12.3）。自動実行では Actions 側と VPS 側で `main` を照合し、進んでいた場合は反映を見送ります。
 
 更新用の控えは `~/.local/state/tsunagudake/backups/` に保存されます。変更は GitHub の PR で行い、VPS 上では手順どおりに取り込みます。
+
+### 12.3 反映の前の控えの保存期間
+
+**この節は、実機ではまだ確かめていません。**
+
+反映が成功すると（公開 `/healthz` が 200）、`deploy/prune_deploy_backups.sh` が反映の前の控えを整理します。
+
+- **14日より古い控えを消す。ただし、新しい順に3つは、古くても残す**（しばらく反映が無くても、戻すための控えを残すため）
+- 消すのは `deploy.sh` が作る名前の形（`20261125T000000Z-xxxxxxxx.sql.gz`）のふつうのファイルだけ。ほかのファイルとリンクは消さない
+- 控えの取得・移行・再起動・`/healthz` のどれかが失敗したときは、何も消さない
+- 3つは日数の上限なしで残る。毎日の控え（§13。サーバーの中7日・外30日）とは別のフォルダ
+
+**この版を入れる前に、今ある控えを確かめます。** この版が `main` に入った回の反映では、まだ古い `deploy.sh` が動くので消えません。**その次の反映から**、14日より古い控え（新しい順の3つを除く）が自動で消えます。残したいものがあれば、先に別の場所へ写します。
+
+```bash
+ls -l ~/.local/state/tsunagudake/backups/
+```
+
+反映を待たずに整理するときは、一覧を確かめてから、本人が実行します。
+
+```bash
+cd /var/www/tsunagudake-app && bash deploy/prune_deploy_backups.sh ~/.local/state/tsunagudake/backups
+```
 
 ## 13. バックアップと復元の練習
 
