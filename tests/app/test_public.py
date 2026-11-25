@@ -1,3 +1,4 @@
+from pathlib import Path
 from struct import unpack
 from unittest.mock import patch
 from urllib.parse import urljoin
@@ -45,9 +46,17 @@ def test_t32_bad_host(client: FlaskClient) -> None:
 def test_home_uses_local_styles(client: FlaskClient) -> None:
     response = client.get("/")
     assert response.status_code == 200
-    assert "会計ソフトに詳しい人を探す" in response.get_data(as_text=True).replace(
-        "<wbr>", ""
-    )
+    plain = response.get_data(as_text=True).replace("<wbr>", "")
+    assert "資料回収に、付き合う人をつなぐ" in plain
+    # 何をするか・事務所がすること・料金と信頼を、トップで読める（#98）。
+    for phrase in (
+        "週1回通う会計とITがわかる人",
+        "回るまで付き合います。",
+        "事務所は困りごとを書き、候補から選び、減った時間を確かめるだけ。",
+        "減らなければ0円。",
+        "合意は台帳に残ります。",
+    ):
+        assert phrase in plain
     for phrase in (
         "資料回収の試算例（数字は架空）",
         "顧問先の相談に",
@@ -57,6 +66,13 @@ def test_home_uses_local_styles(client: FlaskClient) -> None:
     for path in ("/static/vendor/pico.min.css", "/static/css/theme.css"):
         assert path in response.get_data(as_text=True)
         assert client.get(path).status_code == 200
+
+
+def test_screens_never_say_matching() -> None:
+    # 画面の言葉は「候補」。「マッチング」は使わない（#98）。
+    for path in Path("app").rglob("*"):
+        if path.suffix in {".html", ".js", ".py", ".json", ".svg"}:
+            assert "マッチング" not in path.read_text(), str(path)
 
 
 @pytest.mark.parametrize(
